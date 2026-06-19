@@ -115,7 +115,8 @@
   button:disabled { opacity: 0.5; cursor: not-allowed; }
   button.ghost { background: transparent; }
 
-  .panels {
+  /* ── Content grid ─────────────────────────────────────────────────── */
+  .content-grid {
     flex: 1;
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -123,8 +124,16 @@
     min-height: 360px;
   }
   @media (max-width: 900px) {
-    .panels { grid-template-columns: 1fr; }
+    .content-grid { grid-template-columns: 1fr; }
   }
+  .left-col, .right-col {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 0;
+  }
+  .left-col .panel { flex: 1; min-height: 240px; }
+
   .panel {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -247,23 +256,116 @@
   }
   .output-box textarea::placeholder { color: var(--muted); }
 
-  #log {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 8px 12px;
-    max-height: 140px;
-    overflow: auto;
+  /* ── Status / summary (left column, under input) ─────────────────── */
+  #statusArea {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
     font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
     font-size: 12px;
     line-height: 1.6;
   }
-  #log:empty { display: none; }
-  .log-line { padding: 1px 0; }
-  .log-info  { color: var(--muted); }
-  .log-ok    { color: var(--green); }
-  .log-warn  { color: var(--yellow); }
-  .log-error { color: var(--red); }
+  #messages {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    max-height: 100px;
+    overflow: auto;
+  }
+  #messages:empty { display: none; }
+  .msg-line { padding: 1px 0; }
+  .msg-info  { color: var(--muted); }
+  .msg-ok    { color: var(--green); }
+  .msg-warn  { color: var(--yellow); }
+  .msg-error { color: var(--red); }
+
+  #summary {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    flex-shrink: 0;
+  }
+  #summary[hidden] { display: none; }
+  #summary > summary {
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    user-select: none;
+    color: var(--text);
+  }
+  #summary > summary::-webkit-details-marker { display: none; }
+  #summary > summary::marker { content: ""; }
+  .summary-text { flex: 1; color: var(--green); }
+  .summary-toggle {
+    color: var(--muted);
+    font-size: 11px;
+    white-space: nowrap;
+  }
+  #summary[open] .summary-toggle::before { content: "▲ ซ่อน"; }
+  #summary:not([open]) .summary-toggle::before { content: "▼ คลิกเพื่อดูรายละเอียด"; }
+  .summary-tree {
+    margin-top: 10px;
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+    max-height: 360px;
+    overflow-y: auto;
+  }
+  .tree-section { margin-bottom: 12px; }
+  .tree-section:last-child { margin-bottom: 0; }
+  .tree-label {
+    font-weight: 600;
+    color: var(--accent2);
+    margin-bottom: 4px;
+    font-size: 12px;
+  }
+  .tree-page {
+    margin: 2px 0;
+    padding-left: 4px;
+  }
+  .tree-page > summary {
+    cursor: pointer;
+    list-style: none;
+    color: var(--text);
+    padding: 2px 0;
+    user-select: none;
+  }
+  .tree-page > summary::-webkit-details-marker { display: none; }
+  .tree-page > summary::marker { content: ""; }
+  .tree-page > summary::before {
+    content: "▶ ";
+    color: var(--muted);
+    font-size: 10px;
+    margin-right: 4px;
+    display: inline-block;
+    width: 12px;
+  }
+  .tree-page[open] > summary::before { content: "▼ "; }
+  .section-list {
+    margin: 4px 0 6px 24px;
+    padding: 0;
+    list-style-position: outside;
+    list-style-type: decimal;
+    color: var(--muted);
+  }
+  .section-list li { padding: 1px 0; }
+  .sec-v3 {
+    color: var(--yellow);
+    font-weight: 500;
+  }
+  .sec-arrow { color: var(--muted); }
+  .sec-kind {
+    color: var(--accent2);
+    font-weight: 500;
+  }
+  .sec-nick {
+    color: var(--muted);
+    font-style: italic;
+  }
 </style>
 </head>
 <body>
@@ -288,67 +390,84 @@
         <option value="zones">Zones only</option>
       </select>
     </label>
-    <button id="convert" class="primary" disabled>Convert →</button>
+    <button id="convert" class="primary" disabled title="กำลังโหลด Python runtime… กรุณารอสักครู่">Convert →</button>
     <button id="clear" class="ghost" type="button">Clear</button>
   </div>
 
-  <div class="panels">
-    <section class="panel">
-      <header>
-        <h2>Input · v3 JSON</h2>
-        <span id="inputInfo" class="subtitle" style="color:var(--muted);font-size:12px"></span>
-      </header>
-      <textarea id="input" spellcheck="false" placeholder='Paste v3 JSON here. Examples:
+  <div class="content-grid">
+
+    <!-- LEFT: input + status/summary -->
+    <div class="left-col">
+      <section class="panel">
+        <header>
+          <h2>Input · v3 JSON</h2>
+          <span id="inputInfo" class="subtitle" style="color:var(--muted);font-size:12px"></span>
+        </header>
+        <textarea id="input" spellcheck="false" placeholder='Paste v3 JSON here. Examples:
 {"name":"ParagraphSection","props":{...}}
 [{"name":"Headline","props":{...}}, {"name":"ParagraphSection","props":{...}}]
 {"shop":{...}, "customRoutes":[...]}   ← full site'></textarea>
-    </section>
+      </section>
 
-    <section class="panel">
-      <header>
-        <h2>Output · v4 JSON</h2>
-      </header>
-      <div class="output-scroll">
-
-        <!-- Box 1 · Pages / Output -->
-        <div class="output-box" id="boxPages">
-          <div class="box-header">
-            <h3 id="titlePages">📄 Output</h3>
-            <button class="copy-btn primary-action" data-target="outPages" disabled>📋 Copy</button>
-          </div>
-          <div class="box-picker" id="pickerRow" hidden>
-            <label for="pagePicker">หน้า</label>
-            <select id="pagePicker"></select>
-          </div>
-          <textarea id="outPages" readonly spellcheck="false"
-                    placeholder="Converted v4 JSON will appear here."></textarea>
-        </div>
-
-        <!-- Box 2 · Header -->
-        <div class="output-box" id="boxHeader" hidden>
-          <div class="box-header">
-            <h3 id="titleHeader">🔝 Header</h3>
-            <button class="copy-btn primary-action" data-target="outHeader" disabled>📋 Copy</button>
-          </div>
-          <textarea id="outHeader" readonly spellcheck="false"
-                    placeholder="header_zone.children (without wrapping [ ]) — paste into v4 header_zone.children."></textarea>
-        </div>
-
-        <!-- Box 3 · Footer -->
-        <div class="output-box" id="boxFooter" hidden>
-          <div class="box-header">
-            <h3 id="titleFooter">🔻 Footer</h3>
-            <button class="copy-btn primary-action" data-target="outFooter" disabled>📋 Copy</button>
-          </div>
-          <textarea id="outFooter" readonly spellcheck="false"
-                    placeholder="footer_zone.children (without wrapping [ ]) — paste into v4 footer_zone.children."></textarea>
-        </div>
-
+      <div id="statusArea">
+        <div id="messages" aria-live="polite"></div>
+        <details id="summary" hidden>
+          <summary>
+            <span class="summary-text" id="summaryText"></span>
+            <span class="summary-toggle"></span>
+          </summary>
+          <div class="summary-tree" id="summaryTree"></div>
+        </details>
       </div>
-    </section>
-  </div>
+    </div>
 
-  <div id="log" aria-live="polite"></div>
+    <!-- RIGHT: output (3 stacked boxes) -->
+    <div class="right-col">
+      <section class="panel" style="flex:1">
+        <header>
+          <h2>Output · v4 JSON</h2>
+        </header>
+        <div class="output-scroll">
+
+          <!-- Box 1 · Pages / Output -->
+          <div class="output-box" id="boxPages">
+            <div class="box-header">
+              <h3 id="titlePages">📄 Output</h3>
+              <button class="copy-btn primary-action" data-target="outPages" disabled>📋 Copy</button>
+            </div>
+            <div class="box-picker" id="pickerRow" hidden>
+              <label for="pagePicker">หน้า</label>
+              <select id="pagePicker"></select>
+            </div>
+            <textarea id="outPages" readonly spellcheck="false"
+                      placeholder="Converted v4 JSON will appear here."></textarea>
+          </div>
+
+          <!-- Box 2 · Header -->
+          <div class="output-box" id="boxHeader" hidden>
+            <div class="box-header">
+              <h3 id="titleHeader">🔝 Header</h3>
+              <button class="copy-btn primary-action" data-target="outHeader" disabled>📋 Copy</button>
+            </div>
+            <textarea id="outHeader" readonly spellcheck="false"
+                      placeholder="header_zone.children (without wrapping [ ]) — paste into v4 header_zone.children."></textarea>
+          </div>
+
+          <!-- Box 3 · Footer -->
+          <div class="output-box" id="boxFooter" hidden>
+            <div class="box-header">
+              <h3 id="titleFooter">🔻 Footer</h3>
+              <button class="copy-btn primary-action" data-target="outFooter" disabled>📋 Copy</button>
+            </div>
+            <textarea id="outFooter" readonly spellcheck="false"
+                      placeholder="footer_zone.children (without wrapping [ ]) — paste into v4 footer_zone.children."></textarea>
+          </div>
+
+        </div>
+      </section>
+    </div>
+
+  </div>
 </main>
 
 <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
@@ -356,7 +475,7 @@
 (async function () {
   const $ = (id) => document.getElementById(id);
   const statusEl = $("status");
-  const logEl    = $("log");
+  const messagesEl = $("messages");
   const inputEl  = $("input");
   const modeEl   = $("mode");
   const convertBtn = $("convert");
@@ -376,21 +495,38 @@
   const outFooter  = $("outFooter");
   const copyButtons = Array.from(document.querySelectorAll(".copy-btn"));
 
+  const summaryEl   = $("summary");
+  const summaryText = $("summaryText");
+  const summaryTree = $("summaryTree");
+
   let pyodide = null;
+  let pyodideReady = false;
   let state = { pages: [], headerKids: [], footerKids: [] };
 
   function setStatus(text, type) {
     statusEl.textContent = text;
     statusEl.dataset.type = type || "";
   }
-  function logLine(msg, kind) {
+  function logMsg(msg, kind) {
     const line = document.createElement("div");
-    line.className = "log-line log-" + (kind || "info");
+    line.className = "msg-line msg-" + (kind || "info");
     line.textContent = msg;
-    logEl.appendChild(line);
-    logEl.scrollTop = logEl.scrollHeight;
+    messagesEl.appendChild(line);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
   }
-  function clearLog() { logEl.innerHTML = ""; }
+  function clearMessages() { messagesEl.innerHTML = ""; }
+  function hideSummary() {
+    summaryEl.hidden = true;
+    summaryEl.open = false;
+    summaryText.textContent = "";
+    summaryTree.innerHTML = "";
+  }
+  function showSummary(text, treeHTML) {
+    summaryText.textContent = text;
+    summaryTree.innerHTML = treeHTML;
+    summaryEl.hidden = false;
+    summaryEl.open = false;
+  }
 
   function updateCopyButtons() {
     copyButtons.forEach(btn => {
@@ -408,13 +544,15 @@
     if (!resp.ok) throw new Error("Could not fetch converter.py (HTTP " + resp.status + ")");
     const code = await resp.text();
     pyodide.runPython('__name__ = "converter_module"\n' + code);
+    pyodideReady = true;
     setStatus("Ready", "ready");
     convertBtn.disabled = false;
-    logLine("Python runtime ready. Paste JSON and click Convert.", "info");
+    convertBtn.removeAttribute("title");
+    logMsg("Python runtime ready. Paste JSON and click Convert.", "info");
   } catch (e) {
     setStatus("Failed to load", "error");
-    logLine("Init failed: " + e.message, "error");
-    logLine("Tip: serve over http(s). For local testing: `python3 -m http.server 8000`.", "warn");
+    logMsg("Init failed: " + e.message, "error");
+    logMsg("Tip: serve over http(s). For local testing: `python3 -m http.server 8000`.", "warn");
     console.error(e);
     return;
   }
@@ -486,7 +624,7 @@
     return { result, errors };
   }
 
-  // ── Page picker render ────────────────────────────────────────────────
+  // ── Page picker ───────────────────────────────────────────────────────
   function renderPagesPane() {
     const sel = pagePicker.value;
     if (!state.pages.length) { outPages.value = ""; return; }
@@ -524,6 +662,115 @@
     pagePicker.value = "__all__";
   }
 
+  // ── Summary tree builders ─────────────────────────────────────────────
+  function esc(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+
+  function sectionListHTML(v4Sections, v3Sections) {
+    return `<ol class="section-list">${
+      v4Sections.map((sec, i) => {
+        const v3 = v3Sections && v3Sections[i] ? v3Sections[i].name : null;
+        const kind = sec.kind || sec.type || "?";
+        const nick = sec.nickname || "";
+        const v3HTML   = v3 ? `<span class="sec-v3">${esc(v3)}</span> <span class="sec-arrow">→</span> ` : "";
+        const kindHTML = `<span class="sec-kind">${esc(kind)}</span>`;
+        const nickHTML = nick ? ` <span class="sec-nick">(${esc(nick)})</span>` : "";
+        return `<li>${v3HTML}${kindHTML}${nickHTML}</li>`;
+      }).join("")
+    }</ol>`;
+  }
+
+  function pageBlockHTML(page, v3Layouts) {
+    const children = ((page.component || {}).children) || [];
+    const path = page.path || "?";
+    const nick = page.nickname || "";
+    const label = nick ? `${path} — ${nick}` : path;
+    return `
+      <details class="tree-page">
+        <summary>${esc(label)} <span class="sec-nick">· ${children.length} sec</span></summary>
+        ${sectionListHTML(children, v3Layouts)}
+      </details>
+    `;
+  }
+
+  function buildSummary(mode, result, v3Input) {
+    if (mode === "site") {
+      const pages = result.pages || [];
+      const headerKids = ((result.header_zone || {}).children) || [];
+      const footerKids = ((result.footer_zone || {}).children) || [];
+      const totalSec = pages.reduce(
+        (s, p) => s + (((p.component || {}).children) || []).length, 0
+      );
+      const text = `✅ site → ${pages.length} pages · ${totalSec} sections · header ${headerKids.length} · footer ${footerKids.length}`;
+      const tree =
+        `<div class="tree-section">
+           <div class="tree-label">📄 Pages (${pages.length})</div>
+           ${pages.map(p => pageBlockHTML(p, null)).join("")}
+         </div>` +
+        (headerKids.length ? `<div class="tree-section">
+           <div class="tree-label">🔝 Header zone (${headerKids.length} sec)</div>
+           ${sectionListHTML(headerKids, null)}
+         </div>` : "") +
+        (footerKids.length ? `<div class="tree-section">
+           <div class="tree-label">🔻 Footer zone (${footerKids.length} sec)</div>
+           ${sectionListHTML(footerKids, null)}
+         </div>` : "");
+      return { text, tree };
+    }
+    if (mode === "zones") {
+      const headerKids = ((result.header_zone || {}).children) || [];
+      const footerKids = ((result.footer_zone || {}).children) || [];
+      const text = `✅ zones → header ${headerKids.length} · footer ${footerKids.length}`;
+      const tree =
+        (headerKids.length ? `<div class="tree-section">
+           <div class="tree-label">🔝 Header zone (${headerKids.length} sec)</div>
+           ${sectionListHTML(headerKids, null)}
+         </div>` : "") +
+        (footerKids.length ? `<div class="tree-section">
+           <div class="tree-label">🔻 Footer zone (${footerKids.length} sec)</div>
+           ${sectionListHTML(footerKids, null)}
+         </div>` : "");
+      return { text, tree };
+    }
+    if (mode === "page") {
+      const children = ((result.component || {}).children) || [];
+      const v3Layouts = (v3Input && v3Input.layouts) || null;
+      const text = `✅ page → ${children.length} sections`;
+      const tree = `<div class="tree-section">
+        <div class="tree-label">📑 Page sections (${children.length})</div>
+        ${sectionListHTML(children, v3Layouts)}
+      </div>`;
+      return { text, tree };
+    }
+    if (mode === "pages") {
+      const items = Array.isArray(result) ? result : [];
+      const v3Pages = Array.isArray(v3Input) ? v3Input : [];
+      const totalSec = items.reduce(
+        (s, p) => s + (((p.component || {}).children) || []).length, 0
+      );
+      const text = `✅ pages → ${items.length} pages · ${totalSec} sections`;
+      const tree = `<div class="tree-section">
+        <div class="tree-label">📄 Pages (${items.length})</div>
+        ${items.map((p, i) => pageBlockHTML(p, v3Pages[i] && v3Pages[i].layouts)).join("")}
+      </div>`;
+      return { text, tree };
+    }
+    // sections
+    const items = Array.isArray(result) ? result : [result];
+    const v3items = Array.isArray(v3Input) ? v3Input
+                    : (v3Input ? [v3Input] : []);
+    const text = `✅ sections → ${items.length} section${items.length === 1 ? "" : "s"}`;
+    const tree = `<div class="tree-section">
+      <div class="tree-label">📑 Sections (${items.length})</div>
+      ${sectionListHTML(items, v3items)}
+    </div>`;
+    return { text, tree };
+  }
+
+  // ── Reset / Convert ───────────────────────────────────────────────────
   function resetOutput() {
     outPages.value = "";
     outHeader.value = "";
@@ -538,10 +785,15 @@
     titleHeader.textContent = "🔝 Header";
     titleFooter.textContent = "🔻 Footer";
     updateCopyButtons();
+    hideSummary();
   }
 
   async function onConvert() {
-    clearLog();
+    if (!pyodideReady) {
+      logMsg("Python runtime is still loading. Please wait a moment.", "warn");
+      return;
+    }
+    clearMessages();
     resetOutput();
     inputInfo.textContent = "";
 
@@ -549,14 +801,14 @@
     try {
       data = parseInput(inputEl.value);
     } catch (e) {
-      logLine(e.message, "error");
+      logMsg(e.message, "error");
       return;
     }
 
     let mode = modeEl.value;
     if (mode === "auto") {
       mode = detectMode(data);
-      logLine("Auto-detected mode: " + mode, "info");
+      logMsg("Auto-detected mode: " + mode, "info");
     }
 
     setStatus("Converting…", "loading");
@@ -566,7 +818,7 @@
 
       if (errors && errors.length) {
         for (const [i, name, msg] of errors) {
-          logLine(`Skipped section ${i} (${name}): ${msg}`, "warn");
+          logMsg(`Skipped section ${i} (${name}): ${msg}`, "warn");
         }
       }
 
@@ -589,14 +841,6 @@
         boxHeader.hidden = false;
         boxFooter.hidden = false;
         pickerRow.hidden = false;
-
-        const totalSec = pages.reduce(
-          (sum, p) => sum + (((p.component || {}).children) || []).length, 0
-        );
-        logLine(
-          `Done. site → ${pages.length} pages · ${totalSec} sections · header ${headerKids.length} · footer ${footerKids.length}`,
-          "ok"
-        );
       } else if (mode === "zones") {
         const headerKids = ((result.header_zone || {}).children) || [];
         const footerKids = ((result.footer_zone || {}).children) || [];
@@ -614,8 +858,6 @@
         boxHeader.hidden = false;
         boxFooter.hidden = false;
         pickerRow.hidden = true;
-
-        logLine(`Done. zones → header ${headerKids.length} · footer ${footerKids.length}`, "ok");
       } else {
         outPages.value = JSON.stringify(result, null, 2);
         let label = "";
@@ -633,18 +875,21 @@
         boxHeader.hidden = true;
         boxFooter.hidden = true;
         pickerRow.hidden = true;
-
-        logLine(`Done. ${mode} → ${label}`, "ok");
       }
 
       updateCopyButtons();
+
+      // Build summary tree
+      const { text, tree } = buildSummary(mode, result, data);
+      showSummary(text, tree);
+
       setStatus("Ready", "ready");
     } catch (e) {
-      logLine("Conversion failed: " + (e.message || String(e)), "error");
+      logMsg("Conversion failed: " + (e.message || String(e)), "error");
       setStatus("Ready", "ready");
       console.error(e);
     } finally {
-      convertBtn.disabled = false;
+      convertBtn.disabled = !pyodideReady;
     }
   }
 
@@ -660,14 +905,14 @@
         btn.textContent = "✓ Copied!";
         setTimeout(() => (btn.textContent = original), 1200);
       } catch (e) {
-        logLine("Copy failed: " + e.message, "error");
+        logMsg("Copy failed: " + e.message, "error");
       }
     });
   });
   clearBtn.addEventListener("click", () => {
     inputEl.value = "";
     resetOutput();
-    clearLog();
+    clearMessages();
     inputInfo.textContent = "";
     inputEl.focus();
   });
