@@ -168,6 +168,46 @@
   }
   .panel textarea::placeholder { color: var(--muted); }
 
+  /* ── Tabs (output panel) ─────────────────────────────────────────── */
+  .tabs {
+    display: flex;
+    gap: 2px;
+    padding: 6px 8px 0;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+  }
+  .tab {
+    background: transparent;
+    border: 1px solid transparent;
+    border-bottom: none;
+    border-radius: 6px 6px 0 0;
+    padding: 6px 12px;
+    font-size: 12px;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .tab:hover:not(.active):not(:disabled) { color: var(--text); }
+  .tab.active {
+    background: var(--bg);
+    border-color: var(--border);
+    color: var(--text);
+    margin-bottom: -1px;
+    font-weight: 600;
+  }
+  .tab[hidden] { display: none; }
+  .picker-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .picker-row select { flex: 1; min-width: 0; }
+  .tab-pane[hidden] { display: none !important; }
+
   #log {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -192,7 +232,7 @@
 <header class="app">
   <div>
     <h1>converter2v4 <span class="tag">v3 → v4</span></h1>
-    <div class="subtitle">Paste v3 section/page/site JSON, click Convert, copy the v4 result.</div>
+    <div class="subtitle">Paste v3 JSON, click Convert. Site mode splits output into Pages / Header / Footer.</div>
   </div>
   <div id="status" data-type="loading">Loading Python runtime…</div>
 </header>
@@ -228,9 +268,23 @@
     <section class="panel">
       <header>
         <h2>Output · v4 JSON</h2>
-        <button id="copy" disabled>Copy</button>
+        <button id="copy" disabled>Copy current tab</button>
       </header>
-      <textarea id="output" spellcheck="false" readonly placeholder="Converted v4 JSON will appear here."></textarea>
+      <div class="tabs" role="tablist">
+        <button type="button" class="tab active" data-tab="pages" role="tab">📄 Output</button>
+        <button type="button" class="tab" data-tab="header" role="tab" hidden>🔝 Header</button>
+        <button type="button" class="tab" data-tab="footer" role="tab" hidden>🔻 Footer</button>
+      </div>
+      <div class="picker-row" id="pickerRow" hidden>
+        <label for="pagePicker">หน้า</label>
+        <select id="pagePicker"></select>
+      </div>
+      <textarea id="outPages" class="tab-pane" data-tab="pages" readonly spellcheck="false"
+                placeholder="Converted v4 JSON will appear here."></textarea>
+      <textarea id="outHeader" class="tab-pane" data-tab="header" readonly spellcheck="false"
+                placeholder="header_zone.children (without wrapping [ ]) — paste into v4 header_zone.children." hidden></textarea>
+      <textarea id="outFooter" class="tab-pane" data-tab="footer" readonly spellcheck="false"
+                placeholder="footer_zone.children (without wrapping [ ]) — paste into v4 footer_zone.children." hidden></textarea>
     </section>
   </div>
 
@@ -244,14 +298,25 @@
   const statusEl = $("status");
   const logEl    = $("log");
   const inputEl  = $("input");
-  const outputEl = $("output");
   const modeEl   = $("mode");
   const convertBtn = $("convert");
   const copyBtn    = $("copy");
   const clearBtn   = $("clear");
   const inputInfo  = $("inputInfo");
 
+  const tabsEl     = document.querySelector(".tabs");
+  const tabButtons = Array.from(document.querySelectorAll(".tab"));
+  const pickerRow  = $("pickerRow");
+  const pagePicker = $("pagePicker");
+  const outPages   = $("outPages");
+  const outHeader  = $("outHeader");
+  const outFooter  = $("outFooter");
+  const panes = { pages: outPages, header: outHeader, footer: outFooter };
+
   let pyodide = null;
+  let activeTab = "pages";
+  // Cached state from the last conversion (site mode)
+  let state = { pages: [], headerKids: [], footerKids: [] };
 
   function setStatus(text, type) {
     statusEl.textContent = text;
@@ -266,6 +331,26 @@
   }
   function clearLog() { logEl.innerHTML = ""; }
 
+  function setTabTitle(tab, label) {
+    const btn = tabButtons.find(b => b.dataset.tab === tab);
+    if (btn) btn.textContent = label;
+  }
+  function showTab(tab, visible) {
+    const btn = tabButtons.find(b => b.dataset.tab === tab);
+    if (btn) btn.hidden = !visible;
+  }
+  function activateTab(tab) {
+    activeTab = tab;
+    tabButtons.forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
+    Object.entries(panes).forEach(([k, el]) => { el.hidden = (k !== tab); });
+    pickerRow.hidden = !(tab === "pages" && state.pages.length > 0);
+  }
+  tabsEl.addEventListener("click", (e) => {
+    const btn = e.target.closest(".tab");
+    if (!btn || btn.hidden) return;
+    activateTab(btn.dataset.tab);
+  });
+
   // ── Boot ───────────────────────────────────────────────────────────────
   try {
     setStatus("Loading Python runtime…", "loading");
@@ -274,7 +359,6 @@
     const resp = await fetch("converter.py", { cache: "no-cache" });
     if (!resp.ok) throw new Error("Could not fetch converter.py (HTTP " + resp.status + ")");
     const code = await resp.text();
-    // Prevent main() at module bottom (`if __name__ == "__main__": main()`) from running.
     pyodide.runPython('__name__ = "converter_module"\n' + code);
     setStatus("Ready", "ready");
     convertBtn.disabled = false;
@@ -282,7 +366,7 @@
   } catch (e) {
     setStatus("Failed to load", "error");
     logLine("Init failed: " + e.message, "error");
-    logLine("Tip: this page needs to be served over http(s). If you opened the file directly (file://), run `python3 -m http.server 8000` in this folder and open http://localhost:8000/converter2v4.html", "warn");
+    logLine("Tip: serve over http(s). For local testing: `python3 -m http.server 8000`.", "warn");
     console.error(e);
     return;
   }
@@ -291,14 +375,10 @@
   function parseInput(raw) {
     raw = raw.trim().replace(/\[\s*\.\.\s*\]/g, "[]");
     if (!raw) throw new Error("Input is empty.");
-    try {
-      return JSON.parse(raw);
-    } catch (e1) {
-      try {
-        return JSON.parse("[" + raw + "]");
-      } catch (e2) {
-        throw new Error("Could not parse JSON: " + e1.message);
-      }
+    try { return JSON.parse(raw); }
+    catch (e1) {
+      try { return JSON.parse("[" + raw + "]"); }
+      catch (e2) { throw new Error("Could not parse JSON: " + e1.message); }
     }
   }
 
@@ -318,17 +398,15 @@
     return "sections";
   }
 
-  // ── Run conversion ─────────────────────────────────────────────────────
+  // ── Run conversion in Python ──────────────────────────────────────────
   async function runConversion(mode, data) {
-    // Hand JS data to Python as native dict/list.
     pyodide.globals.set("_input", pyodide.toPy(data));
-
     let snippet;
     if (mode === "site") {
       snippet =
-        "pages = convert_site(_input)\n" +
-        "zones = convert_zones(_input)\n" +
-        "_result = {'pages': pages, **zones}\n" +
+        "_pages = convert_site(_input)\n" +
+        "_zones = convert_zones(_input)\n" +
+        "_result = {'pages': _pages, **_zones}\n" +
         "_errors = []\n";
     } else if (mode === "zones") {
       snippet = "_result = convert_zones(_input)\n_errors = []\n";
@@ -339,43 +417,86 @@
     } else if (mode === "page") {
       snippet = "_result = convert_page(_input)\n_errors = []\n";
     } else {
-      // sections (single or list)
       snippet =
         "if isinstance(_input, list):\n" +
-        "    _result = []\n" +
-        "    _errors = []\n" +
+        "    _result = []\n    _errors = []\n" +
         "    for i, section in enumerate(_input):\n" +
         "        try:\n" +
         "            _result.append(convert_section(section))\n" +
         "        except ValueError as e:\n" +
         "            _errors.append((i, section.get('name', '?'), str(e)))\n" +
         "else:\n" +
-        "    _result = convert_section(_input)\n" +
-        "    _errors = []\n";
+        "    _result = convert_section(_input)\n    _errors = []\n";
     }
-
     pyodide.runPython(snippet);
-
     const resultProxy = pyodide.globals.get("_result");
     const errorsProxy = pyodide.globals.get("_errors");
     const result = resultProxy.toJs({ dict_converter: Object.fromEntries });
     const errors = errorsProxy.toJs();
     resultProxy.destroy();
     errorsProxy.destroy();
-
     return { result, errors };
+  }
+
+  // ── Page picker render ────────────────────────────────────────────────
+  function renderPagesPane() {
+    const sel = pagePicker.value;
+    if (!state.pages.length) { outPages.value = ""; return; }
+    if (sel === "__all__") {
+      outPages.value = JSON.stringify(state.pages, null, 2);
+    } else {
+      const idx = parseInt(sel, 10);
+      if (Number.isInteger(idx) && state.pages[idx]) {
+        outPages.value = JSON.stringify(state.pages[idx], null, 2);
+      } else {
+        outPages.value = JSON.stringify(state.pages, null, 2);
+      }
+    }
+  }
+  pagePicker.addEventListener("change", renderPagesPane);
+
+  function populatePagePicker(pages) {
+    pagePicker.innerHTML = "";
+    const allOpt = document.createElement("option");
+    allOpt.value = "__all__";
+    allOpt.textContent = `📑 ทั้งหมด (${pages.length} pages)`;
+    pagePicker.appendChild(allOpt);
+    pages.forEach((p, i) => {
+      const opt = document.createElement("option");
+      opt.value = String(i);
+      const secN = ((p.component || {}).children || []).length;
+      const path = p.path || "?";
+      const nick = p.nickname || "";
+      opt.textContent = nick
+        ? `${path}  —  ${nick} (${secN} sec)`
+        : `${path} (${secN} sec)`;
+      pagePicker.appendChild(opt);
+    });
+    pagePicker.value = "__all__";
+  }
+
+  function resetOutput() {
+    outPages.value = "";
+    outHeader.value = "";
+    outFooter.value = "";
+    state = { pages: [], headerKids: [], footerKids: [] };
+    pagePicker.innerHTML = "";
+    pickerRow.hidden = true;
+    showTab("header", false);
+    showTab("footer", false);
+    setTabTitle("pages", "📄 Output");
+    activateTab("pages");
+    copyBtn.disabled = true;
   }
 
   async function onConvert() {
     clearLog();
-    outputEl.value = "";
-    copyBtn.disabled = true;
+    resetOutput();
     inputInfo.textContent = "";
 
-    const raw = inputEl.value;
     let data;
     try {
-      data = parseInput(raw);
+      data = parseInput(inputEl.value);
     } catch (e) {
       logLine(e.message, "error");
       return;
@@ -391,9 +512,6 @@
     convertBtn.disabled = true;
     try {
       const { result, errors } = await runConversion(mode, data);
-      const out = JSON.stringify(result, null, 2);
-      outputEl.value = out;
-      copyBtn.disabled = false;
 
       if (errors && errors.length) {
         for (const [i, name, msg] of errors) {
@@ -401,18 +519,78 @@
         }
       }
 
-      let count = "";
-      if (mode === "site")     count = `${result.pages?.length || 0} page(s)`;
-      else if (mode === "pages") count = `${(Array.isArray(result) ? result.length : 0)} page(s)`;
-      else if (mode === "sections" && Array.isArray(result)) count = `${result.length} section(s)`;
-      else if (mode === "page") count = `${(result.component?.children || []).length} section(s)`;
-      else if (mode === "zones") {
-        const h = result.header_zone ? "✓" : "✗";
-        const f = result.footer_zone ? "✓" : "✗";
-        count = `header_zone ${h}, footer_zone ${f}`;
+      if (mode === "site") {
+        // result = { pages: [...], header_zone: {...}|null, footer_zone: {...}|null, free_zone: null }
+        const pages = result.pages || [];
+        const headerKids = ((result.header_zone || {}).children) || [];
+        const footerKids = ((result.footer_zone || {}).children) || [];
+        state = { pages, headerKids, footerKids };
+
+        populatePagePicker(pages);
+        renderPagesPane();
+
+        // Header/Footer panes show children comma-joined, NO wrapping [ ]
+        outHeader.value = headerKids
+          .map(k => JSON.stringify(k, null, 2))
+          .join(",\n");
+        outFooter.value = footerKids
+          .map(k => JSON.stringify(k, null, 2))
+          .join(",\n");
+
+        setTabTitle("pages", `📄 Pages (${pages.length})`);
+        setTabTitle("header", `🔝 Header (${headerKids.length} sec)`);
+        setTabTitle("footer", `🔻 Footer (${footerKids.length} sec)`);
+        showTab("header", true);
+        showTab("footer", true);
+        pickerRow.hidden = false;
+        activateTab("pages");
+
+        const totalSec = pages.reduce(
+          (sum, p) => sum + (((p.component || {}).children) || []).length, 0
+        );
+        logLine(
+          `Done. site → ${pages.length} pages · ${totalSec} sections · header ${headerKids.length} · footer ${footerKids.length}`,
+          "ok"
+        );
+      } else if (mode === "zones") {
+        const headerKids = ((result.header_zone || {}).children) || [];
+        const footerKids = ((result.footer_zone || {}).children) || [];
+        state = { pages: [], headerKids, footerKids };
+
+        outPages.value = JSON.stringify(result, null, 2);
+        outHeader.value = headerKids.map(k => JSON.stringify(k, null, 2)).join(",\n");
+        outFooter.value = footerKids.map(k => JSON.stringify(k, null, 2)).join(",\n");
+
+        setTabTitle("pages", "📄 Output (zones JSON)");
+        setTabTitle("header", `🔝 Header (${headerKids.length} sec)`);
+        setTabTitle("footer", `🔻 Footer (${footerKids.length} sec)`);
+        showTab("header", true);
+        showTab("footer", true);
+        pickerRow.hidden = true;
+        activateTab("pages");
+        logLine(`Done. zones → header ${headerKids.length} · footer ${footerKids.length}`, "ok");
+      } else {
+        // sections / page / pages → single output box
+        outPages.value = JSON.stringify(result, null, 2);
+        let label = "";
+        if (mode === "page") {
+          label = `${(((result.component || {}).children) || []).length} section(s)`;
+        } else if (mode === "pages") {
+          label = `${(Array.isArray(result) ? result.length : 0)} page(s)`;
+        } else if (Array.isArray(result)) {
+          label = `${result.length} section(s)`;
+        } else {
+          label = `1 section`;
+        }
+        setTabTitle("pages", `📄 Output · ${label}`);
+        showTab("header", false);
+        showTab("footer", false);
+        pickerRow.hidden = true;
+        activateTab("pages");
+        logLine(`Done. ${mode} → ${label}`, "ok");
       }
 
-      logLine(`Done. ${count} · ${out.length.toLocaleString()} bytes.`, "ok");
+      copyBtn.disabled = false;
       setStatus("Ready", "ready");
     } catch (e) {
       logLine("Conversion failed: " + (e.message || String(e)), "error");
@@ -427,7 +605,8 @@
   convertBtn.addEventListener("click", onConvert);
   copyBtn.addEventListener("click", async () => {
     try {
-      await navigator.clipboard.writeText(outputEl.value);
+      const text = panes[activeTab].value;
+      await navigator.clipboard.writeText(text);
       const original = copyBtn.textContent;
       copyBtn.textContent = "Copied!";
       setTimeout(() => (copyBtn.textContent = original), 1200);
@@ -437,22 +616,18 @@
   });
   clearBtn.addEventListener("click", () => {
     inputEl.value = "";
-    outputEl.value = "";
-    copyBtn.disabled = true;
+    resetOutput();
     clearLog();
     inputInfo.textContent = "";
     inputEl.focus();
   });
 
-  // Cmd/Ctrl + Enter to convert
   inputEl.addEventListener("keydown", (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
       e.preventDefault();
       if (!convertBtn.disabled) onConvert();
     }
   });
-
-  // Tiny input size hint
   inputEl.addEventListener("input", () => {
     const len = inputEl.value.length;
     inputInfo.textContent = len ? `${len.toLocaleString()} chars` : "";
