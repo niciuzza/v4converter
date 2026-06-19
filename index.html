@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>converter2v4 — LNW Shop v3 → v4</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3248;
+    --text: #e2e8f0;
+    --muted: #8892a4;
+    --accent: #6366f1;
+    --accent2: #818cf8;
+    --green: #22c55e;
+    --yellow: #f59e0b;
+    --red: #ef4444;
+    --blue: #38bdf8;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+  header.app {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  header.app h1 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+  header.app h1 span.tag {
+    background: var(--accent);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    margin-left: 8px;
+    font-weight: 500;
+  }
+  header.app .subtitle {
+    color: var(--muted);
+    font-size: 13px;
+  }
+  #status {
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--surface2);
+    color: var(--muted);
+    border: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  #status[data-type="loading"] { color: var(--blue); border-color: rgba(56,189,248,0.4); }
+  #status[data-type="ready"]   { color: var(--green); border-color: rgba(34,197,94,0.4); }
+  #status[data-type="error"]   { color: var(--red);   border-color: rgba(239,68,68,0.4); }
+
+  main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 16px 24px;
+    gap: 12px;
+    min-height: 0;
+  }
+
+  .toolbar {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .toolbar label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  select, button {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 7px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  select:focus, button:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button.primary {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+  button.primary:hover:not(:disabled) { background: var(--accent2); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  button.ghost { background: transparent; }
+
+  .panels {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    min-height: 360px;
+  }
+  @media (max-width: 900px) {
+    .panels { grid-template-columns: 1fr; }
+  }
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+  }
+  .panel header {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .panel header h2 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .panel textarea {
+    flex: 1;
+    width: 100%;
+    border: 0;
+    background: var(--bg);
+    color: var(--text);
+    padding: 12px;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    resize: none;
+    outline: none;
+    white-space: pre;
+    overflow: auto;
+  }
+  .panel textarea::placeholder { color: var(--muted); }
+
+  #log {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    max-height: 140px;
+    overflow: auto;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  #log:empty { display: none; }
+  .log-line { padding: 1px 0; }
+  .log-info  { color: var(--muted); }
+  .log-ok    { color: var(--green); }
+  .log-warn  { color: var(--yellow); }
+  .log-error { color: var(--red); }
+</style>
+</head>
+<body>
+
+<header class="app">
+  <div>
+    <h1>converter2v4 <span class="tag">v3 → v4</span></h1>
+    <div class="subtitle">Paste v3 section/page/site JSON, click Convert, copy the v4 result.</div>
+  </div>
+  <div id="status" data-type="loading">Loading Python runtime…</div>
+</header>
+
+<main>
+  <div class="toolbar">
+    <label>Mode
+      <select id="mode">
+        <option value="auto">Auto-detect</option>
+        <option value="sections">Sections</option>
+        <option value="page">Page</option>
+        <option value="pages">Pages (array)</option>
+        <option value="site">Site (pages + zones)</option>
+        <option value="zones">Zones only</option>
+      </select>
+    </label>
+    <button id="convert" class="primary" disabled>Convert →</button>
+    <button id="clear" class="ghost" type="button">Clear</button>
+  </div>
+
+  <div class="panels">
+    <section class="panel">
+      <header>
+        <h2>Input · v3 JSON</h2>
+        <span id="inputInfo" class="subtitle" style="color:var(--muted);font-size:12px"></span>
+      </header>
+      <textarea id="input" spellcheck="false" placeholder='Paste v3 JSON here. Examples:
+{"name":"ParagraphSection","props":{...}}
+[{"name":"Headline","props":{...}}, {"name":"ParagraphSection","props":{...}}]
+{"shop":{...}, "customRoutes":[...]}   ← full site'></textarea>
+    </section>
+
+    <section class="panel">
+      <header>
+        <h2>Output · v4 JSON</h2>
+        <button id="copy" disabled>Copy</button>
+      </header>
+      <textarea id="output" spellcheck="false" readonly placeholder="Converted v4 JSON will appear here."></textarea>
+    </section>
+  </div>
+
+  <div id="log" aria-live="polite"></div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+(async function () {
+  const $ = (id) => document.getElementById(id);
+  const statusEl = $("status");
+  const logEl    = $("log");
+  const inputEl  = $("input");
+  const outputEl = $("output");
+  const modeEl   = $("mode");
+  const convertBtn = $("convert");
+  const copyBtn    = $("copy");
+  const clearBtn   = $("clear");
+  const inputInfo  = $("inputInfo");
+
+  let pyodide = null;
+
+  function setStatus(text, type) {
+    statusEl.textContent = text;
+    statusEl.dataset.type = type || "";
+  }
+  function logLine(msg, kind) {
+    const line = document.createElement("div");
+    line.className = "log-line log-" + (kind || "info");
+    line.textContent = msg;
+    logEl.appendChild(line);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+  function clearLog() { logEl.innerHTML = ""; }
+
+  // ── Boot ───────────────────────────────────────────────────────────────
+  try {
+    setStatus("Loading Python runtime…", "loading");
+    pyodide = await loadPyodide();
+    setStatus("Fetching converter.py…", "loading");
+    const resp = await fetch("converter.py", { cache: "no-cache" });
+    if (!resp.ok) throw new Error("Could not fetch converter.py (HTTP " + resp.status + ")");
+    const code = await resp.text();
+    // Prevent main() at module bottom (`if __name__ == "__main__": main()`) from running.
+    pyodide.runPython('__name__ = "converter_module"\n' + code);
+    setStatus("Ready", "ready");
+    convertBtn.disabled = false;
+    logLine("Python runtime ready. Paste JSON and click Convert.", "info");
+  } catch (e) {
+    setStatus("Failed to load", "error");
+    logLine("Init failed: " + e.message, "error");
+    logLine("Tip: this page needs to be served over http(s). If you opened the file directly (file://), run `python3 -m http.server 8000` in this folder and open http://localhost:8000/converter2v4.html", "warn");
+    console.error(e);
+    return;
+  }
+
+  // ── Lenient JSON parse (mirrors converter.py:_load_json) ───────────────
+  function parseInput(raw) {
+    raw = raw.trim().replace(/\[\s*\.\.\s*\]/g, "[]");
+    if (!raw) throw new Error("Input is empty.");
+    try {
+      return JSON.parse(raw);
+    } catch (e1) {
+      try {
+        return JSON.parse("[" + raw + "]");
+      } catch (e2) {
+        throw new Error("Could not parse JSON: " + e1.message);
+      }
+    }
+  }
+
+  // ── Auto-detect mode (mirrors converter.py:_detect_mode) ───────────────
+  function detectMode(data) {
+    if (Array.isArray(data)) {
+      if (data.length && data[0] && typeof data[0] === "object" && "layouts" in data[0]) return "pages";
+      return "sections";
+    }
+    if (data && typeof data === "object") {
+      if ("layouts" in data) return "page";
+      if ("name" in data && "props" in data) return "sections";
+      if ("customRoutes" in data) return "site";
+      const looksPagey = Object.values(data).some(v => v && typeof v === "object" && "layouts" in v);
+      if (looksPagey) return "site";
+    }
+    return "sections";
+  }
+
+  // ── Run conversion ─────────────────────────────────────────────────────
+  async function runConversion(mode, data) {
+    // Hand JS data to Python as native dict/list.
+    pyodide.globals.set("_input", pyodide.toPy(data));
+
+    let snippet;
+    if (mode === "site") {
+      snippet =
+        "pages = convert_site(_input)\n" +
+        "zones = convert_zones(_input)\n" +
+        "_result = {'pages': pages, **zones}\n" +
+        "_errors = []\n";
+    } else if (mode === "zones") {
+      snippet = "_result = convert_zones(_input)\n_errors = []\n";
+    } else if (mode === "pages") {
+      snippet =
+        "_result = [convert_page(p) for p in _input if isinstance(p, dict) and 'layouts' in p]\n" +
+        "_errors = []\n";
+    } else if (mode === "page") {
+      snippet = "_result = convert_page(_input)\n_errors = []\n";
+    } else {
+      // sections (single or list)
+      snippet =
+        "if isinstance(_input, list):\n" +
+        "    _result = []\n" +
+        "    _errors = []\n" +
+        "    for i, section in enumerate(_input):\n" +
+        "        try:\n" +
+        "            _result.append(convert_section(section))\n" +
+        "        except ValueError as e:\n" +
+        "            _errors.append((i, section.get('name', '?'), str(e)))\n" +
+        "else:\n" +
+        "    _result = convert_section(_input)\n" +
+        "    _errors = []\n";
+    }
+
+    pyodide.runPython(snippet);
+
+    const resultProxy = pyodide.globals.get("_result");
+    const errorsProxy = pyodide.globals.get("_errors");
+    const result = resultProxy.toJs({ dict_converter: Object.fromEntries });
+    const errors = errorsProxy.toJs();
+    resultProxy.destroy();
+    errorsProxy.destroy();
+
+    return { result, errors };
+  }
+
+  async function onConvert() {
+    clearLog();
+    outputEl.value = "";
+    copyBtn.disabled = true;
+    inputInfo.textContent = "";
+
+    const raw = inputEl.value;
+    let data;
+    try {
+      data = parseInput(raw);
+    } catch (e) {
+      logLine(e.message, "error");
+      return;
+    }
+
+    let mode = modeEl.value;
+    if (mode === "auto") {
+      mode = detectMode(data);
+      logLine("Auto-detected mode: " + mode, "info");
+    }
+
+    setStatus("Converting…", "loading");
+    convertBtn.disabled = true;
+    try {
+      const { result, errors } = await runConversion(mode, data);
+      const out = JSON.stringify(result, null, 2);
+      outputEl.value = out;
+      copyBtn.disabled = false;
+
+      if (errors && errors.length) {
+        for (const [i, name, msg] of errors) {
+          logLine(`Skipped section ${i} (${name}): ${msg}`, "warn");
+        }
+      }
+
+      let count = "";
+      if (mode === "site")     count = `${result.pages?.length || 0} page(s)`;
+      else if (mode === "pages") count = `${(Array.isArray(result) ? result.length : 0)} page(s)`;
+      else if (mode === "sections" && Array.isArray(result)) count = `${result.length} section(s)`;
+      else if (mode === "page") count = `${(result.component?.children || []).length} section(s)`;
+      else if (mode === "zones") {
+        const h = result.header_zone ? "✓" : "✗";
+        const f = result.footer_zone ? "✓" : "✗";
+        count = `header_zone ${h}, footer_zone ${f}`;
+      }
+
+      logLine(`Done. ${count} · ${out.length.toLocaleString()} bytes.`, "ok");
+      setStatus("Ready", "ready");
+    } catch (e) {
+      logLine("Conversion failed: " + (e.message || String(e)), "error");
+      setStatus("Ready", "ready");
+      console.error(e);
+    } finally {
+      convertBtn.disabled = false;
+    }
+  }
+
+  // ── Wire up ────────────────────────────────────────────────────────────
+  convertBtn.addEventListener("click", onConvert);
+  copyBtn.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(outputEl.value);
+      const original = copyBtn.textContent;
+      copyBtn.textContent = "Copied!";
+      setTimeout(() => (copyBtn.textContent = original), 1200);
+    } catch (e) {
+      logLine("Copy failed: " + e.message, "error");
+    }
+  });
+  clearBtn.addEventListener("click", () => {
+    inputEl.value = "";
+    outputEl.value = "";
+    copyBtn.disabled = true;
+    clearLog();
+    inputInfo.textContent = "";
+    inputEl.focus();
+  });
+
+  // Cmd/Ctrl + Enter to convert
+  inputEl.addEventListener("keydown", (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+      e.preventDefault();
+      if (!convertBtn.disabled) onConvert();
+    }
+  });
+
+  // Tiny input size hint
+  inputEl.addEventListener("input", () => {
+    const len = inputEl.value.length;
+    inputInfo.textContent = len ? `${len.toLocaleString()} chars` : "";
+  });
+})();
+</script>
+
+</body>
+</html>
