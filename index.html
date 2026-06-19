@@ -1,9 +1,16 @@
 <!DOCTYPE html>
+<!--
+  converter2v4 — LNW Shop v3 → v4 browser tool
+  ⬇ UPDATE THESE when you change this file:
+      VERSION: v1.0
+      DATE:    2026-06-19
+  Search for "@@VERSION" / "@@DATE" tags below to find both display spots.
+-->
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>converter2v4 — LNW Shop v3 → v4</title>
+<title>converter2v4 v1.0 — LNW Shop v3 → v4</title>
 <style>
   :root {
     --bg: #0f1117;
@@ -54,6 +61,19 @@
     font-size: 12px;
     margin-left: 8px;
     font-weight: 500;
+  }
+  header.app h1 span.version {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 1px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    margin-left: 6px;
+    font-weight: 500;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    letter-spacing: 0.3px;
+    vertical-align: 2px;
   }
   header.app .subtitle {
     color: var(--muted);
@@ -372,7 +392,8 @@
 
 <header class="app">
   <div>
-    <h1>converter2v4 <span class="tag">v3 → v4</span></h1>
+    <!-- @@VERSION + @@DATE: update both when bumping -->
+    <h1>converter2v4 <span class="tag">v3 → v4</span> <span class="version">v1.0 · 2026-06-19</span></h1>
     <div class="subtitle">Paste v3 JSON, click Convert. Site mode shows Pages / Header / Footer in 3 separate boxes.</div>
   </div>
   <div id="status" data-type="loading">Loading Python runtime…</div>
