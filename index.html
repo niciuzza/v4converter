@@ -1,16 +1,14 @@
 <!DOCTYPE html>
 <!--
   converter2v4 — LNW Shop v3 → v4 browser tool
-  ⬇ UPDATE THESE when you change this file:
-      VERSION: v1.0
-      DATE:    2026-06-19
-  Search for "@@VERSION" / "@@DATE" tags below to find both display spots.
+  📝 To bump version: edit the VERSION + UPDATED constants near the top of <script>
+     (search for "@@VERSION-CONSTANTS"). That's the only place to update.
 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>converter2v4 v1.0 — LNW Shop v3 → v4</title>
+<title>converter2v4 — LNW Shop v3 → v4</title>
 <style>
   :root {
     --bg: #0f1117;
@@ -392,8 +390,7 @@
 
 <header class="app">
   <div>
-    <!-- @@VERSION + @@DATE: update both when bumping -->
-    <h1>converter2v4 <span class="tag">v3 → v4</span> <span class="version">v1.0 · 2026-06-19</span></h1>
+    <h1>converter2v4 <span class="tag">v3 → v4</span> <span class="version" id="versionTag"></span></h1>
     <div class="subtitle">Paste v3 JSON, click Convert. Site mode shows Pages / Header / Footer in 3 separate boxes.</div>
   </div>
   <div id="status" data-type="loading">Loading Python runtime…</div>
@@ -494,6 +491,16 @@
 <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
 <script>
 (async function () {
+  // ────────────────────────────────────────────────────────────────────
+  // @@VERSION-CONSTANTS — bump these when you change the file
+  const VERSION = "v1.0";
+  const UPDATED = "2026-06-19";
+  // ────────────────────────────────────────────────────────────────────
+
+  document.title = `converter2v4 ${VERSION} — LNW Shop v3 → v4`;
+  const _vt = document.getElementById("versionTag");
+  if (_vt) _vt.textContent = `${VERSION} · ${UPDATED}`;
+
   const $ = (id) => document.getElementById(id);
   const statusEl = $("status");
   const messagesEl = $("messages");
