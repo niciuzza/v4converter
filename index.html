@@ -134,7 +134,7 @@
     overflow: hidden;
     min-height: 0;
   }
-  .panel header {
+  .panel > header {
     padding: 8px 12px;
     border-bottom: 1px solid var(--border);
     background: var(--surface2);
@@ -143,7 +143,7 @@
     justify-content: space-between;
     gap: 8px;
   }
-  .panel header h2 {
+  .panel > header h2 {
     margin: 0;
     font-size: 13px;
     font-weight: 600;
@@ -151,7 +151,7 @@
     text-transform: uppercase;
     letter-spacing: 0.5px;
   }
-  .panel textarea {
+  .panel > textarea {
     flex: 1;
     width: 100%;
     border: 0;
@@ -166,47 +166,86 @@
     white-space: pre;
     overflow: auto;
   }
-  .panel textarea::placeholder { color: var(--muted); }
+  .panel > textarea::placeholder { color: var(--muted); }
 
-  /* ── Tabs (output panel) ─────────────────────────────────────────── */
-  .tabs {
+  /* ── Output: 3 stacked boxes ─────────────────────────────────────── */
+  .output-scroll {
+    flex: 1;
     display: flex;
-    gap: 2px;
-    padding: 6px 8px 0;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px;
+    overflow-y: auto;
+    min-height: 0;
+  }
+  .output-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0;
+    min-height: 220px;
+    overflow: hidden;
+  }
+  .output-box[hidden] { display: none !important; }
+  .box-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 10px;
     background: var(--surface2);
     border-bottom: 1px solid var(--border);
   }
-  .tab {
-    background: transparent;
-    border: 1px solid transparent;
-    border-bottom: none;
-    border-radius: 6px 6px 0 0;
-    padding: 6px 12px;
+  .box-header h3 {
+    margin: 0;
     font-size: 12px;
-    color: var(--muted);
-    cursor: pointer;
-  }
-  .tab:hover:not(.active):not(:disabled) { color: var(--text); }
-  .tab.active {
-    background: var(--bg);
-    border-color: var(--border);
-    color: var(--text);
-    margin-bottom: -1px;
     font-weight: 600;
+    color: var(--text);
+    letter-spacing: 0.3px;
   }
-  .tab[hidden] { display: none; }
-  .picker-row {
+  .box-picker {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 8px 12px;
+    padding: 6px 10px;
     background: var(--surface2);
     border-bottom: 1px solid var(--border);
     font-size: 12px;
     color: var(--muted);
   }
-  .picker-row select { flex: 1; min-width: 0; }
-  .tab-pane[hidden] { display: none !important; }
+  .box-picker select { flex: 1; min-width: 0; padding: 4px 8px; font-size: 12px; }
+  .box-picker[hidden] { display: none !important; }
+  .copy-btn {
+    padding: 4px 10px;
+    font-size: 12px;
+    background: var(--surface);
+  }
+  .copy-btn.primary-action {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+  .copy-btn.primary-action:hover:not(:disabled) { background: var(--accent2); }
+  .output-box textarea {
+    flex: 1;
+    width: 100%;
+    border: 0;
+    background: var(--bg);
+    color: var(--text);
+    padding: 12px;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    resize: none;
+    outline: none;
+    white-space: pre;
+    overflow: auto;
+    min-height: 0;
+  }
+  .output-box textarea::placeholder { color: var(--muted); }
 
   #log {
     background: var(--surface);
@@ -232,7 +271,7 @@
 <header class="app">
   <div>
     <h1>converter2v4 <span class="tag">v3 → v4</span></h1>
-    <div class="subtitle">Paste v3 JSON, click Convert. Site mode splits output into Pages / Header / Footer.</div>
+    <div class="subtitle">Paste v3 JSON, click Convert. Site mode shows Pages / Header / Footer in 3 separate boxes.</div>
   </div>
   <div id="status" data-type="loading">Loading Python runtime…</div>
 </header>
@@ -268,23 +307,44 @@
     <section class="panel">
       <header>
         <h2>Output · v4 JSON</h2>
-        <button id="copy" disabled>Copy current tab</button>
       </header>
-      <div class="tabs" role="tablist">
-        <button type="button" class="tab active" data-tab="pages" role="tab">📄 Output</button>
-        <button type="button" class="tab" data-tab="header" role="tab" hidden>🔝 Header</button>
-        <button type="button" class="tab" data-tab="footer" role="tab" hidden>🔻 Footer</button>
+      <div class="output-scroll">
+
+        <!-- Box 1 · Pages / Output -->
+        <div class="output-box" id="boxPages">
+          <div class="box-header">
+            <h3 id="titlePages">📄 Output</h3>
+            <button class="copy-btn primary-action" data-target="outPages" disabled>📋 Copy</button>
+          </div>
+          <div class="box-picker" id="pickerRow" hidden>
+            <label for="pagePicker">หน้า</label>
+            <select id="pagePicker"></select>
+          </div>
+          <textarea id="outPages" readonly spellcheck="false"
+                    placeholder="Converted v4 JSON will appear here."></textarea>
+        </div>
+
+        <!-- Box 2 · Header -->
+        <div class="output-box" id="boxHeader" hidden>
+          <div class="box-header">
+            <h3 id="titleHeader">🔝 Header</h3>
+            <button class="copy-btn primary-action" data-target="outHeader" disabled>📋 Copy</button>
+          </div>
+          <textarea id="outHeader" readonly spellcheck="false"
+                    placeholder="header_zone.children (without wrapping [ ]) — paste into v4 header_zone.children."></textarea>
+        </div>
+
+        <!-- Box 3 · Footer -->
+        <div class="output-box" id="boxFooter" hidden>
+          <div class="box-header">
+            <h3 id="titleFooter">🔻 Footer</h3>
+            <button class="copy-btn primary-action" data-target="outFooter" disabled>📋 Copy</button>
+          </div>
+          <textarea id="outFooter" readonly spellcheck="false"
+                    placeholder="footer_zone.children (without wrapping [ ]) — paste into v4 footer_zone.children."></textarea>
+        </div>
+
       </div>
-      <div class="picker-row" id="pickerRow" hidden>
-        <label for="pagePicker">หน้า</label>
-        <select id="pagePicker"></select>
-      </div>
-      <textarea id="outPages" class="tab-pane" data-tab="pages" readonly spellcheck="false"
-                placeholder="Converted v4 JSON will appear here."></textarea>
-      <textarea id="outHeader" class="tab-pane" data-tab="header" readonly spellcheck="false"
-                placeholder="header_zone.children (without wrapping [ ]) — paste into v4 header_zone.children." hidden></textarea>
-      <textarea id="outFooter" class="tab-pane" data-tab="footer" readonly spellcheck="false"
-                placeholder="footer_zone.children (without wrapping [ ]) — paste into v4 footer_zone.children." hidden></textarea>
     </section>
   </div>
 
@@ -300,22 +360,23 @@
   const inputEl  = $("input");
   const modeEl   = $("mode");
   const convertBtn = $("convert");
-  const copyBtn    = $("copy");
   const clearBtn   = $("clear");
   const inputInfo  = $("inputInfo");
 
-  const tabsEl     = document.querySelector(".tabs");
-  const tabButtons = Array.from(document.querySelectorAll(".tab"));
+  const boxPages   = $("boxPages");
+  const boxHeader  = $("boxHeader");
+  const boxFooter  = $("boxFooter");
+  const titlePages  = $("titlePages");
+  const titleHeader = $("titleHeader");
+  const titleFooter = $("titleFooter");
   const pickerRow  = $("pickerRow");
   const pagePicker = $("pagePicker");
   const outPages   = $("outPages");
   const outHeader  = $("outHeader");
   const outFooter  = $("outFooter");
-  const panes = { pages: outPages, header: outHeader, footer: outFooter };
+  const copyButtons = Array.from(document.querySelectorAll(".copy-btn"));
 
   let pyodide = null;
-  let activeTab = "pages";
-  // Cached state from the last conversion (site mode)
   let state = { pages: [], headerKids: [], footerKids: [] };
 
   function setStatus(text, type) {
@@ -331,25 +392,12 @@
   }
   function clearLog() { logEl.innerHTML = ""; }
 
-  function setTabTitle(tab, label) {
-    const btn = tabButtons.find(b => b.dataset.tab === tab);
-    if (btn) btn.textContent = label;
+  function updateCopyButtons() {
+    copyButtons.forEach(btn => {
+      const target = document.getElementById(btn.dataset.target);
+      btn.disabled = !target.value;
+    });
   }
-  function showTab(tab, visible) {
-    const btn = tabButtons.find(b => b.dataset.tab === tab);
-    if (btn) btn.hidden = !visible;
-  }
-  function activateTab(tab) {
-    activeTab = tab;
-    tabButtons.forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
-    Object.entries(panes).forEach(([k, el]) => { el.hidden = (k !== tab); });
-    pickerRow.hidden = !(tab === "pages" && state.pages.length > 0);
-  }
-  tabsEl.addEventListener("click", (e) => {
-    const btn = e.target.closest(".tab");
-    if (!btn || btn.hidden) return;
-    activateTab(btn.dataset.tab);
-  });
 
   // ── Boot ───────────────────────────────────────────────────────────────
   try {
@@ -382,7 +430,7 @@
     }
   }
 
-  // ── Auto-detect mode (mirrors converter.py:_detect_mode) ───────────────
+  // ── Auto-detect mode ───────────────────────────────────────────────────
   function detectMode(data) {
     if (Array.isArray(data)) {
       if (data.length && data[0] && typeof data[0] === "object" && "layouts" in data[0]) return "pages";
@@ -452,6 +500,7 @@
         outPages.value = JSON.stringify(state.pages, null, 2);
       }
     }
+    updateCopyButtons();
   }
   pagePicker.addEventListener("change", renderPagesPane);
 
@@ -482,11 +531,13 @@
     state = { pages: [], headerKids: [], footerKids: [] };
     pagePicker.innerHTML = "";
     pickerRow.hidden = true;
-    showTab("header", false);
-    showTab("footer", false);
-    setTabTitle("pages", "📄 Output");
-    activateTab("pages");
-    copyBtn.disabled = true;
+    boxPages.hidden = false;
+    boxHeader.hidden = true;
+    boxFooter.hidden = true;
+    titlePages.textContent  = "📄 Output";
+    titleHeader.textContent = "🔝 Header";
+    titleFooter.textContent = "🔻 Footer";
+    updateCopyButtons();
   }
 
   async function onConvert() {
@@ -520,7 +571,6 @@
       }
 
       if (mode === "site") {
-        // result = { pages: [...], header_zone: {...}|null, footer_zone: {...}|null, free_zone: null }
         const pages = result.pages || [];
         const headerKids = ((result.header_zone || {}).children) || [];
         const footerKids = ((result.footer_zone || {}).children) || [];
@@ -528,22 +578,17 @@
 
         populatePagePicker(pages);
         renderPagesPane();
+        outHeader.value = headerKids.map(k => JSON.stringify(k, null, 2)).join(",\n");
+        outFooter.value = footerKids.map(k => JSON.stringify(k, null, 2)).join(",\n");
 
-        // Header/Footer panes show children comma-joined, NO wrapping [ ]
-        outHeader.value = headerKids
-          .map(k => JSON.stringify(k, null, 2))
-          .join(",\n");
-        outFooter.value = footerKids
-          .map(k => JSON.stringify(k, null, 2))
-          .join(",\n");
+        titlePages.textContent  = `📄 Pages (${pages.length})`;
+        titleHeader.textContent = `🔝 Header (${headerKids.length} sec)`;
+        titleFooter.textContent = `🔻 Footer (${footerKids.length} sec)`;
 
-        setTabTitle("pages", `📄 Pages (${pages.length})`);
-        setTabTitle("header", `🔝 Header (${headerKids.length} sec)`);
-        setTabTitle("footer", `🔻 Footer (${footerKids.length} sec)`);
-        showTab("header", true);
-        showTab("footer", true);
+        boxPages.hidden  = false;
+        boxHeader.hidden = false;
+        boxFooter.hidden = false;
         pickerRow.hidden = false;
-        activateTab("pages");
 
         const totalSec = pages.reduce(
           (sum, p) => sum + (((p.component || {}).children) || []).length, 0
@@ -557,20 +602,21 @@
         const footerKids = ((result.footer_zone || {}).children) || [];
         state = { pages: [], headerKids, footerKids };
 
-        outPages.value = JSON.stringify(result, null, 2);
+        outPages.value  = JSON.stringify(result, null, 2);
         outHeader.value = headerKids.map(k => JSON.stringify(k, null, 2)).join(",\n");
         outFooter.value = footerKids.map(k => JSON.stringify(k, null, 2)).join(",\n");
 
-        setTabTitle("pages", "📄 Output (zones JSON)");
-        setTabTitle("header", `🔝 Header (${headerKids.length} sec)`);
-        setTabTitle("footer", `🔻 Footer (${footerKids.length} sec)`);
-        showTab("header", true);
-        showTab("footer", true);
+        titlePages.textContent  = "📦 Full zones JSON";
+        titleHeader.textContent = `🔝 Header (${headerKids.length} sec)`;
+        titleFooter.textContent = `🔻 Footer (${footerKids.length} sec)`;
+
+        boxPages.hidden  = false;
+        boxHeader.hidden = false;
+        boxFooter.hidden = false;
         pickerRow.hidden = true;
-        activateTab("pages");
+
         logLine(`Done. zones → header ${headerKids.length} · footer ${footerKids.length}`, "ok");
       } else {
-        // sections / page / pages → single output box
         outPages.value = JSON.stringify(result, null, 2);
         let label = "";
         if (mode === "page") {
@@ -582,15 +628,16 @@
         } else {
           label = `1 section`;
         }
-        setTabTitle("pages", `📄 Output · ${label}`);
-        showTab("header", false);
-        showTab("footer", false);
+        titlePages.textContent = `📄 Output · ${label}`;
+        boxPages.hidden  = false;
+        boxHeader.hidden = true;
+        boxFooter.hidden = true;
         pickerRow.hidden = true;
-        activateTab("pages");
+
         logLine(`Done. ${mode} → ${label}`, "ok");
       }
 
-      copyBtn.disabled = false;
+      updateCopyButtons();
       setStatus("Ready", "ready");
     } catch (e) {
       logLine("Conversion failed: " + (e.message || String(e)), "error");
@@ -603,16 +650,19 @@
 
   // ── Wire up ────────────────────────────────────────────────────────────
   convertBtn.addEventListener("click", onConvert);
-  copyBtn.addEventListener("click", async () => {
-    try {
-      const text = panes[activeTab].value;
-      await navigator.clipboard.writeText(text);
-      const original = copyBtn.textContent;
-      copyBtn.textContent = "Copied!";
-      setTimeout(() => (copyBtn.textContent = original), 1200);
-    } catch (e) {
-      logLine("Copy failed: " + e.message, "error");
-    }
+  copyButtons.forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const targetId = btn.dataset.target;
+      const target = document.getElementById(targetId);
+      try {
+        await navigator.clipboard.writeText(target.value);
+        const original = btn.textContent;
+        btn.textContent = "✓ Copied!";
+        setTimeout(() => (btn.textContent = original), 1200);
+      } catch (e) {
+        logLine("Copy failed: " + e.message, "error");
+      }
+    });
   });
   clearBtn.addEventListener("click", () => {
     inputEl.value = "";
