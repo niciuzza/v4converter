@@ -11,6 +11,193 @@ import sys
 
 
 # ---------------------------------------------------------------------------
+# HTML normalization (auto-fix void tags + detect unclosed tags)
+#
+# Some v3 widget content fields hold HTML written by hand. v4 renders this as
+# XHTML-style markup, so non-self-closing void tags (`<br>`, `<hr>`, `<img>`,
+# …) and unclosed regular tags break rendering. This pass walks the v3 input
+# recursively, auto-fixes void tags, and reports unclosed/mismatched tags as
+# warnings.
+# ---------------------------------------------------------------------------
+
+_VOID_TAGS = {"br", "hr", "img", "input", "area", "base", "col", "embed",
+              "link", "meta", "param", "source", "track", "wbr"}
+
+# Open tags like `<br>`, `<br />`, `<img src="...">`, case-insensitive.
+_VOID_OPEN_RE = re.compile(
+    r"<(" + "|".join(_VOID_TAGS) + r")(\b[^>]*?)\s*(/?)>",
+    re.IGNORECASE,
+)
+# Invalid closing tag for a void element, e.g. `</br>`, `</hr>`.
+_VOID_CLOSE_RE = re.compile(
+    r"</\s*(" + "|".join(_VOID_TAGS) + r")\s*>",
+    re.IGNORECASE,
+)
+# Generic opening/closing tag for unclosed-tag detection.
+_TAG_RE = re.compile(r"<(/?)([A-Za-z][\w-]*)(\b[^>]*?)(/?)>")
+# Newline + surrounding spaces between two HTML tags — safely removable.
+_INTER_TAG_NEWLINE_RE = re.compile(r">[ \t]*\n+[ \t]*<")
+# Embedded <style>...</style> / <script>...</script> blocks (warn only).
+_STYLE_SCRIPT_RE = re.compile(r"<(style|script)\b", re.IGNORECASE)
+
+# Paths (or path prefixes) whose values are NOT carried over to v4 — we skip
+# HTML warnings for them since fixing or warning has no effect on the output.
+_DROPPED_PATH_PATTERNS = [
+    re.compile(r"^\$\.footer\.FooterSection\.addressText$"),
+    re.compile(r"^\$\.components\.MainView(\.|$)"),
+    re.compile(r"^\$\.components\.VerifyBadgeWidget(\.|$)"),
+    re.compile(r"^\$\.components\.CartMini(\.|$)"),
+    re.compile(r"^\$\.components\.ContactWidget\.iconChatButtonStyle\.hoverStyle(\.|$)"),
+    re.compile(r"^\$\.components\.ContactWidget\.iconCloseButtonStyle(\.|$)"),
+    re.compile(r"^\$\.components\.ContactWidget\.contactMobileDisable$"),
+    re.compile(r"^\$\.components\.ContactWidget\.contactEmailDisable$"),
+]
+
+
+def _is_dropped_path(path: str) -> bool:
+    """True if `path` (or any ancestor) is dropped by the v3→v4 converter."""
+    return any(p.match(path) for p in _DROPPED_PATH_PATTERNS)
+
+
+def _fix_void_tags(s: str) -> tuple:
+    """Return (fixed_string, list_of_fixed_tag_names).
+    Auto-closes void open tags (`<br>` → `<br/>`) and rewrites invalid
+    closing void tags (`</br>` → `<br/>`).
+    """
+    fixed = []
+    def repl_open(m):
+        tag   = m.group(1).lower()
+        attrs = m.group(2) or ""
+        slash = m.group(3)
+        if slash == "/":
+            return m.group(0)  # already self-closing
+        fixed.append(tag)
+        return f"<{tag}{attrs}/>"
+    out = _VOID_OPEN_RE.sub(repl_open, s)
+
+    def repl_close(m):
+        tag = m.group(1).lower()
+        fixed.append(tag)
+        return f"<{tag}/>"
+    out = _VOID_CLOSE_RE.sub(repl_close, out)
+    return out, fixed
+
+
+def _strip_inter_tag_newlines(s: str):
+    """Remove `\\n` (and surrounding spaces) that sit between two tags.
+    Returns (new_string, count_removed).
+    """
+    count = 0
+    def repl(_m):
+        nonlocal count
+        count += 1
+        return "><"
+    out = _INTER_TAG_NEWLINE_RE.sub(repl, s)
+    return out, count
+
+
+def _trim_edge_newlines(s: str):
+    """Strip leading/trailing whitespace that includes a newline.
+    Returns (new_string, did_trim).
+    """
+    if not s:
+        return s, False
+    stripped = s.strip()
+    # Only flag as a fix if we actually removed newlines (not just spaces),
+    # so plain " hello " doesn't get reported.
+    if stripped == s:
+        return s, False
+    had_newline = ("\n" in s[:len(s) - len(s.lstrip())]
+                   or "\n" in s[len(s.rstrip()):])
+    return stripped, had_newline
+
+
+def _detect_unclosed_tags(s: str):
+    """Return (mismatched_msgs, unclosed_stack) for non-void tags.
+    mismatched_msgs: list of messages for unexpected close tags
+    unclosed_stack:  list of open tag names (in order opened) never closed
+    """
+    mismatched: list = []
+    stack: list = []
+    for m in _TAG_RE.finditer(s):
+        is_close   = m.group(1) == "/"
+        tag        = m.group(2).lower()
+        self_close = m.group(4) == "/"
+        if tag in _VOID_TAGS or self_close:
+            continue
+        if is_close:
+            if stack and stack[-1] == tag:
+                stack.pop()
+            else:
+                mismatched.append(f"Unexpected </{tag}>")
+        else:
+            stack.append(tag)
+    return mismatched, stack
+
+
+def normalize_html(data, path: str = "$"):
+    """Walk v3 input recursively. Apply HTML hygiene to string values that
+    look like HTML (contain `<` and `>`):
+      - auto-close void tags: `<br>` → `<br/>`
+      - rewrite invalid void close tags: `</br>` → `<br/>`
+      - strip `\\n` (and surrounding spaces) between two tags
+      - trim leading/trailing whitespace that includes a newline
+      - warn on unclosed/mismatched non-void tags
+      - warn on embedded <style>/<script>
+    Returns (new_data, warnings). Does not mutate the input.
+    Warning shape: {path, kind: "fixed"|"warn", msg}.
+    """
+    warnings: list = []
+    new_data = _walk_html(data, path, warnings)
+    return new_data, warnings
+
+
+def _walk_html(v, path: str, warnings: list):
+    if isinstance(v, dict):
+        return {k: _walk_html(val, f"{path}.{k}", warnings) for k, val in v.items()}
+    if isinstance(v, list):
+        return [_walk_html(val, f"{path}[{i}]", warnings) for i, val in enumerate(v)]
+    # Skip paths that are dropped by the v3→v4 converter (no effect on output).
+    if _is_dropped_path(path):
+        return v
+    if isinstance(v, str) and "<" in v and ">" in v:
+        out = v
+
+        # 1. Trim leading/trailing newlines.
+        out, did_edge_trim = _trim_edge_newlines(out)
+        if did_edge_trim:
+            warnings.append({"path": path, "kind": "fixed", "msg": "Trimmed leading/trailing newline"})
+
+        # 2. Strip \n between tags.
+        out, n_inter = _strip_inter_tag_newlines(out)
+        if n_inter:
+            warnings.append({"path": path, "kind": "fixed",
+                             "msg": f"Removed {n_inter} newline(s) between tags"})
+
+        # 3. Auto-fix void open + invalid close tags.
+        out, fixed_tags = _fix_void_tags(out)
+        for tag in fixed_tags:
+            warnings.append({"path": path, "kind": "fixed", "msg": f"Auto-closed <{tag}> → <{tag}/>"})
+
+        # 4. Warn on <style>/<script>.
+        for m in _STYLE_SCRIPT_RE.finditer(out):
+            warnings.append({"path": path, "kind": "warn",
+                             "msg": f"<{m.group(1).lower()}> embedded in content"})
+
+        # 5. Auto-close unclosed non-void tags + warn on mismatched closes.
+        mismatched, unclosed = _detect_unclosed_tags(out)
+        if unclosed:
+            out += "".join(f"</{t}>" for t in reversed(unclosed))
+            for t in reversed(unclosed):
+                warnings.append({"path": path, "kind": "fixed",
+                                 "msg": f"Auto-appended </{t}> at end"})
+        for msg in mismatched:
+            warnings.append({"path": path, "kind": "warn", "msg": msg})
+        return out
+    return v
+
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
@@ -3606,11 +3793,80 @@ def convert_header(header_json: dict) -> dict:
     return header_zone
 
 
+def convert_global(site_json: dict) -> dict:
+    """Convert v3 site-level `components.*` config to v4 global triplet.
+
+    Returns {"info": {...}, "style": {...}, "free_zone": {...}}.
+    Always emits a free_zone wrapper (children may be empty).
+    `:root` and `fontManifest` are intentionally not produced — the target
+    system fills those from theme presets after import.
+    """
+    components = (site_json.get("components") or {}) if isinstance(site_json, dict) else {}
+
+    info: dict = {}
+    style: dict = {}
+
+    # ── ProductBox → style[".element-card-product"] + info.Element.CardProduct.cardConfig ──
+    pb = components.get("ProductBox")
+    if isinstance(pb, dict):
+        ecp_style: dict = {}
+        if "isThumbnailHeight" in pb:
+            ecp_style["cardProductThumbnailRatio"] = "3 / 4" if pb["isThumbnailHeight"] else "1 / 1"
+        image_type = pb.get("imageType")
+        if image_type in _IMAGE_TYPE_TO_OBJECT_FIT:
+            ecp_style["cardProductThumbnailObjectFit"] = _IMAGE_TYPE_TO_OBJECT_FIT[image_type]
+        font_color = (pb.get("pTitleStyle") or {}).get("fontColor")
+        if isinstance(font_color, str) and font_color:
+            ecp_style["cardProductNameColor"] = font_color.lower()
+        if ecp_style:
+            style[".element-card-product"] = ecp_style
+
+        card_config: dict = {}
+        if "isUseHoverImage" in pb:
+            card_config["isEnableImageTransitionOverlay"] = bool(pb["isUseHoverImage"])
+        if pb.get("isShowCode") is True:
+            card_config["isShowCode"] = True
+        if card_config:
+            info.setdefault("Element", {}).setdefault("CardProduct", {})["cardConfig"] = card_config
+
+    # ── ProductList → style[".widget-product-list"] + info.Widget.ProductList ──
+    pl = components.get("ProductList")
+    if isinstance(pl, dict):
+        box_num = pl.get("productBoxNumber")
+        if isinstance(box_num, int):
+            style[".widget-product-list"] = {"layoutGridCols": {"xs": box_num}}
+        limit = pl.get("limit")
+        if isinstance(limit, int):
+            info.setdefault("Widget", {}).setdefault("ProductList", {})["productNumber"] = limit
+
+    # ── ContactWidget → free_zone children + style[".widget-chat"] ──
+    free_zone_children: list = []
+    cw = components.get("ContactWidget")
+    if isinstance(cw, dict):
+        if cw.get("enableContactWidget"):
+            free_zone_children.append(make_node("widget", "WidgetChat", None, {}))
+        chat_btn = cw.get("iconChatButtonStyle") or {}
+        if isinstance(chat_btn, dict):
+            wc_style: dict = {}
+            bg = chat_btn.get("bgColor")
+            if isinstance(bg, str) and bg:
+                wc_style["bgColor"] = bg.lower()
+            fc = chat_btn.get("fontColor")
+            if isinstance(fc, str) and fc:
+                wc_style["textColor"] = fc.lower()
+            if wc_style:
+                style[".widget-chat"] = wc_style
+
+    free_zone = make_node("page", "free", "Free", {}, free_zone_children)
+
+    return {"info": info, "style": style, "free_zone": free_zone}
+
+
 def convert_zones(site_json: dict) -> dict:
     """Extract global zones from a v3 site JSON.
 
-    Returns {"header_zone": {...}|None, "footer_zone": {...}|None, "free_zone": None}.
-    free_zone is v4-only (no v3 source data), always null.
+    Returns {"header_zone": {...}|None, "footer_zone": {...}|None, "free_zone": {...}}.
+    free_zone is built from `components.ContactWidget` (see convert_global).
     """
     result: dict = {
         "header_zone": None,
@@ -3623,6 +3879,7 @@ def convert_zones(site_json: dict) -> dict:
     footer = site_json.get("footer")
     if isinstance(footer, dict) and "FooterSection" in footer:
         result["footer_zone"] = convert_footer(footer)
+    result["free_zone"] = convert_global(site_json).get("free_zone")
     return result
 
 
@@ -4169,6 +4426,10 @@ Usage:
       Extract only the global zones (header_zone, footer_zone, free_zone)
       without converting pages.
 
+  python3 converter.py global <input.json> [output.json]
+      Convert global components (ProductBox, ProductList, ContactWidget) to
+      the v4 triplet {info, style, free_zone}.
+
   python3 converter.py <input.json> [output.json]
       Legacy auto-detect (sections or single page).
 """
@@ -4203,7 +4464,7 @@ def _section_count(page_result: dict) -> int:
 
 def main():
     args = sys.argv[1:]
-    MODES = {"sections", "page", "pages", "site", "zones"}
+    MODES = {"sections", "page", "pages", "site", "zones", "global"}
 
     if args and args[0] in MODES:
         mode, args = args[0], args[1:]
@@ -4227,9 +4488,20 @@ def main():
         if not isinstance(data, dict):
             print("❌  site mode expects a JSON object at the top level.")
             sys.exit(1)
-        pages = convert_site(data)
-        zones = convert_zones(data)
-        result = {"pages": pages, **zones}
+        pages  = convert_site(data)
+        zones  = convert_zones(data)
+        globals_ = convert_global(data)
+        result = {
+            "nickname":    "Imported",
+            "theme_key":   "base",
+            "info":        globals_["info"],
+            "style":       globals_["style"],
+            "css":         None,
+            "header_zone": zones["header_zone"],
+            "footer_zone": zones["footer_zone"],
+            "free_zone":   zones["free_zone"],
+            "pages":       pages,
+        }
         if output_path:
             _write(result, output_path)
             total = sum(_section_count(p) for p in pages)
@@ -4239,6 +4511,24 @@ def main():
             for p in pages:
                 n = _section_count(p)
                 print(f"   {p['path']:25s} {p['nickname'] or '':30s} ({n} sections)")
+        else:
+            print(json.dumps(result, indent=2, ensure_ascii=False))
+        return
+
+    # ── global ─────────────────────────────────────────────────────────────
+    if mode == "global":
+        if not isinstance(data, dict):
+            print("❌  global mode expects a JSON object at the top level.")
+            sys.exit(1)
+        result = convert_global(data)
+        if output_path:
+            _write(result, output_path)
+            n_children = len(result["free_zone"].get("children", []))
+            n_info = len(result["info"])
+            n_style = len(result["style"])
+            print(f"✅  Converted global config → {output_path}"
+                  f" (info: {n_info} branch(es), style: {n_style} selector(s), "
+                  f"free_zone children: {n_children})")
         else:
             print(json.dumps(result, indent=2, ensure_ascii=False))
         return

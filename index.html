@@ -1,569 +1,468 @@
-<!DOCTYPE html>
+<!doctype html>
+<html lang="th">
 <!--
-  converter2v4 — LNW Shop v3 → v4 browser tool
-  📝 To bump version: edit the VERSION + UPDATED constants near the top of <script>
-     (search for "@@VERSION-CONSTANTS"). That's the only place to update.
+  converter2v4.html — LNW Shop v3 → v4 browser converter.
+  Loads converter.py via Pyodide and runs the same Python pipeline as the CLI.
+  Update the @@VERSION-CONSTANTS block when shipping a change.
 -->
-<html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>converter2v4 — LNW Shop v3 → v4</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+<!-- CodeMirror 5 (replaces our custom textarea + gutter — gives accurate line numbers,
+     code folding, syntax highlighting, and active-line decorations). -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/fold/foldgutter.min.css">
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/javascript/javascript.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/fold/foldcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/fold/foldgutter.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/fold/brace-fold.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/selection/active-line.min.js"></script>
+
 <style>
-  :root {
-    --bg: #0f1117;
-    --surface: #1a1d27;
-    --surface2: #22263a;
-    --border: #2e3248;
-    --text: #e2e8f0;
-    --muted: #8892a4;
-    --accent: #6366f1;
-    --accent2: #818cf8;
-    --green: #22c55e;
-    --yellow: #f59e0b;
-    --red: #ef4444;
-    --blue: #38bdf8;
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  /* Light is the default theme (no data-theme attr or data-theme="light") */
+  :root{
+    --bg:#eef0f4;--panel:#ffffff;--panel-head:#f7f8fb;--elev:#fbfcfe;
+    --border:#e3e6ec;--border-strong:#d3d8e2;--fg:#3a4150;--fg-strong:#1a1f29;
+    --muted:#717a8c;--muted-2:#aab0be;--accent:#2f6df0;--accent-soft:rgba(47,109,240,.10);
+    --hover:rgba(0,0,0,.04);--good:#1a7f37;--good-soft:rgba(26,127,55,.10);
+    --bad:#cf222e;--bad-soft:rgba(207,34,46,.08);--warn:#9a6700;
+    --c-key:#0550ae;--c-str:#0a7d3e;--c-num:#b3540a;--c-bool:#6f42c1;--c-null:#cf222e;--c-punct:#9aa1b0;
   }
-  * { box-sizing: border-box; }
-  html, body { height: 100%; margin: 0; }
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    font-size: 14px;
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
+  /* Dark — higher contrast: darker bg, brighter fg/muted, more visible borders */
+  [data-theme="dark"]{
+    --bg:#0b0c12;--panel:#171825;--panel-head:#101119;--elev:#1d1f2e;
+    --border:#3a4063;--border-strong:#525a82;--fg:#e2e8ff;--fg-strong:#ffffff;
+    --muted:#a4adde;--muted-2:#6a73a0;--accent:#9cbcff;--accent-soft:rgba(156,188,255,.20);
+    --hover:rgba(255,255,255,.08);--good:#b8e082;--good-soft:rgba(184,224,130,.18);
+    --bad:#ff8aa0;--bad-soft:rgba(255,138,160,.18);--warn:#ffc278;
+    --c-key:#9be0ff;--c-str:#b8e082;--c-num:#ffb37a;--c-bool:#d4b3ff;--c-null:#ff8aa0;--c-punct:#7e88b8;
   }
-  header.app {
-    padding: 16px 24px;
-    border-bottom: 1px solid var(--border);
-    background: var(--surface);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    flex-wrap: wrap;
-  }
-  header.app h1 {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 600;
-    letter-spacing: 0.3px;
-  }
-  header.app h1 span.tag {
-    background: var(--accent);
-    color: white;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-    margin-left: 8px;
-    font-weight: 500;
-  }
-  header.app h1 span.version {
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--muted);
-    padding: 1px 8px;
-    border-radius: 4px;
-    font-size: 11px;
-    margin-left: 6px;
-    font-weight: 500;
-    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
-    letter-spacing: 0.3px;
-    vertical-align: 2px;
-  }
-  header.app .subtitle {
-    color: var(--muted);
-    font-size: 13px;
-  }
-  #status {
-    font-size: 12px;
-    padding: 4px 10px;
-    border-radius: 999px;
-    background: var(--surface2);
-    color: var(--muted);
-    border: 1px solid var(--border);
-    white-space: nowrap;
-  }
-  #status[data-type="loading"] { color: var(--blue); border-color: rgba(56,189,248,0.4); }
-  #status[data-type="ready"]   { color: var(--green); border-color: rgba(34,197,94,0.4); }
-  #status[data-type="error"]   { color: var(--red);   border-color: rgba(239,68,68,0.4); }
+  body{background:var(--bg);color:var(--fg);font-family:'IBM Plex Sans Thai',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  textarea::placeholder{color:var(--muted-2)}
+  ::-webkit-scrollbar{width:11px;height:11px}
+  ::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:6px;border:3px solid transparent;background-clip:padding-box}
+  ::-webkit-scrollbar-track{background:transparent}
 
-  main {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    padding: 16px 24px;
-    gap: 12px;
-    min-height: 0;
-  }
+  .root{height:100vh;display:flex;flex-direction:column}
+  .topbar{height:54px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 18px;border-bottom:1px solid var(--border);background:var(--panel)}
+  .brand{display:flex;align-items:center;gap:11px}
+  .logo{width:29px;height:29px;border-radius:8px;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-family:'JetBrains Mono',monospace;font-size:13px}
+  .brand-text{display:flex;flex-direction:column;line-height:1.15}
+  .brand-row{display:flex;align-items:center;gap:8px}
+  .brand-title{font-weight:600;font-size:14.5px;color:var(--fg-strong)}
+  .brand-version{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent-soft);padding:1px 6px;border-radius:5px}
+  .brand-sub{font-size:10.5px;color:var(--muted);font-family:'JetBrains Mono',monospace;letter-spacing:.02em}
+  .topbar-right{display:flex;align-items:center;gap:10px}
+  .status-pill{font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--muted);padding:4px 10px;border-radius:6px;border:1px solid var(--border)}
+  .status-pill[data-state="loading"]{color:var(--warn);border-color:var(--warn)}
+  .status-pill[data-state="ready"]{color:var(--good);border-color:var(--good);background:var(--good-soft)}
+  .status-pill[data-state="error"]{color:var(--bad);border-color:var(--bad);background:var(--bad-soft)}
+  .theme-btn{display:flex;align-items:center;gap:7px;height:32px;padding:0 13px;border:1px solid var(--border-strong);background:transparent;color:var(--fg);border-radius:8px;cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:500}
+  .theme-btn:hover{background:var(--hover)}
+  .theme-icon{font-family:'JetBrains Mono',monospace;font-size:13px}
 
-  .toolbar {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-    flex-wrap: wrap;
-  }
-  .toolbar label {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    color: var(--muted);
-    font-size: 13px;
-  }
-  select, button {
-    background: var(--surface2);
-    color: var(--text);
-    border: 1px solid var(--border);
-    padding: 7px 12px;
-    border-radius: 6px;
-    font-size: 13px;
-    font-family: inherit;
-    cursor: pointer;
-  }
-  select:focus, button:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
-  button.primary {
-    background: var(--accent);
-    color: white;
-    border-color: var(--accent);
-    font-weight: 600;
-  }
-  button.primary:hover:not(:disabled) { background: var(--accent2); }
-  button:disabled { opacity: 0.5; cursor: not-allowed; }
-  button.ghost { background: transparent; }
+  main.layout{flex:1;display:flex;gap:1px;background:var(--border);min-height:0}
 
-  /* ── Content grid ─────────────────────────────────────────────────── */
-  .content-grid {
-    flex: 1;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    min-height: 360px;
-  }
-  @media (max-width: 900px) {
-    .content-grid { grid-template-columns: 1fr; }
-  }
-  .left-col, .right-col {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    min-height: 0;
-  }
-  .left-col .panel { flex: 1; min-height: 240px; }
+  /* ── INPUT ─────────────────────────────────────────────────────────── */
+  .panel{flex:1;display:flex;flex-direction:column;background:var(--panel);min-width:0}
+  main.layout > .panel:first-child{flex:2}   /* INPUT  ≈ 40% */
+  main.layout > .panel:last-child{flex:3}    /* OUTPUT ≈ 60% */
+  .panel-head{height:44px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 13px;border-bottom:1px solid var(--border);background:var(--panel-head)}
+  .panel-head-right{display:flex;gap:5px;align-items:center}
+  .label{font-size:11px;font-weight:700;letter-spacing:.09em;color:var(--muted)}
+  .badge{font-size:10.5px;font-family:'JetBrains Mono',monospace;color:var(--muted-2);border:1px solid var(--border);padding:2px 7px;border-radius:5px}
+  .badge-accent{color:var(--accent);border-color:var(--accent-soft);background:var(--accent-soft)}
+  .ghost-btn{height:27px;padding:0 9px;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:6px;cursor:pointer;font-family:inherit;font-size:11.5px}
+  .ghost-btn:hover{background:var(--hover);color:var(--fg)}
 
-  .panel {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    min-height: 0;
-  }
-  .panel > header {
-    padding: 8px 12px;
-    border-bottom: 1px solid var(--border);
-    background: var(--surface2);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-  }
-  .panel > header h2 {
-    margin: 0;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-  .panel > textarea {
-    flex: 1;
-    width: 100%;
-    border: 0;
-    background: var(--bg);
-    color: var(--text);
-    padding: 12px;
-    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
-    font-size: 12px;
-    line-height: 1.5;
-    resize: none;
-    outline: none;
-    white-space: pre;
-    overflow: auto;
-  }
-  .panel > textarea::placeholder { color: var(--muted); }
+  .input-body{flex:1;min-height:0;display:flex;background:var(--elev);position:relative}
+  /* Scrollbar minimap (VS Code style) — overlays the editor's right edge */
+  .editor-ruler{position:absolute;top:0;right:11px;bottom:0;width:8px;pointer-events:none;z-index:3}
+  .editor-ruler .marker{position:absolute;right:0;width:8px;height:3px;background:var(--warn);border-radius:1px;pointer-events:auto;cursor:pointer;transition:background .15s, transform .15s}
+  .editor-ruler .marker:hover{background:var(--accent);transform:scaleX(1.3)}
+  .editor-ruler .marker.active{background:var(--accent);width:10px;height:4px;right:-1px}
 
-  /* ── Output: 3 stacked boxes ─────────────────────────────────────── */
-  .output-scroll {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    padding: 12px;
-    overflow-y: auto;
-    min-height: 0;
-  }
-  .output-box {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    display: flex;
-    flex-direction: column;
-    flex: 1 1 0;
-    min-height: 220px;
-    overflow: hidden;
-  }
-  .output-box[hidden] { display: none !important; }
-  .box-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    padding: 6px 10px;
-    background: var(--surface2);
-    border-bottom: 1px solid var(--border);
-  }
-  .box-header h3 {
-    margin: 0;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--text);
-    letter-spacing: 0.3px;
-  }
-  .box-picker {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 10px;
-    background: var(--surface2);
-    border-bottom: 1px solid var(--border);
-    font-size: 12px;
-    color: var(--muted);
-  }
-  .box-picker select { flex: 1; min-width: 0; padding: 4px 8px; font-size: 12px; }
-  .box-picker[hidden] { display: none !important; }
-  .copy-btn {
-    padding: 4px 10px;
-    font-size: 12px;
-    background: var(--surface);
-  }
-  .copy-btn.primary-action {
-    background: var(--accent);
-    color: white;
-    border-color: var(--accent);
-    font-weight: 600;
-  }
-  .copy-btn.primary-action:hover:not(:disabled) { background: var(--accent2); }
-  .output-box textarea {
-    flex: 1;
-    width: 100%;
-    border: 0;
-    background: var(--bg);
-    color: var(--text);
-    padding: 12px;
-    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
-    font-size: 12px;
-    line-height: 1.5;
-    resize: none;
-    outline: none;
-    white-space: pre;
-    overflow: auto;
-    min-height: 0;
-  }
-  .output-box textarea::placeholder { color: var(--muted); }
+  /* CodeMirror host: fills available space */
+  .cm-host{flex:1;min-width:0;height:100%;display:flex}
+  /* CodeMirror theme overrides — match our design tokens */
+  .CodeMirror{flex:1;background:var(--elev) !important;color:var(--fg) !important;font-family:'JetBrains Mono','IBM Plex Sans Thai',monospace;font-size:12.5px;line-height:20px;height:100%}
+  .CodeMirror-gutters{background:var(--panel-head) !important;border-right:1px solid var(--border) !important}
+  .CodeMirror-linenumber{color:var(--muted-2);font-size:11px;padding:0 8px}
+  .CodeMirror-cursor{border-left-color:var(--accent) !important}
+  .CodeMirror-selected,.CodeMirror-focused .CodeMirror-selected{background:var(--accent-soft) !important}
+  /* Syntax tokens */
+  .CodeMirror .cm-string{color:var(--c-str)}
+  .CodeMirror .cm-number{color:var(--c-num)}
+  .CodeMirror .cm-atom{color:var(--c-bool)}
+  .CodeMirror .cm-property{color:var(--c-key)}
+  .CodeMirror .cm-keyword{color:var(--c-bool)}
+  .CodeMirror .cm-punctuation,.CodeMirror .cm-bracket{color:var(--c-punct)}
+  /* Fold gutter */
+  .CodeMirror-foldgutter{width:13px}
+  .CodeMirror-foldgutter-open:after{content:"▾";color:var(--muted-2);font-size:9px}
+  .CodeMirror-foldgutter-folded:after{content:"▸";color:var(--accent);font-size:9px}
+  .CodeMirror-foldmarker{color:var(--warn);background:var(--accent-soft);padding:0 5px;border-radius:3px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:600}
+  /* Issue gutter (left side, for ⚠ markers next to v3 lines with HTML issues) */
+  .CodeMirror-gutter.cm-issue-gutter{width:14px}
+  .cm-issue-marker{color:var(--warn);cursor:pointer;font-size:11px;text-align:center;line-height:20px;width:14px}
+  .cm-issue-marker:hover{color:var(--accent)}
+  /* Active-issue line — highlighted when user navigates to it via nav/click */
+  .cm-active-issue-line{background:rgba(224,175,104,.18) !important}
+  [data-theme="light"] .cm-active-issue-line{background:rgba(154,103,0,.10) !important}
+  /* Parse-error line */
+  .cm-parse-error-line{background:var(--bad-soft) !important}
 
-  /* ── Status / summary (left column, under input) ─────────────────── */
-  #statusArea {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
-    font-size: 12px;
-    line-height: 1.6;
-  }
-  #messages {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 8px 12px;
-    max-height: 100px;
-    overflow: auto;
-  }
-  #messages:empty { display: none; }
-  .msg-line { padding: 1px 0; }
-  .msg-info  { color: var(--muted); }
-  .msg-ok    { color: var(--green); }
-  .msg-warn  { color: var(--yellow); }
-  .msg-error { color: var(--red); }
+  .input-foot{flex:none;border-top:1px solid var(--border);background:var(--panel-head)}
+  .err-row{display:flex;align-items:flex-start;gap:9px;margin:11px 13px 0;padding:9px 11px;background:var(--bad-soft);border:1px solid var(--bad);border-radius:8px}
+  .err-icon{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--bad);line-height:1.3;flex:none}
+  .err-body{display:flex;flex-direction:column;gap:2px;min-width:0}
+  .err-title{font-size:12px;font-weight:600;color:var(--bad)}
+  .err-loc{font-weight:500;color:var(--warn)}
+  .err-msg{font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--muted);line-height:1.5;word-break:break-word}
+  .foot-row{display:flex;align-items:center;gap:12px;padding:11px 13px}
+  .foot-meta{font-size:11px;color:var(--muted-2);font-family:'JetBrains Mono',monospace;white-space:nowrap}
+  .issue-nav{display:flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--warn);flex:none}
+  .issue-nav button{width:24px;height:24px;border:1px solid var(--border);background:transparent;color:var(--warn);border-radius:5px;cursor:pointer;font-family:inherit;font-size:12px;line-height:1;padding:0}
+  .issue-nav button:hover:not(:disabled){background:var(--hover)}
+  .issue-nav button:disabled{opacity:.4;cursor:not-allowed}
+  .issue-nav .counter{min-width:36px;text-align:center}
+  .convert-btn{flex:1;height:40px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-weight:600;font-size:13.5px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:9px;letter-spacing:.01em}
+  .convert-btn:disabled{opacity:.55;cursor:not-allowed}
+  .convert-btn:not(:disabled):hover{filter:brightness(1.08)}
+  .convert-btn:not(:disabled):active{transform:translateY(1px)}
+  .arrow{font-family:'JetBrains Mono',monospace;font-size:15px}
 
-  #summary {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 8px 12px;
-    flex-shrink: 0;
-  }
-  #summary[hidden] { display: none; }
-  #summary > summary {
-    cursor: pointer;
-    list-style: none;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    user-select: none;
-    color: var(--text);
-  }
-  #summary > summary::-webkit-details-marker { display: none; }
-  #summary > summary::marker { content: ""; }
-  .summary-text { flex: 1; color: var(--green); }
-  .summary-toggle {
-    color: var(--muted);
-    font-size: 11px;
-    white-space: nowrap;
-  }
-  #summary[open] .summary-toggle::before { content: "▲ ซ่อน"; }
-  #summary:not([open]) .summary-toggle::before { content: "▼ คลิกเพื่อดูรายละเอียด"; }
-  .summary-tree {
-    margin-top: 10px;
-    border-top: 1px solid var(--border);
-    padding-top: 10px;
-    max-height: 360px;
-    overflow-y: auto;
-  }
-  .tree-section { margin-bottom: 12px; }
-  .tree-section:last-child { margin-bottom: 0; }
-  .tree-label {
-    font-weight: 600;
-    color: var(--accent2);
-    margin-bottom: 4px;
-    font-size: 12px;
-  }
-  .tree-page {
-    margin: 2px 0;
-    padding-left: 4px;
-  }
-  .tree-page > summary {
-    cursor: pointer;
-    list-style: none;
-    color: var(--text);
-    padding: 2px 0;
-    user-select: none;
-  }
-  .tree-page > summary::-webkit-details-marker { display: none; }
-  .tree-page > summary::marker { content: ""; }
-  .tree-page > summary::before {
-    content: "▶ ";
-    color: var(--muted);
-    font-size: 10px;
-    margin-right: 4px;
-    display: inline-block;
-    width: 12px;
-  }
-  .tree-page[open] > summary::before { content: "▼ "; }
-  .section-list {
-    margin: 4px 0 6px 24px;
-    padding: 0;
-    list-style-position: outside;
-    list-style-type: decimal;
-    color: var(--muted);
-  }
-  .section-list li { padding: 1px 0; }
-  .sec-v3 {
-    color: var(--yellow);
-    font-weight: 500;
-  }
-  .sec-arrow { color: var(--muted); }
-  .sec-kind {
-    color: var(--accent2);
-    font-weight: 500;
-  }
-  .sec-nick {
-    color: var(--muted);
-    font-style: italic;
-  }
+  /* ── OUTPUT ────────────────────────────────────────────────────────── */
+  .out-head{height:46px;flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 13px;border-bottom:1px solid var(--border);background:var(--panel-head)}
+  .out-head-left{display:flex;align-items:center;gap:9px;flex:none}
+  .out-head-right{display:flex;align-items:center;gap:8px;min-width:0}
+  .pill{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:6px;flex:none}
+  .pill-good{color:var(--good);background:var(--good-soft)}
+  .pill-bad{color:var(--bad);background:var(--bad-soft)}
+  .download-btn{display:flex;align-items:center;gap:6px;height:30px;padding:0 12px;border:1px solid var(--accent-soft);background:var(--accent-soft);color:var(--accent);border-radius:7px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;flex:none}
+  .download-btn:hover{filter:brightness(1.08)}
+
+  .out-body{flex:1;display:flex;min-height:0}
+  .sidebar{width:222px;flex:none;border-right:1px solid var(--border);overflow:auto;padding:8px 7px;background:var(--panel-head)}
+  .nav-heading{display:flex;align-items:center;justify-content:space-between;font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--muted-2);padding:11px 9px 6px}
+  .nav-heading .count{font-family:'JetBrains Mono',monospace;font-weight:500}
+  .nav-item{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;text-align:left;padding:7px 9px;margin-bottom:2px;border:none;border-radius:6px;cursor:pointer;font-size:12.5px;background:transparent;color:var(--muted);font-weight:500;box-shadow:none;font-family:inherit}
+  .nav-item:hover{background:var(--hover)}
+  .nav-item.active{background:var(--accent-soft);color:var(--fg-strong);font-weight:600;box-shadow:inset 2px 0 0 var(--accent)}
+  .nav-left{display:flex;align-items:center;gap:8px;min-width:0}
+  .nav-icon{font-family:'JetBrains Mono',monospace;font-size:10px;flex:none}
+  .nav-label{font-family:'JetBrains Mono','IBM Plex Sans Thai',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .nav-meta{font-size:10px;color:var(--muted-2);font-family:'JetBrains Mono',monospace;flex:none}
+
+  .viewer{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--elev)}
+  .viewer-head{flex:none;display:flex;align-items:center;justify-content:space-between;padding:7px 8px 7px 14px;border-bottom:1px solid var(--border);gap:8px}
+  .viewer-head-left{display:flex;flex-direction:column;gap:2px;min-width:0}
+  .path{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .slice-meta{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .copy-btn{display:flex;align-items:center;gap:6px;height:28px;padding:0 11px;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:7px;cursor:pointer;font-family:inherit;font-size:11.5px;font-weight:500}
+  .copy-btn:hover{background:var(--hover)}
+  .copy-btn.copied{color:var(--good);border-color:var(--good)}
+  .copy-btn .icon{font-family:'JetBrains Mono',monospace;font-size:12px}
+  .code-scroll{flex:1;min-height:0;position:relative;display:flex}
+  .code-foot{flex:none;height:28px;display:flex;align-items:center;gap:14px;padding:0 14px;border-top:1px solid var(--border);background:var(--panel-head)}
+  .code-meta{font-size:10.5px;font-family:'JetBrains Mono',monospace;color:var(--muted-2)}
+
+  .err-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:30px;text-align:center;background:var(--elev)}
+  .err-state-icon{font-family:'JetBrains Mono',monospace;font-size:30px;color:var(--bad)}
+  .err-state-title{font-size:14px;color:var(--fg-strong);font-weight:600}
+  .err-state-msg{font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--muted);max-width:420px;line-height:1.6;word-break:break-word}
+  .err-state-hint{font-size:11.5px;color:var(--muted-2);margin-top:4px}
+
+  .placeholder{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:30px;text-align:center;background:var(--elev);color:var(--muted-2)}
+  .placeholder-icon{font-family:'JetBrains Mono',monospace;font-size:28px;color:var(--muted-2)}
+  .placeholder-text{font-size:12.5px}
+
+  /* ── HTML warnings banner ──────────────────────────────────────── */
+  .warn-banner{flex:none;background:var(--panel-head);border-bottom:1px solid var(--border)}
+  .warn-banner summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:9px 13px;font-size:12px;color:var(--warn);font-weight:600}
+  .warn-banner summary::-webkit-details-marker{display:none}
+  .warn-banner summary::before{content:"▸";font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted-2);transition:transform .15s}
+  .warn-banner[open] summary::before{transform:rotate(90deg)}
+  .warn-banner .warn-count{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);font-weight:500}
+  .warn-list{max-height:200px;overflow:auto;padding:0 13px 11px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.6}
+  .warn-list .row{display:flex;gap:8px;padding:3px 5px;color:var(--muted);border-radius:4px;cursor:pointer;align-items:baseline}
+  .warn-list .row:hover{background:var(--hover)}
+  .warn-list .row.active{background:var(--accent-soft);outline:1px solid var(--accent-soft)}
+  .warn-list .row .tag{flex:none;width:46px;font-weight:700;font-size:9.5px;letter-spacing:.05em;text-transform:uppercase}
+  .warn-list .row.fixed .tag{color:var(--good)}
+  .warn-list .row.warn .tag{color:var(--warn)}
+  .warn-list .row .line-pill{flex:none;width:48px;text-align:right;color:var(--warn);font-weight:700;font-size:10.5px}
+  .warn-list .row .path{color:var(--accent);white-space:nowrap;flex:none}
+  .warn-list .row .msg{color:var(--fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  .hidden{display:none !important}
 </style>
 </head>
 <body>
 
-<header class="app">
-  <div>
-    <h1>converter2v4 <span class="tag">v3 → v4</span> <span class="version" id="versionTag"></span></h1>
-    <div class="subtitle">Paste v3 JSON, click Convert. Site mode shows Pages / Header / Footer in 3 separate boxes.</div>
-  </div>
-  <div id="status" data-type="loading">Loading Python runtime…</div>
-</header>
+<div class="root">
 
-<main>
-  <div class="toolbar">
-    <label>Mode
-      <select id="mode">
-        <option value="auto">Auto-detect</option>
-        <option value="sections">Sections</option>
-        <option value="page">Page</option>
-        <option value="pages">Pages (array)</option>
-        <option value="site">Site (pages + zones)</option>
-        <option value="zones">Zones only</option>
-      </select>
-    </label>
-    <button id="convert" class="primary" disabled title="กำลังโหลด Python runtime… กรุณารอสักครู่">Convert →</button>
-    <button id="clear" class="ghost" type="button">Clear</button>
-  </div>
-
-  <div class="content-grid">
-
-    <!-- LEFT: input + status/summary -->
-    <div class="left-col">
-      <section class="panel">
-        <header>
-          <h2>Input · v3 JSON</h2>
-          <span id="inputInfo" class="subtitle" style="color:var(--muted);font-size:12px"></span>
-        </header>
-        <textarea id="input" spellcheck="false" placeholder='Paste v3 JSON here. Examples:
-{"name":"ParagraphSection","props":{...}}
-[{"name":"Headline","props":{...}}, {"name":"ParagraphSection","props":{...}}]
-{"shop":{...}, "customRoutes":[...]}   ← full site'></textarea>
-      </section>
-
-      <div id="statusArea">
-        <div id="messages" aria-live="polite"></div>
-        <details id="summary" hidden>
-          <summary>
-            <span class="summary-text" id="summaryText"></span>
-            <span class="summary-toggle"></span>
-          </summary>
-          <div class="summary-tree" id="summaryTree"></div>
-        </details>
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">{ }</div>
+      <div class="brand-text">
+        <div class="brand-row">
+          <span class="brand-title">converter2v4</span>
+          <span class="brand-version" id="versionTag"></span>
+        </div>
+        <span class="brand-sub" id="brandSub">schema&nbsp;v3&nbsp;→&nbsp;v4</span>
       </div>
     </div>
-
-    <!-- RIGHT: output (3 stacked boxes) -->
-    <div class="right-col">
-      <section class="panel" style="flex:1">
-        <header>
-          <h2>Output · v4 JSON</h2>
-        </header>
-        <div class="output-scroll">
-
-          <!-- Box 1 · Pages / Output -->
-          <div class="output-box" id="boxPages">
-            <div class="box-header">
-              <h3 id="titlePages">📄 Output</h3>
-              <button class="copy-btn primary-action" data-target="outPages" disabled>📋 Copy</button>
-            </div>
-            <div class="box-picker" id="pickerRow" hidden>
-              <label for="pagePicker">หน้า</label>
-              <select id="pagePicker"></select>
-            </div>
-            <textarea id="outPages" readonly spellcheck="false"
-                      placeholder="Converted v4 JSON will appear here."></textarea>
-          </div>
-
-          <!-- Box 2 · Header -->
-          <div class="output-box" id="boxHeader" hidden>
-            <div class="box-header">
-              <h3 id="titleHeader">🔝 Header</h3>
-              <button class="copy-btn primary-action" data-target="outHeader" disabled>📋 Copy</button>
-            </div>
-            <textarea id="outHeader" readonly spellcheck="false"
-                      placeholder="header_zone.children (without wrapping [ ]) — paste into v4 header_zone.children."></textarea>
-          </div>
-
-          <!-- Box 3 · Footer -->
-          <div class="output-box" id="boxFooter" hidden>
-            <div class="box-header">
-              <h3 id="titleFooter">🔻 Footer</h3>
-              <button class="copy-btn primary-action" data-target="outFooter" disabled>📋 Copy</button>
-            </div>
-            <textarea id="outFooter" readonly spellcheck="false"
-                      placeholder="footer_zone.children (without wrapping [ ]) — paste into v4 footer_zone.children."></textarea>
-          </div>
-
-        </div>
-      </section>
+    <div class="topbar-right">
+      <span class="status-pill" id="status" data-state="loading">Loading Python runtime…</span>
+      <button class="theme-btn" id="themeBtn" type="button">
+        <span class="theme-icon" id="themeIcon">☀</span><span id="themeLabel">Light</span>
+      </button>
     </div>
+  </header>
 
-  </div>
-</main>
+  <main class="layout">
+
+    <!-- INPUT -->
+    <section class="panel">
+      <div class="panel-head">
+        <div class="out-head-left">
+          <span class="label">INPUT</span>
+          <span class="badge">v3 · เก่า</span>
+        </div>
+        <div class="panel-head-right">
+          <button class="ghost-btn" id="pasteBtn" type="button">วาง</button>
+          <button class="ghost-btn" id="clearBtn" type="button">ล้าง</button>
+        </div>
+      </div>
+      <div class="input-body">
+        <div class="cm-host" id="inputHost"></div>
+        <div class="editor-ruler" id="editorRuler"></div>
+      </div>
+      <div class="input-foot">
+        <div class="err-row hidden" id="errRow">
+          <span class="err-icon">⚠</span>
+          <div class="err-body">
+            <span class="err-title">JSON ไม่ถูกต้อง <span class="err-loc" id="errLoc"></span></span>
+            <span class="err-msg" id="errMsg"></span>
+          </div>
+        </div>
+        <div class="foot-row">
+          <span class="foot-meta" id="inputMeta">0 บรรทัด</span>
+          <div class="issue-nav hidden" id="issueNav">
+            <span>⚠</span>
+            <button id="issuePrev" type="button" title="ก่อนหน้า">◀</button>
+            <span class="counter" id="issueCounter">0/0</span>
+            <button id="issueNext" type="button" title="ถัดไป">▶</button>
+          </div>
+          <button class="convert-btn" id="convertBtn" type="button" disabled>
+            แปลงโค้ด<span class="arrow">→</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- OUTPUT -->
+    <section class="panel">
+      <div class="out-head">
+        <div class="out-head-left">
+          <span class="label">OUTPUT</span>
+          <span class="badge badge-accent">v4</span>
+        </div>
+        <div class="out-head-right">
+          <span class="pill pill-good hidden" id="okPill">✓ แปลงสำเร็จ</span>
+          <span class="pill pill-bad hidden" id="badPill">✕ JSON ไม่ถูกต้อง</span>
+          <button class="download-btn hidden" id="downloadBtn" type="button">
+            <span class="icon">↓</span>ดาวน์โหลด JSON
+          </button>
+        </div>
+      </div>
+
+      <!-- HTML warnings banner -->
+      <details class="warn-banner hidden" id="warnBanner">
+        <summary>
+          <span id="warnTitle">⚠ พบ HTML ที่ต้องตรวจสอบ</span>
+          <span class="warn-count" id="warnCount"></span>
+        </summary>
+        <div class="warn-list" id="warnList"></div>
+      </details>
+
+      <!-- OK state: sidebar + viewer -->
+      <div class="out-body hidden" id="outBody">
+        <aside class="sidebar" id="sidebar"></aside>
+        <div class="viewer">
+          <div class="viewer-head">
+            <div class="viewer-head-left">
+              <span class="path" id="path">$</span>
+              <span class="slice-meta" id="sliceMeta"></span>
+            </div>
+            <button class="copy-btn" id="copyBtn" type="button">
+              <span class="icon" id="copyIcon">⧉</span><span id="copyLabel">คัดลอก</span>
+            </button>
+          </div>
+          <div class="code-scroll" id="codeScroll">
+            <div class="cm-host" id="outputHost"></div>
+          </div>
+          <div class="code-foot">
+            <span class="code-meta" id="codeMeta"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Error state -->
+      <div class="err-state hidden" id="errState">
+        <div class="err-state-icon">{ ! }</div>
+        <div class="err-state-title">แปลงไม่สำเร็จ</div>
+        <div class="err-state-msg" id="errStateMsg"></div>
+        <div class="err-state-hint">ตรวจสอบว่า JSON ในช่อง input ถูกต้องแล้วกด "แปลงโค้ด" อีกครั้ง</div>
+      </div>
+
+      <!-- Idle placeholder -->
+      <div class="placeholder" id="idleState">
+        <div class="placeholder-icon">{ }</div>
+        <div class="placeholder-text">วางโค้ด v3 JSON ที่ช่องซ้าย แล้วกด <strong>แปลงโค้ด</strong></div>
+      </div>
+
+    </section>
+  </main>
+</div>
 
 <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
 <script>
-(async function () {
+(async function(){
   // ────────────────────────────────────────────────────────────────────
   // @@VERSION-CONSTANTS — bump these when you change the file
-  const VERSION = "v1.0";
-  const UPDATED = "2026-06-19";
+  const VERSION = "v2.1";
+  const UPDATED = "2026-06-23";
   // ────────────────────────────────────────────────────────────────────
 
   document.title = `converter2v4 ${VERSION} — LNW Shop v3 → v4`;
-  const _vt = document.getElementById("versionTag");
-  if (_vt) _vt.textContent = `${VERSION} · ${UPDATED}`;
+  document.getElementById("versionTag").textContent = VERSION;
+  document.getElementById("brandSub").innerHTML = `schema&nbsp;v3&nbsp;→&nbsp;v4 · อัพเดท ${UPDATED}`;
 
   const $ = (id) => document.getElementById(id);
-  const statusEl = $("status");
-  const messagesEl = $("messages");
-  const inputEl  = $("input");
-  const modeEl   = $("mode");
-  const convertBtn = $("convert");
-  const clearBtn   = $("clear");
-  const inputInfo  = $("inputInfo");
 
-  const boxPages   = $("boxPages");
-  const boxHeader  = $("boxHeader");
-  const boxFooter  = $("boxFooter");
-  const titlePages  = $("titlePages");
-  const titleHeader = $("titleHeader");
-  const titleFooter = $("titleFooter");
-  const pickerRow  = $("pickerRow");
-  const pagePicker = $("pagePicker");
-  const outPages   = $("outPages");
-  const outHeader  = $("outHeader");
-  const outFooter  = $("outFooter");
-  const copyButtons = Array.from(document.querySelectorAll(".copy-btn"));
+  // ── Theme persistence (localStorage) ───────────────────────────────
+  const THEME_KEY = "converter2v4_theme";
+  function loadTheme() {
+    try {
+      const v = localStorage.getItem(THEME_KEY);
+      if (v === "dark" || v === "light") return v;
+    } catch (_) {}
+    return "light";  // default
+  }
+  function saveTheme(t) {
+    try { localStorage.setItem(THEME_KEY, t); } catch (_) {}
+  }
 
-  const summaryEl   = $("summary");
-  const summaryText = $("summaryText");
-  const summaryTree = $("summaryTree");
+  // ── State ──────────────────────────────────────────────────────────
+  const state = {
+    theme: loadTheme(),
+    input: "",
+    parseError: null,   // {line, col, msg, loc}
+    result: null,       // converted output (object or array)
+    resultMode: null,   // detected mode of the conversion ("site"|"page"|"pages"|"sections"|"zones"|"global")
+    runError: null,     // string — Python-side error message
+    selected: "all",    // sidebar selection key
+    copied: false,
+    htmlWarnings: [],   // [{path, kind: "fixed"|"warn", msg, line}]
+    issueLines: [],     // [line] — 1-based line numbers in input that contain HTML issues
+    issueIdx: 0,        // current index into issueLines
+    cleanInput: null,   // normalized v3 data (used to look up values for output search)
+    outputActiveLine: null,  // line to highlight in the output code viewer
+  };
+
+  function applyTheme(t) {
+    document.querySelector(".root").dataset.theme = t;
+    $("themeIcon").textContent = t === "dark" ? "☾" : "☀";
+    $("themeLabel").textContent = t === "dark" ? "Dark" : "Light";
+  }
+  applyTheme(state.theme);
+
+  // ── CodeMirror init ────────────────────────────────────────────────
+  const inputCm = CodeMirror($("inputHost"), {
+    value: "",
+    mode: { name: "javascript", json: true },
+    lineNumbers: true,
+    lineWrapping: true,
+    styleActiveLine: false,
+    foldGutter: true,
+    gutters: ["CodeMirror-linenumbers", "cm-issue-gutter", "CodeMirror-foldgutter"],
+    indentUnit: 2,
+    tabSize: 2,
+  });
+
+  const outputCm = CodeMirror($("outputHost"), {
+    value: "",
+    mode: { name: "javascript", json: true },
+    lineNumbers: true,
+    lineWrapping: true,
+    readOnly: true,
+    foldGutter: true,
+    gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
+    indentUnit: 2,
+    tabSize: 2,
+  });
+
+  inputCm.on("change", () => {
+    state.input = inputCm.getValue();
+    state.parseError = null;
+    state.issueLines = [];
+    state.issueIdx = 0;
+    renderInputUI();
+  });
+
+  // Refresh CM when its container size could change (e.g. theme toggle ignored — same height).
+  // CM auto-refreshes on input.
+
+  // Helpers — input markers (issue gutter + line classes)
+  function setInputMarkers() {
+    const cm = inputCm;
+    cm.clearGutter("cm-issue-gutter");
+    if (cm._parseErrLine != null) {
+      cm.removeLineClass(cm._parseErrLine, "background", "cm-parse-error-line");
+      cm._parseErrLine = null;
+    }
+    if (cm._activeIssueLine != null) {
+      cm.removeLineClass(cm._activeIssueLine, "background", "cm-active-issue-line");
+      cm._activeIssueLine = null;
+    }
+    const pe = state.parseError;
+    if (pe && pe.line) {
+      cm.addLineClass(pe.line - 1, "background", "cm-parse-error-line");
+      cm._parseErrLine = pe.line - 1;
+    }
+    state.issueLines.forEach(ln => {
+      const el = document.createElement("div");
+      el.className = "cm-issue-marker";
+      el.textContent = "⚠";
+      el.title = `HTML issue · L${ln}`;
+      el.addEventListener("click", () => {
+        const idx = state.issueLines.indexOf(ln);
+        if (idx >= 0) goToIssue(idx);
+      });
+      cm.setGutterMarker(ln - 1, "cm-issue-gutter", el);
+    });
+    const active = state.issueLines[state.issueIdx];
+    if (active) {
+      cm.addLineClass(active - 1, "background", "cm-active-issue-line");
+      cm._activeIssueLine = active - 1;
+    }
+  }
 
   let pyodide = null;
   let pyodideReady = false;
-  let state = { pages: [], headerKids: [], footerKids: [] };
 
-  function setStatus(text, type) {
-    statusEl.textContent = text;
-    statusEl.dataset.type = type || "";
-  }
-  function logMsg(msg, kind) {
-    const line = document.createElement("div");
-    line.className = "msg-line msg-" + (kind || "info");
-    line.textContent = msg;
-    messagesEl.appendChild(line);
-    messagesEl.scrollTop = messagesEl.scrollHeight;
-  }
-  function clearMessages() { messagesEl.innerHTML = ""; }
-  function hideSummary() {
-    summaryEl.hidden = true;
-    summaryEl.open = false;
-    summaryText.textContent = "";
-    summaryTree.innerHTML = "";
-  }
-  function showSummary(text, treeHTML) {
-    summaryText.textContent = text;
-    summaryTree.innerHTML = treeHTML;
-    summaryEl.hidden = false;
-    summaryEl.open = false;
-  }
-
-  function updateCopyButtons() {
-    copyButtons.forEach(btn => {
-      const target = document.getElementById(btn.dataset.target);
-      btn.disabled = !target.value;
-    });
-  }
-
-  // ── Boot ───────────────────────────────────────────────────────────────
+  // ── Pyodide boot ───────────────────────────────────────────────────
   try {
     setStatus("Loading Python runtime…", "loading");
     pyodide = await loadPyodide();
@@ -574,29 +473,42 @@
     pyodide.runPython('__name__ = "converter_module"\n' + code);
     pyodideReady = true;
     setStatus("Ready", "ready");
-    convertBtn.disabled = false;
-    convertBtn.removeAttribute("title");
-    logMsg("Python runtime ready. Paste JSON and click Convert.", "info");
+    $("convertBtn").disabled = false;
   } catch (e) {
     setStatus("Failed to load", "error");
-    logMsg("Init failed: " + e.message, "error");
-    logMsg("Tip: serve over http(s). For local testing: `python3 -m http.server 8000`.", "warn");
+    showErrState("Init failed: " + e.message + "\n\nTip: serve over http(s). For local testing: `python3 -m http.server 8000`.");
     console.error(e);
     return;
   }
 
-  // ── Lenient JSON parse (mirrors converter.py:_load_json) ───────────────
+  // ── Lenient JSON parse (mirrors converter.py:_load_json) ───────────
   function parseInput(raw) {
     raw = raw.trim().replace(/\[\s*\.\.\s*\]/g, "[]");
-    if (!raw) throw new Error("Input is empty.");
+    if (!raw) throw mkParseErr("Input ว่างเปล่า", "", null);
     try { return JSON.parse(raw); }
     catch (e1) {
       try { return JSON.parse("[" + raw + "]"); }
-      catch (e2) { throw new Error("Could not parse JSON: " + e1.message); }
+      catch (_e2) { throw mkParseErr(e1.message, "", positionOf(e1.message, raw)); }
     }
   }
+  function positionOf(msg, src) {
+    const m = /position (\d+)/i.exec(msg);
+    if (!m) return null;
+    const pos = Math.min(parseInt(m[1], 10), src.length);
+    const before = src.slice(0, pos);
+    const line = before.split("\n").length;
+    const col  = pos - before.lastIndexOf("\n");
+    return { line, col };
+  }
+  function mkParseErr(msg, _loc, pos) {
+    const cleanMsg = msg.replace(/\s*in JSON at position \d+.*/i, "");
+    const loc = pos ? `บรรทัด ${pos.line} คอลัมน์ ${pos.col}` : "";
+    const err = new Error(cleanMsg);
+    err.parse = { msg: cleanMsg, loc, line: pos && pos.line, col: pos && pos.col };
+    return err;
+  }
 
-  // ── Auto-detect mode ───────────────────────────────────────────────────
+  // ── Auto-detect mode ───────────────────────────────────────────────
   function detectMode(data) {
     if (Array.isArray(data)) {
       if (data.length && data[0] && typeof data[0] === "object" && "layouts" in data[0]) return "pages";
@@ -605,14 +517,30 @@
     if (data && typeof data === "object") {
       if ("layouts" in data) return "page";
       if ("name" in data && "props" in data) return "sections";
+      // Full v3 site: has customRoutes OR has top-level keys whose values contain layouts arrays
       if ("customRoutes" in data) return "site";
       const looksPagey = Object.values(data).some(v => v && typeof v === "object" && "layouts" in v);
       if (looksPagey) return "site";
+      // Plain components-only object → global mode
+      if ("components" in data) return "site";
     }
     return "sections";
   }
 
-  // ── Run conversion in Python ──────────────────────────────────────────
+  // ── HTML normalize (auto-fix void tags + warn unclosed) ────────────
+  function normalizeHtml(data) {
+    pyodide.globals.set("_raw", pyodide.toPy(data));
+    pyodide.runPython("_clean, _warns = normalize_html(_raw)");
+    const cleanProxy = pyodide.globals.get("_clean");
+    const warnsProxy = pyodide.globals.get("_warns");
+    const clean   = cleanProxy.toJs({ dict_converter: Object.fromEntries });
+    const warns   = warnsProxy.toJs({ dict_converter: Object.fromEntries });
+    cleanProxy.destroy();
+    warnsProxy.destroy();
+    return { clean, warns };
+  }
+
+  // ── Run conversion ─────────────────────────────────────────────────
   async function runConversion(mode, data) {
     pyodide.globals.set("_input", pyodide.toPy(data));
     let snippet;
@@ -620,10 +548,22 @@
       snippet =
         "_pages = convert_site(_input)\n" +
         "_zones = convert_zones(_input)\n" +
-        "_result = {'pages': _pages, **_zones}\n" +
-        "_errors = []\n";
+        "_globals = convert_global(_input)\n" +
+        "_result = {\n" +
+        "    'nickname':    'Imported',\n" +
+        "    'theme_key':   'base',\n" +
+        "    'info':        _globals['info'],\n" +
+        "    'style':       _globals['style'],\n" +
+        "    'css':         None,\n" +
+        "    'header_zone': _zones['header_zone'],\n" +
+        "    'footer_zone': _zones['footer_zone'],\n" +
+        "    'free_zone':   _zones['free_zone'],\n" +
+        "    'pages':       _pages,\n" +
+        "}\n_errors = []\n";
     } else if (mode === "zones") {
       snippet = "_result = convert_zones(_input)\n_errors = []\n";
+    } else if (mode === "global") {
+      snippet = "_result = convert_global(_input)\n_errors = []\n";
     } else if (mode === "pages") {
       snippet =
         "_result = [convert_page(p) for p in _input if isinstance(p, dict) and 'layouts' in p]\n" +
@@ -652,309 +592,619 @@
     return { result, errors };
   }
 
-  // ── Page picker ───────────────────────────────────────────────────────
-  function renderPagesPane() {
-    const sel = pagePicker.value;
-    if (!state.pages.length) { outPages.value = ""; return; }
-    if (sel === "__all__") {
-      outPages.value = JSON.stringify(state.pages, null, 2);
-    } else {
-      const idx = parseInt(sel, 10);
-      if (Number.isInteger(idx) && state.pages[idx]) {
-        outPages.value = JSON.stringify(state.pages[idx], null, 2);
-      } else {
-        outPages.value = JSON.stringify(state.pages, null, 2);
+  // ── UI helpers ─────────────────────────────────────────────────────
+  function setStatus(text, st) {
+    const el = $("status");
+    el.textContent = text;
+    el.dataset.state = st || "";
+  }
+
+  function escapeHTML(s){ return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+
+  // Navigate a JSON object by a path like "$.foo.bar[0].baz".
+  function getAtPath(obj, path) {
+    if (!path || path === "$") return obj;
+    let s = path.startsWith("$.") ? path.slice(2)
+          : path.startsWith("$") ? path.slice(1)
+          : path;
+    const tokens = [];
+    const re = /([^.[\]]+)|\[(\d+)\]/g;
+    let m;
+    while ((m = re.exec(s)) !== null) tokens.push(m[1] !== undefined ? m[1] : parseInt(m[2], 10));
+    let cur = obj;
+    for (const t of tokens) {
+      if (cur == null) return undefined;
+      cur = cur[t];
+    }
+    return cur;
+  }
+
+  // Find the line in the currently-rendered output JSON text where `value`
+  // appears (best-effort). Returns null if not found.
+  function findOutputLineForValue(value) {
+    if (!state.result || typeof value !== "string" || !value) return null;
+    const full = JSON.stringify(state.result, null, 2);
+    // JSON.stringify escapes the value (quotes, newlines, etc.). We search
+    // for the JSON-encoded substring, dropping the surrounding quotes.
+    // Pick a snippet from the value — first chunk before first newline, max 80 chars.
+    const firstLine = value.split("\n")[0].slice(0, 80);
+    if (firstLine.length < 6) return null;  // too short to be reliable
+    const encoded = JSON.stringify(firstLine);
+    const needle = encoded.slice(1, -1);
+    const idx = full.indexOf(needle);
+    if (idx < 0) return null;
+    return full.slice(0, idx).split("\n").length;
+  }
+
+  function setOutputActiveLine(line) {
+    state.outputActiveLine = line || null;
+    if (outputCm._activeIssueLine != null) {
+      outputCm.removeLineClass(outputCm._activeIssueLine, "background", "cm-active-issue-line");
+      outputCm._activeIssueLine = null;
+    }
+    if (line) {
+      const pos = { line: line - 1, ch: 0 };
+      try { outputCm.foldCode(pos, null, "unfold"); } catch (_) {}
+      outputCm.addLineClass(line - 1, "background", "cm-active-issue-line");
+      outputCm._activeIssueLine = line - 1;
+    }
+  }
+
+  function scrollOutputToLine(line) {
+    const pos = { line: line - 1, ch: 0 };
+    try { outputCm.foldCode(pos, null, "unfold"); } catch (_) {}
+    outputCm.scrollIntoView(pos, 60);
+  }
+
+  // Build a map of JSON path → starting line number (1-based) by tokenizing the
+  // raw text. Returns {} on parse failure (best-effort — we only need lines for
+  // valid input).
+  function buildPathLineMap(text) {
+    const map = {};
+    let i = 0, line = 1;
+    const adv = (n = 1) => {
+      for (let k = 0; k < n; k++) {
+        if (text[i] === "\n") line++;
+        i++;
       }
+    };
+    const skipWS = () => { while (i < text.length && /\s/.test(text[i])) adv(); };
+    const parseString = () => {
+      // assumes text[i] === '"' — consumes the string incl. closing quote
+      adv();
+      while (i < text.length && text[i] !== '"') {
+        if (text[i] === "\\") adv();
+        adv();
+      }
+      if (i < text.length) adv();
+    };
+    const parseKey = () => {
+      skipWS();
+      if (text[i] !== '"') return null;
+      let j = i + 1;
+      while (j < text.length && text[j] !== '"') {
+        if (text[j] === "\\") j += 2;
+        else j++;
+      }
+      const key = text.slice(i + 1, j);
+      i = j + 1;
+      return key;
+    };
+    const parseValue = (path) => {
+      skipWS();
+      // Record the path's starting line.
+      if (!(path in map)) map[path] = line;
+      const c = text[i];
+      if (c === '"') {
+        parseString();
+      } else if (c === "{") {
+        adv(); skipWS();
+        while (i < text.length && text[i] !== "}") {
+          const key = parseKey();
+          if (key === null) break;
+          skipWS();
+          if (text[i] === ":") adv();
+          parseValue(path + "." + key);
+          skipWS();
+          if (text[i] === ",") { adv(); skipWS(); }
+        }
+        if (text[i] === "}") adv();
+      } else if (c === "[") {
+        adv(); skipWS();
+        let idx = 0;
+        while (i < text.length && text[i] !== "]") {
+          parseValue(path + "[" + idx + "]");
+          skipWS();
+          if (text[i] === ",") { adv(); skipWS(); }
+          idx++;
+        }
+        if (text[i] === "]") adv();
+      } else {
+        // primitive (number/bool/null) — skip until structural char
+        while (i < text.length && !/[,}\]]/.test(text[i])) adv();
+      }
+    };
+    try {
+      parseValue("$");
+    } catch (_) {
+      return {};
     }
-    updateCopyButtons();
+    return map;
   }
-  pagePicker.addEventListener("change", renderPagesPane);
 
-  function populatePagePicker(pages) {
-    pagePicker.innerHTML = "";
-    const allOpt = document.createElement("option");
-    allOpt.value = "__all__";
-    allOpt.textContent = `📑 ทั้งหมด (${pages.length} pages)`;
-    pagePicker.appendChild(allOpt);
-    pages.forEach((p, i) => {
-      const opt = document.createElement("option");
-      opt.value = String(i);
-      const secN = ((p.component || {}).children || []).length;
-      const path = p.path || "?";
-      const nick = p.nickname || "";
-      opt.textContent = nick
-        ? `${path}  —  ${nick} (${secN} sec)`
-        : `${path} (${secN} sec)`;
-      pagePicker.appendChild(opt);
+  // Scan raw input for HTML issue patterns. Returns sorted, deduped line numbers (1-based).
+  // We scan the visible JSON source — so `\n` (escaped newline) appears as literal
+  // backslash-n. The regex `\\n` matches that 2-char sequence.
+  function scanIssueLines(rawText) {
+    const lines = rawText.split("\n");
+    const patterns = [
+      /<br(?![^>]*\/\s*>)[^>]*>/i,            // <br> without /
+      /<\/(?:br|hr|img|input|area|base|col|embed|link|meta|param|source|track|wbr)\s*>/i,
+      /<(?:style|script)\b/i,                 // embedded <style>/<script>
+      /\\n\s*<[A-Za-z]/,                      // \n immediately before a tag (e.g. \n<br>)
+    ];
+    const found = new Set();
+    lines.forEach((line, i) => {
+      for (const re of patterns) {
+        if (re.test(line)) { found.add(i + 1); break; }
+      }
     });
-    pagePicker.value = "__all__";
+    return Array.from(found).sort((a, b) => a - b);
   }
 
-  // ── Summary tree builders ─────────────────────────────────────────────
-  function esc(s) {
-    return String(s == null ? "" : s)
-      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  function scrollInputToLine(lineNum) {
+    const pos = { line: lineNum - 1, ch: 0 };
+    try { inputCm.foldCode(pos, null, "unfold"); } catch (_) {}
+    inputCm.scrollIntoView(pos, 60);
+    inputCm.setCursor(pos);
+    inputCm.focus();
   }
 
-  function sectionListHTML(v4Sections, v3Sections) {
-    return `<ol class="section-list">${
-      v4Sections.map((sec, i) => {
-        const v3 = v3Sections && v3Sections[i] ? v3Sections[i].name : null;
-        const kind = sec.kind || sec.type || "?";
-        const nick = sec.nickname || "";
-        const v3HTML   = v3 ? `<span class="sec-v3">${esc(v3)}</span> <span class="sec-arrow">→</span> ` : "";
-        const kindHTML = `<span class="sec-kind">${esc(kind)}</span>`;
-        const nickHTML = nick ? ` <span class="sec-nick">(${esc(nick)})</span>` : "";
-        return `<li>${v3HTML}${kindHTML}${nickHTML}</li>`;
-      }).join("")
-    }</ol>`;
-  }
-
-  function pageBlockHTML(page, v3Layouts) {
-    const children = ((page.component || {}).children) || [];
-    const path = page.path || "?";
-    const nick = page.nickname || "";
-    const label = nick ? `${path} — ${nick}` : path;
-    return `
-      <details class="tree-page">
-        <summary>${esc(label)} <span class="sec-nick">· ${children.length} sec</span></summary>
-        ${sectionListHTML(children, v3Layouts)}
-      </details>
-    `;
-  }
-
-  function buildSummary(mode, result, v3Input) {
-    if (mode === "site") {
-      const pages = result.pages || [];
-      const headerKids = ((result.header_zone || {}).children) || [];
-      const footerKids = ((result.footer_zone || {}).children) || [];
-      const totalSec = pages.reduce(
-        (s, p) => s + (((p.component || {}).children) || []).length, 0
-      );
-      const text = `✅ site → ${pages.length} pages · ${totalSec} sections · header ${headerKids.length} · footer ${footerKids.length}`;
-      const tree =
-        `<div class="tree-section">
-           <div class="tree-label">📄 Pages (${pages.length})</div>
-           ${pages.map(p => pageBlockHTML(p, null)).join("")}
-         </div>` +
-        (headerKids.length ? `<div class="tree-section">
-           <div class="tree-label">🔝 Header zone (${headerKids.length} sec)</div>
-           ${sectionListHTML(headerKids, null)}
-         </div>` : "") +
-        (footerKids.length ? `<div class="tree-section">
-           <div class="tree-label">🔻 Footer zone (${footerKids.length} sec)</div>
-           ${sectionListHTML(footerKids, null)}
-         </div>` : "");
-      return { text, tree };
-    }
-    if (mode === "zones") {
-      const headerKids = ((result.header_zone || {}).children) || [];
-      const footerKids = ((result.footer_zone || {}).children) || [];
-      const text = `✅ zones → header ${headerKids.length} · footer ${footerKids.length}`;
-      const tree =
-        (headerKids.length ? `<div class="tree-section">
-           <div class="tree-label">🔝 Header zone (${headerKids.length} sec)</div>
-           ${sectionListHTML(headerKids, null)}
-         </div>` : "") +
-        (footerKids.length ? `<div class="tree-section">
-           <div class="tree-label">🔻 Footer zone (${footerKids.length} sec)</div>
-           ${sectionListHTML(footerKids, null)}
-         </div>` : "");
-      return { text, tree };
-    }
-    if (mode === "page") {
-      const children = ((result.component || {}).children) || [];
-      const v3Layouts = (v3Input && v3Input.layouts) || null;
-      const text = `✅ page → ${children.length} sections`;
-      const tree = `<div class="tree-section">
-        <div class="tree-label">📑 Page sections (${children.length})</div>
-        ${sectionListHTML(children, v3Layouts)}
-      </div>`;
-      return { text, tree };
-    }
-    if (mode === "pages") {
-      const items = Array.isArray(result) ? result : [];
-      const v3Pages = Array.isArray(v3Input) ? v3Input : [];
-      const totalSec = items.reduce(
-        (s, p) => s + (((p.component || {}).children) || []).length, 0
-      );
-      const text = `✅ pages → ${items.length} pages · ${totalSec} sections`;
-      const tree = `<div class="tree-section">
-        <div class="tree-label">📄 Pages (${items.length})</div>
-        ${items.map((p, i) => pageBlockHTML(p, v3Pages[i] && v3Pages[i].layouts)).join("")}
-      </div>`;
-      return { text, tree };
-    }
-    // sections
-    const items = Array.isArray(result) ? result : [result];
-    const v3items = Array.isArray(v3Input) ? v3Input
-                    : (v3Input ? [v3Input] : []);
-    const text = `✅ sections → ${items.length} section${items.length === 1 ? "" : "s"}`;
-    const tree = `<div class="tree-section">
-      <div class="tree-label">📑 Sections (${items.length})</div>
-      ${sectionListHTML(items, v3items)}
-    </div>`;
-    return { text, tree };
-  }
-
-  // ── Reset / Convert ───────────────────────────────────────────────────
-  function resetOutput() {
-    outPages.value = "";
-    outHeader.value = "";
-    outFooter.value = "";
-    state = { pages: [], headerKids: [], footerKids: [] };
-    pagePicker.innerHTML = "";
-    pickerRow.hidden = true;
-    boxPages.hidden = false;
-    boxHeader.hidden = true;
-    boxFooter.hidden = true;
-    titlePages.textContent  = "📄 Output";
-    titleHeader.textContent = "🔝 Header";
-    titleFooter.textContent = "🔻 Footer";
-    updateCopyButtons();
-    hideSummary();
-  }
-
-  async function onConvert() {
-    if (!pyodideReady) {
-      logMsg("Python runtime is still loading. Please wait a moment.", "warn");
+  function renderRuler() {
+    const ruler = $("editorRuler");
+    const lines = state.issueLines;
+    if (!lines.length || !state.input) {
+      ruler.innerHTML = "";
       return;
     }
-    clearMessages();
-    resetOutput();
-    inputInfo.textContent = "";
+    const total = state.input.split("\n").length;
+    const activeLine = state.issueLines[state.issueIdx];
+    ruler.innerHTML = lines.map(ln => {
+      const top = ((ln - 1) / Math.max(total - 1, 1)) * 100;
+      const cls = (ln === activeLine) ? "marker active" : "marker";
+      return `<div class="${cls}" data-line="${ln}" style="top:calc(${top}% - 1.5px)" title="L${ln}"></div>`;
+    }).join("");
+    ruler.querySelectorAll(".marker").forEach(m => {
+      m.addEventListener("click", () => {
+        const ln = parseInt(m.dataset.line, 10);
+        const idx = state.issueLines.indexOf(ln);
+        if (idx >= 0) goToIssue(idx);
+      });
+    });
+  }
+
+  function renderIssueNav() {
+    const nav = $("issueNav");
+    const n = state.issueLines.length;
+    if (!n) {
+      nav.classList.add("hidden");
+      return;
+    }
+    nav.classList.remove("hidden");
+    $("issueCounter").textContent = `${state.issueIdx + 1}/${n}`;
+    $("issuePrev").disabled = n < 2;
+    $("issueNext").disabled = n < 2;
+  }
+
+  function goToIssue(idx) {
+    const n = state.issueLines.length;
+    if (!n) return;
+    state.issueIdx = ((idx % n) + n) % n;  // wrap around
+    scrollInputToLine(state.issueLines[state.issueIdx]);
+    setInputMarkers();
+    renderIssueNav();
+    renderRuler();
+    renderWarnings();
+  }
+
+  // Decide what the sidebar shows based on result + resultMode
+  function buildNav() {
+    const items = [];
+    const r = state.result;
+    if (!r) return items;
+
+    items.push({ key: "all", label: "ทั้งหมด (v4)", meta: "root", icon: "{}", iconColor: "var(--accent)" });
+
+    const mode = state.resultMode;
+    const isList = Array.isArray(r);
+
+    if (isList) {
+      // sections or pages list
+      const isPages = mode === "pages";
+      items.push({ heading: true, label: isPages ? "PAGES" : "SECTIONS", count: r.length });
+      r.forEach((item, i) => {
+        const num = String(i + 1).padStart(2, "0");
+        if (isPages) {
+          const label = item && item.nickname ? item.nickname : (item && item.path) || `Page ${i + 1}`;
+          const meta  = item && item.path ? item.path : "";
+          items.push({ key: `idx:${i}`, label, meta, icon: num, iconColor: "var(--c-num)" });
+        } else {
+          const label = (item && item.kind) ? item.kind : (item && item.type) || `Section ${i + 1}`;
+          const sub = (item && item.children) ? `${item.children.length} children` : "";
+          items.push({ key: `idx:${i}`, label, meta: sub, icon: num, iconColor: "var(--c-num)" });
+        }
+      });
+      return items;
+    }
+
+    // Dict-shaped result. Site mode has the canonical top-level keys.
+    if (mode === "site") {
+      // SECTIONS group (5 fixed)
+      items.push({ heading: true, label: "SECTIONS", count: 5 });
+      const sectionKeys = ["info", "style", "header_zone", "footer_zone", "free_zone"];
+      sectionKeys.forEach(k => {
+        const v = r[k];
+        items.push({ key: k, label: k, meta: sectionMetaFor(k, v), icon: "{}", iconColor: "var(--c-key)" });
+      });
+      const pages = Array.isArray(r.pages) ? r.pages : [];
+      items.push({ heading: true, label: "PAGES", count: pages.length });
+      items.push({ key: "pages", label: "ทั้งหมด (pages)", meta: `${pages.length} pages`, icon: "[]", iconColor: "var(--c-key)" });
+      pages.forEach((pg, i) => {
+        const label = pg && pg.nickname ? pg.nickname : (pg && pg.path) || `Page ${i + 1}`;
+        const path  = pg && pg.path ? pg.path : "";
+        const nSec  = (pg && pg.component && Array.isArray(pg.component.children)) ? pg.component.children.length : 0;
+        const meta  = nSec > 0 ? `${path} · ${nSec}§` : path;
+        items.push({ key: `page:${i}`, label, meta, icon: String(i + 1).padStart(2, "0"), iconColor: "var(--c-num)" });
+      });
+      return items;
+    }
+
+    // zones / global / page / single-section: enumerate top-level keys
+    const keys = Object.keys(r);
+    items.push({ heading: true, label: "SECTIONS", count: keys.length });
+    keys.forEach(k => {
+      items.push({ key: k, label: k, meta: sectionMetaFor(k, r[k]), icon: "{}", iconColor: "var(--c-key)" });
+    });
+    return items;
+  }
+
+  function sectionMetaFor(key, v) {
+    if (v == null) return "null";
+    if (typeof v !== "object") return String(v).slice(0, 24);
+    if (Array.isArray(v)) return `${v.length} items`;
+    if (Array.isArray(v.children)) return `${v.children.length} children`;
+    const n = Object.keys(v).length;
+    return `${n} keys`;
+  }
+
+  function renderSidebar() {
+    const items = buildNav();
+    const html = items.map(it => {
+      if (it.heading) {
+        return `<div class="nav-heading"><span>${it.label}</span><span class="count">${it.count}</span></div>`;
+      }
+      const active = state.selected === it.key ? " active" : "";
+      return `<button class="nav-item${active}" data-key="${it.key}">
+        <span class="nav-left">
+          <span class="nav-icon" style="color:${it.iconColor}">${escapeHTML(String(it.icon))}</span>
+          <span class="nav-label">${escapeHTML(it.label)}</span>
+        </span>
+        <span class="nav-meta">${escapeHTML(it.meta || "")}</span>
+      </button>`;
+    }).join("");
+    $("sidebar").innerHTML = html;
+    $("sidebar").querySelectorAll(".nav-item").forEach(btn => {
+      btn.addEventListener("click", () => {
+        state.selected = btn.dataset.key;
+        setOutputActiveLine(null);   // slice changed; line numbers no longer valid
+        renderSidebar();
+        renderViewer();
+      });
+    });
+  }
+
+  function getSlice() {
+    const r = state.result;
+    const sel = state.selected;
+    if (sel === "all") return { slice: r, path: "$" };
+    if (sel === "pages") return { slice: r.pages, path: "$.pages" };
+    if (sel.startsWith("idx:")) {
+      const i = parseInt(sel.slice(4), 10);
+      return { slice: r[i], path: `$[${i}]` };
+    }
+    if (sel.startsWith("page:")) {
+      const i = parseInt(sel.slice(5), 10);
+      return { slice: r.pages[i], path: `$.pages[${i}]` };
+    }
+    // Plain key access on dict result
+    return { slice: { [sel]: r[sel] }, path: `$.${sel}` };
+  }
+
+  function sliceMetaText() {
+    const r = state.result;
+    const sel = state.selected;
+    if (sel === "all") {
+      if (Array.isArray(r)) {
+        return state.resultMode === "pages"
+          ? `${r.length} pages`
+          : `${r.length} sections`;
+      }
+      if (state.resultMode === "site") {
+        const pages = (r.pages || []).length;
+        const totalSections = (r.pages || []).reduce((acc, p) => acc + ((p && p.component && p.component.children) ? p.component.children.length : 0), 0);
+        return `5 sections · ${pages} pages · ${totalSections} widgets`;
+      }
+      const keys = Object.keys(r || {}).length;
+      return `${keys} keys`;
+    }
+    if (sel === "pages") {
+      const arr = r.pages || [];
+      const totalSections = arr.reduce((acc, p) => acc + ((p && p.component && p.component.children) ? p.component.children.length : 0), 0);
+      return `${arr.length} pages · ${totalSections} sections`;
+    }
+    if (sel.startsWith("page:")) {
+      const i = parseInt(sel.slice(5), 10);
+      const pg = r.pages[i];
+      const w = pg && pg.component && Array.isArray(pg.component.children) ? pg.component.children.length : 0;
+      return `1 page · ${w} sections`;
+    }
+    if (sel.startsWith("idx:")) {
+      const i = parseInt(sel.slice(4), 10);
+      const v = r[i];
+      if (v && Array.isArray(v.children)) return `1 item · ${v.children.length} children`;
+      if (v && typeof v === "object") return `1 item · ${Object.keys(v).length} keys`;
+      return "1 item";
+    }
+    const v = r[sel];
+    if (v == null) return "null";
+    if (Array.isArray(v)) return `${v.length} items`;
+    if (typeof v === "object") return `1 section · ${Object.keys(v).length} keys`;
+    return "1 value";
+  }
+
+  function renderViewer() {
+    const { slice, path } = getSlice();
+    $("path").textContent = path;
+    $("sliceMeta").textContent = sliceMetaText();
+    const text = JSON.stringify(slice, null, 2) || "";
+    state._plain = text;
+    // CM update — preserve scroll/cursor only when content unchanged
+    if (outputCm.getValue() !== text) {
+      outputCm.setValue(text);
+    }
+    const lines = text.split("\n");
+    $("codeMeta").textContent = `JSON · ${lines.length} บรรทัด · ${text.length} ตัวอักษร`;
+    $("downloadBtn").classList.toggle("hidden", state.selected !== "all");
+    // Active line on output (re-applied when state.outputActiveLine is set)
+    if (state.outputActiveLine) setOutputActiveLine(state.outputActiveLine);
+  }
+
+  function renderWarnings() {
+    const banner = $("warnBanner");
+    const ws = state.htmlWarnings || [];
+    if (!ws.length || !state.result) {
+      banner.classList.add("hidden");
+      banner.open = false;
+      return;
+    }
+    banner.classList.remove("hidden");
+    const fixed = ws.filter(w => w.kind === "fixed").length;
+    const warns = ws.filter(w => w.kind === "warn").length;
+    const parts = [];
+    if (fixed) parts.push(`${fixed} แก้อัตโนมัติ`);
+    if (warns) parts.push(`${warns} ต้องตรวจ`);
+    $("warnCount").textContent = parts.join(" · ");
+    $("warnTitle").textContent = warns ? "⚠ พบ HTML ที่ต้องตรวจสอบ" : "✓ แก้ HTML อัตโนมัติ";
+    $("warnBanner").querySelector("summary").style.color =
+      warns ? "var(--warn)" : "var(--good)";
+    const activeLine = state.issueLines[state.issueIdx];
+    $("warnList").innerHTML = ws.map((w, i) => {
+      const line = w.line || null;
+      const isActive = line && line === activeLine ? " active" : "";
+      const linePill = line ? `<span class="line-pill">L${line}</span>` : `<span class="line-pill"></span>`;
+      return `<div class="row ${w.kind}${isActive}" data-line="${line || ''}" data-idx="${i}">
+        <span class="tag">${w.kind}</span>
+        ${linePill}
+        <span class="path">${escapeHTML(w.path)}</span>
+        <span class="msg">${escapeHTML(w.msg)}</span>
+      </div>`;
+    }).join("");
+    // Click handler: jump to line in both input and output
+    $("warnList").querySelectorAll(".row[data-idx]").forEach(row => {
+      const idx = parseInt(row.dataset.idx, 10);
+      const w = ws[idx];
+      if (!w) return;
+      row.addEventListener("click", () => {
+        // 1. Input jump
+        if (w.line) {
+          const issueIdx = state.issueLines.indexOf(w.line);
+          if (issueIdx >= 0) state.issueIdx = issueIdx;
+          scrollInputToLine(w.line);
+        }
+        // 2. Output jump — switch to "all", re-render, find line, scroll+highlight
+        const value = getAtPath(state.cleanInput, w.path);
+        state.selected = "all";
+        renderSidebar();
+        renderViewer();
+        const outLine = findOutputLineForValue(value);
+        if (outLine) {
+          setOutputActiveLine(outLine);
+          scrollOutputToLine(outLine);
+        } else {
+          setOutputActiveLine(null);
+        }
+        setInputMarkers();
+        renderRuler();
+        renderIssueNav();
+        renderWarnings();
+      });
+    });
+  }
+
+  function renderOutputArea() {
+    const r = state.result;
+    const runErr = state.runError;
+    const idle  = $("idleState");
+    const errSt = $("errState");
+    const body  = $("outBody");
+    const okPill = $("okPill");
+    const badPill = $("badPill");
+
+    if (runErr) {
+      idle.classList.add("hidden");
+      body.classList.add("hidden");
+      errSt.classList.remove("hidden");
+      $("errStateMsg").textContent = runErr;
+      okPill.classList.add("hidden");
+      badPill.classList.remove("hidden");
+      $("downloadBtn").classList.add("hidden");
+      $("warnBanner").classList.add("hidden");
+      return;
+    }
+    if (r == null) {
+      idle.classList.remove("hidden");
+      errSt.classList.add("hidden");
+      body.classList.add("hidden");
+      okPill.classList.add("hidden");
+      badPill.classList.add("hidden");
+      $("downloadBtn").classList.add("hidden");
+      $("warnBanner").classList.add("hidden");
+      return;
+    }
+    idle.classList.add("hidden");
+    errSt.classList.add("hidden");
+    body.classList.remove("hidden");
+    okPill.classList.remove("hidden");
+    badPill.classList.add("hidden");
+    renderSidebar();
+    renderViewer();
+    renderWarnings();
+  }
+
+  function renderInputUI() {
+    const text = state.input;
+    if (inputCm.getValue() !== text) {
+      inputCm.setValue(text);
+    }
+    const lines = text ? text.split("\n").length : 0;
+    $("inputMeta").textContent = `${lines} บรรทัด`;
+    const pe = state.parseError;
+    if (pe) {
+      $("errRow").classList.remove("hidden");
+      $("errLoc").textContent = pe.loc || "";
+      $("errMsg").textContent = pe.msg || "";
+    } else {
+      $("errRow").classList.add("hidden");
+    }
+    setInputMarkers();
+    renderIssueNav();
+    renderRuler();
+  }
+
+  // ── Handlers ───────────────────────────────────────────────────────
+
+  $("clearBtn").addEventListener("click", () => {
+    inputCm.setValue("");
+    inputCm.focus();
+  });
+  $("pasteBtn").addEventListener("click", async () => {
+    try {
+      const t = await navigator.clipboard.readText();
+      if (t) {
+        inputCm.setValue(t);
+        inputCm.setCursor({ line: 0, ch: 0 });
+        inputCm.focus();
+      }
+    } catch (_) {}
+  });
+
+  $("themeBtn").addEventListener("click", () => {
+    state.theme = state.theme === "dark" ? "light" : "dark";
+    applyTheme(state.theme);
+    saveTheme(state.theme);
+  });
+
+  $("convertBtn").addEventListener("click", async () => {
+    if (!pyodideReady) return;
+    state.runError = null;
+    state.parseError = null;
+    state.result = null;
+    state.selected = "all";
+    state.htmlWarnings = [];
+    state.issueLines = [];
+    state.issueIdx = 0;
+    state.outputActiveLine = null;
 
     let data;
     try {
-      data = parseInput(inputEl.value);
+      data = parseInput(state.input);
     } catch (e) {
-      logMsg(e.message, "error");
+      state.parseError = e.parse || { msg: e.message, loc: "" };
+      renderInputUI();
+      renderOutputArea();
       return;
     }
-
-    let mode = modeEl.value;
-    if (mode === "auto") {
-      mode = detectMode(data);
-      logMsg("Auto-detected mode: " + mode, "info");
-    }
-
-    setStatus("Converting…", "loading");
-    convertBtn.disabled = true;
+    const mode = detectMode(data);
+    state.resultMode = mode;
+    setStatus(`Converting (${mode})…`, "loading");
     try {
-      const { result, errors } = await runConversion(mode, data);
-
-      if (errors && errors.length) {
-        for (const [i, name, msg] of errors) {
-          logMsg(`Skipped section ${i} (${name}): ${msg}`, "warn");
-        }
-      }
-
-      if (mode === "site") {
-        const pages = result.pages || [];
-        const headerKids = ((result.header_zone || {}).children) || [];
-        const footerKids = ((result.footer_zone || {}).children) || [];
-        state = { pages, headerKids, footerKids };
-
-        populatePagePicker(pages);
-        renderPagesPane();
-        outHeader.value = headerKids.map(k => JSON.stringify(k, null, 2)).join(",\n");
-        outFooter.value = footerKids.map(k => JSON.stringify(k, null, 2)).join(",\n");
-
-        titlePages.textContent  = `📄 Pages (${pages.length})`;
-        titleHeader.textContent = `🔝 Header (${headerKids.length} sec)`;
-        titleFooter.textContent = `🔻 Footer (${footerKids.length} sec)`;
-
-        boxPages.hidden  = false;
-        boxHeader.hidden = false;
-        boxFooter.hidden = false;
-        pickerRow.hidden = false;
-      } else if (mode === "zones") {
-        const headerKids = ((result.header_zone || {}).children) || [];
-        const footerKids = ((result.footer_zone || {}).children) || [];
-        state = { pages: [], headerKids, footerKids };
-
-        outPages.value  = JSON.stringify(result, null, 2);
-        outHeader.value = headerKids.map(k => JSON.stringify(k, null, 2)).join(",\n");
-        outFooter.value = footerKids.map(k => JSON.stringify(k, null, 2)).join(",\n");
-
-        titlePages.textContent  = "📦 Full zones JSON";
-        titleHeader.textContent = `🔝 Header (${headerKids.length} sec)`;
-        titleFooter.textContent = `🔻 Footer (${footerKids.length} sec)`;
-
-        boxPages.hidden  = false;
-        boxHeader.hidden = false;
-        boxFooter.hidden = false;
-        pickerRow.hidden = true;
-      } else {
-        outPages.value = JSON.stringify(result, null, 2);
-        let label = "";
-        if (mode === "page") {
-          label = `${(((result.component || {}).children) || []).length} section(s)`;
-        } else if (mode === "pages") {
-          label = `${(Array.isArray(result) ? result.length : 0)} page(s)`;
-        } else if (Array.isArray(result)) {
-          label = `${result.length} section(s)`;
-        } else {
-          label = `1 section`;
-        }
-        titlePages.textContent = `📄 Output · ${label}`;
-        boxPages.hidden  = false;
-        boxHeader.hidden = true;
-        boxFooter.hidden = true;
-        pickerRow.hidden = true;
-      }
-
-      updateCopyButtons();
-
-      // Build summary tree
-      const { text, tree } = buildSummary(mode, result, data);
-      showSummary(text, tree);
-
-      setStatus("Ready", "ready");
+      const { clean, warns } = normalizeHtml(data);
+      state.cleanInput = clean;
+      // Build path→line map once, attach line to each warning.
+      const pathLineMap = buildPathLineMap(state.input);
+      state.htmlWarnings = (warns || []).map(w => ({ ...w, line: pathLineMap[w.path] || null }));
+      state.issueLines = scanIssueLines(state.input);
+      state.issueIdx = 0;
+      const { result } = await runConversion(mode, clean);
+      state.result = result;
+      setStatus(`Ready (${mode})`, "ready");
     } catch (e) {
-      logMsg("Conversion failed: " + (e.message || String(e)), "error");
-      setStatus("Ready", "ready");
-      console.error(e);
-    } finally {
-      convertBtn.disabled = !pyodideReady;
+      state.runError = e.message || String(e);
+      setStatus("Conversion failed", "error");
     }
+    renderInputUI();
+    renderOutputArea();
+  });
+
+  $("issuePrev").addEventListener("click", () => goToIssue(state.issueIdx - 1));
+  $("issueNext").addEventListener("click", () => goToIssue(state.issueIdx + 1));
+
+  $("copyBtn").addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(state._plain || "");
+      $("copyBtn").classList.add("copied");
+      $("copyIcon").textContent = "✓";
+      $("copyLabel").textContent = "คัดลอกแล้ว";
+      setTimeout(() => {
+        $("copyBtn").classList.remove("copied");
+        $("copyIcon").textContent = "⧉";
+        $("copyLabel").textContent = "คัดลอก";
+      }, 1500);
+    } catch (_) {}
+  });
+
+  $("downloadBtn").addEventListener("click", () => {
+    if (!state.result) return;
+    const text = JSON.stringify(state.result, null, 2);
+    const blob = new Blob([text], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "converted-v4.json";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+
+  function showErrState(msg) {
+    state.runError = msg;
+    renderOutputArea();
   }
 
-  // ── Wire up ────────────────────────────────────────────────────────────
-  convertBtn.addEventListener("click", onConvert);
-  copyButtons.forEach(btn => {
-    btn.addEventListener("click", async () => {
-      const targetId = btn.dataset.target;
-      const target = document.getElementById(targetId);
-      try {
-        await navigator.clipboard.writeText(target.value);
-        const original = btn.textContent;
-        btn.textContent = "✓ Copied!";
-        setTimeout(() => (btn.textContent = original), 1200);
-      } catch (e) {
-        logMsg("Copy failed: " + e.message, "error");
-      }
-    });
-  });
-  clearBtn.addEventListener("click", () => {
-    inputEl.value = "";
-    resetOutput();
-    clearMessages();
-    inputInfo.textContent = "";
-    inputEl.focus();
-  });
-
-  inputEl.addEventListener("keydown", (e) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-      e.preventDefault();
-      if (!convertBtn.disabled) onConvert();
-    }
-  });
-  inputEl.addEventListener("input", () => {
-    const len = inputEl.value.length;
-    inputInfo.textContent = len ? `${len.toLocaleString()} chars` : "";
-  });
+  // Initial render
+  renderInputUI();
+  renderOutputArea();
 })();
 </script>
 
