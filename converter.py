@@ -14,23 +14,30 @@ import sys
 # HTML normalization (auto-fix void tags + detect unclosed tags)
 #
 # Some v3 widget content fields hold HTML written by hand. v4 renders this as
-# XHTML-style markup, so non-self-closing void tags (`<br>`, `<hr>`, `<img>`,
-# …) and unclosed regular tags break rendering. This pass walks the v3 input
+# XHTML-style markup, so non-self-closing void tags (`<br>`, `<hr>`, …) and
+# unclosed regular tags break rendering. This pass walks the v3 input
 # recursively, auto-fixes void tags, and reports unclosed/mismatched tags as
 # warnings.
+#
+# `<img>` is left as-is — HTML5 does not require self-closing void syntax for
+# img, and most v4 rich-text renderers accept plain `<img src="...">`.
 # ---------------------------------------------------------------------------
 
 _VOID_TAGS = {"br", "hr", "img", "input", "area", "base", "col", "embed",
               "link", "meta", "param", "source", "track", "wbr"}
 
-# Open tags like `<br>`, `<br />`, `<img src="...">`, case-insensitive.
+# Void tags that get the XHTML self-close fix (`<br>` → `<br/>`).
+# `img` is intentionally excluded — see note above.
+_FIXABLE_VOID_TAGS = _VOID_TAGS - {"img"}
+
+# Open tags like `<br>`, `<br />`, case-insensitive. (img excluded)
 _VOID_OPEN_RE = re.compile(
-    r"<(" + "|".join(_VOID_TAGS) + r")(\b[^>]*?)\s*(/?)>",
+    r"<(" + "|".join(_FIXABLE_VOID_TAGS) + r")(\b[^>]*?)\s*(/?)>",
     re.IGNORECASE,
 )
-# Invalid closing tag for a void element, e.g. `</br>`, `</hr>`.
+# Invalid closing tag for a fixable void element, e.g. `</br>`, `</hr>`.
 _VOID_CLOSE_RE = re.compile(
-    r"</\s*(" + "|".join(_VOID_TAGS) + r")\s*>",
+    r"</\s*(" + "|".join(_FIXABLE_VOID_TAGS) + r")\s*>",
     re.IGNORECASE,
 )
 # Generic opening/closing tag for unclosed-tag detection.
@@ -61,8 +68,8 @@ def _is_dropped_path(path: str) -> bool:
 
 def _fix_void_tags(s: str) -> tuple:
     """Return (fixed_string, list_of_fixed_tag_names).
-    Auto-closes void open tags (`<br>` → `<br/>`) and rewrites invalid
-    closing void tags (`</br>` → `<br/>`).
+    Auto-closes fixable void open tags (`<br>` → `<br/>`) and rewrites
+    invalid closing void tags (`</br>` → `<br/>`). `img` is not touched.
     """
     fixed = []
     def repl_open(m):
@@ -138,7 +145,7 @@ def _detect_unclosed_tags(s: str):
 def normalize_html(data, path: str = "$"):
     """Walk v3 input recursively. Apply HTML hygiene to string values that
     look like HTML (contain `<` and `>`):
-      - auto-close void tags: `<br>` → `<br/>`
+      - auto-close void tags (except img): `<br>` → `<br/>`
       - rewrite invalid void close tags: `</br>` → `<br/>`
       - strip `\\n` (and surrounding spaces) between two tags
       - trim leading/trailing whitespace that includes a newline
