@@ -62,6 +62,22 @@ CHANGELOG = [
     ]},
 ]
 
+# ---------------------------------------------------------------------------
+# htmlfix.html — standalone v4 HTML fixer. It shares the normalize_html engine
+# but is a separate tool, so it carries its OWN version + changelog (kept apart
+# from converter2v4's __version__/CHANGELOG above). htmlfix.html reads these.
+# ---------------------------------------------------------------------------
+
+HTMLFIX_VERSION = "1.0"
+HTMLFIX_LAST_UPDATED = "2026-06-24"
+
+HTMLFIX_CHANGELOG = [
+    {"version": "1.0", "date": "2026-06-24", "items": [
+        "เครื่องมือแก้ HTML ใน v4 JSON เวอร์ชันแรก — แยกออกจาก converter2v4",
+        "ปิด void tag อัตโนมัติ (<code>&lt;br&gt;</code>, <code>&lt;hr&gt;</code>) + เตือน tag ที่ไม่ได้ปิด",
+    ]},
+]
+
 
 # ---------------------------------------------------------------------------
 # HTML normalization (auto-fix void tags + detect unclosed tags)

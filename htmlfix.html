@@ -1,0 +1,1248 @@
+<!doctype html>
+<html lang="th">
+<!--
+  htmlfix.html — v4 JSON HTML fixer (standalone).
+  Same UI as converter2v4.html but runs ONLY normalize_html() from converter.py:
+  input is a v4 JSON with broken inline HTML, output is the same JSON with the
+  HTML auto-fixed (void tags closed, etc.). No v3→v4 conversion happens here.
+  Distinct accent/title so it isn't confused with converter2v4.
+-->
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>htmlfix — v4 JSON HTML fixer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+<!-- CodeMirror 5 (replaces our custom textarea + gutter — gives accurate line numbers,
+     code folding, syntax highlighting, and active-line decorations). -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/fold/foldgutter.min.css">
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/javascript/javascript.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/fold/foldcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/fold/foldgutter.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/fold/brace-fold.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/selection/active-line.min.js"></script>
+
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  /* Light is the default theme (no data-theme attr or data-theme="light") */
+  :root{
+    --bg:#f5f1e6;--panel:#ffffff;--panel-head:#faf6ec;--elev:#fdfbf4;
+    --border:#ebe4d3;--border-strong:#dbd1ba;--fg:#423d30;--fg-strong:#241f12;
+    --muted:#7d745e;--muted-2:#b5ac95;--accent:#b8860b;--accent-soft:rgba(184,134,11,.13);
+    --hover:rgba(0,0,0,.04);--good:#1a7f37;--good-soft:rgba(26,127,55,.10);
+    --bad:#cf222e;--bad-soft:rgba(207,34,46,.08);--warn:#9a6700;
+    --c-key:#0550ae;--c-str:#0a7d3e;--c-num:#b3540a;--c-bool:#6f42c1;--c-null:#cf222e;--c-punct:#9aa1b0;
+  }
+  /* Dark — higher contrast: darker bg, brighter fg/muted, more visible borders */
+  [data-theme="dark"]{
+    --bg:#14110a;--panel:#211c12;--panel-head:#18140c;--elev:#2a2417;
+    --border:#4a3f29;--border-strong:#6b5c3d;--fg:#f0e9d8;--fg-strong:#ffffff;
+    --muted:#c4b89b;--muted-2:#7e735a;--accent:#ffd24d;--accent-soft:rgba(255,210,77,.18);
+    --hover:rgba(255,255,255,.08);--good:#b8e082;--good-soft:rgba(184,224,130,.18);
+    --bad:#ff8aa0;--bad-soft:rgba(255,138,160,.18);--warn:#ffc278;
+    --c-key:#9be0ff;--c-str:#b8e082;--c-num:#ffb37a;--c-bool:#d4b3ff;--c-null:#ff8aa0;--c-punct:#7e88b8;
+  }
+  body{background:var(--bg);color:var(--fg);font-family:'IBM Plex Sans Thai',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  textarea::placeholder{color:var(--muted-2)}
+  ::-webkit-scrollbar{width:11px;height:11px}
+  ::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:6px;border:3px solid transparent;background-clip:padding-box}
+  ::-webkit-scrollbar-track{background:transparent}
+
+  .root{height:100vh;display:flex;flex-direction:column}
+  .topbar{height:54px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 18px;border-bottom:1px solid var(--border);background:var(--panel)}
+  .brand{display:flex;align-items:center;gap:11px}
+  .logo{width:29px;height:29px;border-radius:8px;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#2a2208;font-weight:700;font-family:'JetBrains Mono',monospace;font-size:13px}
+  .brand-text{display:flex;flex-direction:column;line-height:1.15}
+  .brand-row{display:flex;align-items:center;gap:8px}
+  .brand-title{font-weight:600;font-size:14.5px;color:var(--fg-strong)}
+  .brand-version{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent-soft);padding:1px 6px;border-radius:5px}
+  .brand-sub{font-size:10.5px;color:var(--muted);font-family:'JetBrains Mono',monospace;letter-spacing:.02em}
+  .topbar-right{display:flex;align-items:center;gap:10px}
+  .status-pill{font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--muted);padding:4px 10px;border-radius:6px;border:1px solid var(--border)}
+  .status-pill[data-state="loading"]{color:var(--warn);border-color:var(--warn)}
+  .status-pill[data-state="ready"]{color:var(--good);border-color:var(--good);background:var(--good-soft)}
+  .status-pill[data-state="error"]{color:var(--bad);border-color:var(--bad);background:var(--bad-soft)}
+  .theme-btn{display:flex;align-items:center;gap:7px;height:32px;padding:0 13px;border:1px solid var(--border-strong);background:transparent;color:var(--fg);border-radius:8px;cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:500}
+  .theme-btn:hover{background:var(--hover)}
+  .theme-icon{font-family:'JetBrains Mono',monospace;font-size:13px}
+
+  main.layout{flex:1;display:flex;gap:1px;background:var(--border);min-height:0}
+
+  /* ── INPUT ─────────────────────────────────────────────────────────── */
+  .panel{flex:1;display:flex;flex-direction:column;background:var(--panel);min-width:0}
+  main.layout > .panel:first-child{flex:2}   /* INPUT  ≈ 40% */
+  main.layout > .panel:last-child{flex:3}    /* OUTPUT ≈ 60% */
+  .panel-head{height:44px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 13px;border-bottom:1px solid var(--border);background:var(--panel-head)}
+  .panel-head-right{display:flex;gap:5px;align-items:center}
+  .label{font-size:11px;font-weight:700;letter-spacing:.09em;color:var(--muted)}
+  .badge{font-size:10.5px;font-family:'JetBrains Mono',monospace;color:var(--muted-2);border:1px solid var(--border);padding:2px 7px;border-radius:5px}
+  .badge-accent{color:var(--accent);border-color:var(--accent-soft);background:var(--accent-soft)}
+  .ghost-btn{height:27px;padding:0 9px;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:6px;cursor:pointer;font-family:inherit;font-size:11.5px}
+  .ghost-btn:hover{background:var(--hover);color:var(--fg)}
+
+  .input-body{flex:1;min-height:0;display:flex;background:var(--elev);position:relative}
+  /* Scrollbar minimap (VS Code style) — overlays the editor's right edge */
+  .editor-ruler{position:absolute;top:0;right:11px;bottom:0;width:8px;pointer-events:none;z-index:3}
+  .editor-ruler .marker{position:absolute;right:0;width:8px;height:3px;background:var(--warn);border-radius:1px;pointer-events:auto;cursor:pointer;transition:background .15s, transform .15s}
+  .editor-ruler .marker:hover{background:var(--accent);transform:scaleX(1.3)}
+  .editor-ruler .marker.active{background:var(--accent);width:10px;height:4px;right:-1px}
+
+  /* CodeMirror host: fills available space */
+  .cm-host{flex:1;min-width:0;height:100%;display:flex}
+  /* CodeMirror theme overrides — match our design tokens */
+  .CodeMirror{flex:1;background:var(--elev) !important;color:var(--fg) !important;font-family:'JetBrains Mono','IBM Plex Sans Thai',monospace;font-size:12.5px;line-height:20px;height:100%}
+  .CodeMirror-gutters{background:var(--panel-head) !important;border-right:1px solid var(--border) !important}
+  .CodeMirror-linenumber{color:var(--muted-2);font-size:11px;padding:0 8px}
+  .CodeMirror-cursor{border-left-color:var(--accent) !important}
+  .CodeMirror-selected,.CodeMirror-focused .CodeMirror-selected{background:var(--accent-soft) !important}
+  /* Syntax tokens */
+  .CodeMirror .cm-string{color:var(--c-str)}
+  .CodeMirror .cm-number{color:var(--c-num)}
+  .CodeMirror .cm-atom{color:var(--c-bool)}
+  .CodeMirror .cm-property{color:var(--c-key)}
+  .CodeMirror .cm-keyword{color:var(--c-bool)}
+  .CodeMirror .cm-punctuation,.CodeMirror .cm-bracket{color:var(--c-punct)}
+  /* Fold gutter */
+  .CodeMirror-foldgutter{width:13px}
+  .CodeMirror-foldgutter-open:after{content:"▾";color:var(--muted-2);font-size:9px}
+  .CodeMirror-foldgutter-folded:after{content:"▸";color:var(--accent);font-size:9px}
+  .CodeMirror-foldmarker{color:var(--warn);background:var(--accent-soft);padding:0 5px;border-radius:3px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:600}
+  /* Issue gutter (left side, for ⚠ markers next to v3 lines with HTML issues) */
+  .CodeMirror-gutter.cm-issue-gutter{width:14px}
+  .cm-issue-marker{color:var(--warn);cursor:pointer;font-size:11px;text-align:center;line-height:20px;width:14px}
+  .cm-issue-marker:hover{color:var(--accent)}
+  /* Active-issue line — highlighted when user navigates to it via nav/click */
+  .cm-active-issue-line{background:rgba(224,175,104,.18) !important}
+  [data-theme="light"] .cm-active-issue-line{background:rgba(154,103,0,.10) !important}
+  /* Parse-error line */
+  .cm-parse-error-line{background:var(--bad-soft) !important}
+
+  .input-foot{flex:none;border-top:1px solid var(--border);background:var(--panel-head)}
+  .err-row{display:flex;align-items:flex-start;gap:9px;margin:11px 13px 0;padding:9px 11px;background:var(--bad-soft);border:1px solid var(--bad);border-radius:8px}
+  .err-icon{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--bad);line-height:1.3;flex:none}
+  .err-body{display:flex;flex-direction:column;gap:2px;min-width:0}
+  .err-title{font-size:12px;font-weight:600;color:var(--bad)}
+  .err-loc{font-weight:500;color:var(--warn)}
+  .err-msg{font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--muted);line-height:1.5;word-break:break-word}
+  .foot-row{display:flex;align-items:center;gap:12px;padding:11px 13px}
+  .foot-meta{font-size:11px;color:var(--muted-2);font-family:'JetBrains Mono',monospace;white-space:nowrap}
+  .issue-nav{display:flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--warn);flex:none}
+  .issue-nav button{width:24px;height:24px;border:1px solid var(--border);background:transparent;color:var(--warn);border-radius:5px;cursor:pointer;font-family:inherit;font-size:12px;line-height:1;padding:0}
+  .issue-nav button:hover:not(:disabled){background:var(--hover)}
+  .issue-nav button:disabled{opacity:.4;cursor:not-allowed}
+  .issue-nav .counter{min-width:36px;text-align:center}
+  /* Dark text on the yellow accent button (readable on both light gold + dark yellow). */
+  .convert-btn{flex:1;height:40px;background:var(--accent);color:#2a2208;border:none;border-radius:8px;font-weight:700;font-size:13.5px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:9px;letter-spacing:.01em}
+  .convert-btn:disabled{opacity:.55;cursor:not-allowed}
+  .convert-btn:not(:disabled):hover{filter:brightness(1.08)}
+  .convert-btn:not(:disabled):active{transform:translateY(1px)}
+  .arrow{font-family:'JetBrains Mono',monospace;font-size:15px}
+
+  /* ── OUTPUT ────────────────────────────────────────────────────────── */
+  .out-head{height:46px;flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 13px;border-bottom:1px solid var(--border);background:var(--panel-head)}
+  .out-head-left{display:flex;align-items:center;gap:9px;flex:none}
+  .out-head-right{display:flex;align-items:center;gap:8px;min-width:0}
+  .pill{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:6px;flex:none}
+  .pill-good{color:var(--good);background:var(--good-soft)}
+  .pill-bad{color:var(--bad);background:var(--bad-soft)}
+  .download-btn{display:flex;align-items:center;gap:6px;height:30px;padding:0 12px;border:1px solid var(--accent-soft);background:var(--accent-soft);color:var(--accent);border-radius:7px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;flex:none}
+  .download-btn:hover{filter:brightness(1.08)}
+
+  .out-body{flex:1;display:flex;min-height:0}
+  .sidebar{width:222px;flex:none;border-right:1px solid var(--border);overflow:auto;padding:8px 7px;background:var(--panel-head)}
+  .nav-heading{display:flex;align-items:center;justify-content:space-between;font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--muted-2);padding:11px 9px 6px}
+  .nav-heading .count{font-family:'JetBrains Mono',monospace;font-weight:500}
+  .nav-item{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;text-align:left;padding:7px 9px;margin-bottom:2px;border:none;border-radius:6px;cursor:pointer;font-size:12.5px;background:transparent;color:var(--muted);font-weight:500;box-shadow:none;font-family:inherit}
+  .nav-item:hover{background:var(--hover)}
+  .nav-item.active{background:var(--accent-soft);color:var(--fg-strong);font-weight:600;box-shadow:inset 2px 0 0 var(--accent)}
+  .nav-left{display:flex;align-items:center;gap:8px;min-width:0}
+  .nav-icon{font-family:'JetBrains Mono',monospace;font-size:10px;flex:none}
+  .nav-label{font-family:'JetBrains Mono','IBM Plex Sans Thai',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .nav-meta{font-size:10px;color:var(--muted-2);font-family:'JetBrains Mono',monospace;flex:none}
+
+  .viewer{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--elev)}
+  .viewer-head{flex:none;display:flex;align-items:center;justify-content:space-between;padding:7px 8px 7px 14px;border-bottom:1px solid var(--border);gap:8px}
+  .viewer-head-left{display:flex;flex-direction:column;gap:2px;min-width:0}
+  .path{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .slice-meta{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .copy-btn{display:flex;align-items:center;gap:6px;height:28px;padding:0 11px;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:7px;cursor:pointer;font-family:inherit;font-size:11.5px;font-weight:500}
+  .copy-btn:hover{background:var(--hover)}
+  .copy-btn.copied{color:var(--good);border-color:var(--good)}
+  .copy-btn .icon{font-family:'JetBrains Mono',monospace;font-size:12px}
+  .code-scroll{flex:1;min-height:0;position:relative;display:flex}
+  .code-foot{flex:none;height:28px;display:flex;align-items:center;gap:14px;padding:0 14px;border-top:1px solid var(--border);background:var(--panel-head)}
+  .code-meta{font-size:10.5px;font-family:'JetBrains Mono',monospace;color:var(--muted-2)}
+
+  .err-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:30px;text-align:center;background:var(--elev)}
+  .err-state-icon{font-family:'JetBrains Mono',monospace;font-size:30px;color:var(--bad)}
+  .err-state-title{font-size:14px;color:var(--fg-strong);font-weight:600}
+  .err-state-msg{font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--muted);max-width:420px;line-height:1.6;word-break:break-word}
+  .err-state-hint{font-size:11.5px;color:var(--muted-2);margin-top:4px}
+
+  .placeholder{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:30px;text-align:center;background:var(--elev);color:var(--muted-2)}
+  .placeholder-icon{font-family:'JetBrains Mono',monospace;font-size:28px;color:var(--muted-2)}
+  .placeholder-text{font-size:12.5px}
+
+  /* ── HTML warnings banner ──────────────────────────────────────── */
+  .warn-banner{flex:none;background:var(--panel-head);border-bottom:1px solid var(--border)}
+  .warn-banner summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:9px 13px;font-size:12px;color:var(--warn);font-weight:600}
+  .warn-banner summary::-webkit-details-marker{display:none}
+  .warn-banner summary::before{content:"▸";font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted-2);transition:transform .15s}
+  .warn-banner[open] summary::before{transform:rotate(90deg)}
+  .warn-banner .warn-count{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);font-weight:500}
+  .warn-list{max-height:200px;overflow:auto;padding:0 13px 11px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.6}
+  .warn-list .row{display:flex;gap:8px;padding:3px 5px;color:var(--muted);border-radius:4px;cursor:pointer;align-items:baseline}
+  .warn-list .row:hover{background:var(--hover)}
+  .warn-list .row.active{background:var(--accent-soft);outline:1px solid var(--accent-soft)}
+  .warn-list .row .tag{flex:none;width:46px;font-weight:700;font-size:9.5px;letter-spacing:.05em;text-transform:uppercase}
+  .warn-list .row.fixed .tag{color:var(--good)}
+  .warn-list .row.warn .tag{color:var(--warn)}
+  .warn-list .row .line-pill{flex:none;width:48px;text-align:right;color:var(--warn);font-weight:700;font-size:10.5px}
+  .warn-list .row .path{color:var(--accent);white-space:nowrap;flex:none}
+  .warn-list .row .msg{color:var(--fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  /* ── Version "what's new / readme" popup ───────────────────────────── */
+  .brand-version{cursor:pointer;transition:background .15s,border-color .15s}
+  .brand-version:hover{border-color:var(--accent);background:var(--accent-soft)}
+  .modal-overlay{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.45);display:flex;align-items:flex-start;justify-content:center;padding:64px 18px 18px;overflow-y:auto}
+  .modal{width:100%;max-width:560px;background:var(--panel);border:1px solid var(--border-strong);border-radius:14px;box-shadow:0 18px 60px rgba(0,0,0,.35);overflow:hidden;animation:modalIn .16s ease-out}
+  @keyframes modalIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+  .modal-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:15px 18px;border-bottom:1px solid var(--border);background:var(--panel-head)}
+  .modal-title{display:flex;align-items:center;gap:9px;font-size:15px;font-weight:600;color:var(--fg-strong)}
+  .modal-title .mver{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent-soft);padding:1px 6px;border-radius:5px}
+  .modal-close{border:none;background:transparent;color:var(--muted);font-size:20px;line-height:1;cursor:pointer;padding:2px 6px;border-radius:6px}
+  .modal-close:hover{background:var(--hover);color:var(--fg)}
+  .modal-body{padding:16px 18px 20px;max-height:70vh;overflow-y:auto}
+  .modal-section + .modal-section{margin-top:18px}
+  .modal-section h4{margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--muted);text-transform:uppercase}
+  .modal-readme{margin:0;padding-left:18px;font-size:13px;line-height:1.6;color:var(--fg)}
+  .modal-readme li{margin:2px 0}
+  .modal-readme code{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--accent);background:var(--accent-soft);padding:1px 5px;border-radius:4px}
+  .changelog{display:flex;flex-direction:column;gap:14px}
+  .changelog-entry{border-left:2px solid var(--border-strong);padding-left:13px}
+  .changelog-entry .cl-ver{display:flex;align-items:baseline;gap:8px;margin-bottom:5px}
+  .changelog-entry .cl-tag{font-size:11px;font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--fg-strong)}
+  .changelog-entry .cl-date{font-size:10.5px;font-family:'JetBrains Mono',monospace;color:var(--muted-2)}
+  .changelog-entry ul{margin:0;padding-left:16px;font-size:12.5px;line-height:1.55;color:var(--fg)}
+  .changelog-entry li{margin:1px 0}
+
+  .hidden{display:none !important}
+</style>
+</head>
+<body>
+
+<div class="root">
+
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">&lt;/&gt;</div>
+      <div class="brand-text">
+        <div class="brand-row">
+          <span class="brand-title">htmlfix</span>
+          <span class="brand-version" id="versionTag"></span>
+        </div>
+        <span class="brand-sub" id="brandSub">แก้ HTML ใน v4 JSON</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <span class="status-pill" id="status" data-state="loading">Loading Python runtime…</span>
+      <button class="theme-btn" id="themeBtn" type="button">
+        <span class="theme-icon" id="themeIcon">☀</span><span id="themeLabel">Light</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="layout">
+
+    <!-- INPUT -->
+    <section class="panel">
+      <div class="panel-head">
+        <div class="out-head-left">
+          <span class="label">INPUT</span>
+          <span class="badge">v4 · HTML มีปัญหา</span>
+        </div>
+        <div class="panel-head-right">
+          <button class="ghost-btn" id="pasteBtn" type="button">วาง</button>
+          <button class="ghost-btn" id="clearBtn" type="button">ล้าง</button>
+        </div>
+      </div>
+      <div class="input-body">
+        <div class="cm-host" id="inputHost"></div>
+        <div class="editor-ruler" id="editorRuler"></div>
+      </div>
+      <div class="input-foot">
+        <div class="err-row hidden" id="errRow">
+          <span class="err-icon">⚠</span>
+          <div class="err-body">
+            <span class="err-title">JSON ไม่ถูกต้อง <span class="err-loc" id="errLoc"></span></span>
+            <span class="err-msg" id="errMsg"></span>
+          </div>
+        </div>
+        <div class="foot-row">
+          <span class="foot-meta" id="inputMeta">0 บรรทัด</span>
+          <div class="issue-nav hidden" id="issueNav">
+            <span>⚠</span>
+            <button id="issuePrev" type="button" title="ก่อนหน้า">◀</button>
+            <span class="counter" id="issueCounter">0/0</span>
+            <button id="issueNext" type="button" title="ถัดไป">▶</button>
+          </div>
+          <button class="convert-btn" id="convertBtn" type="button" disabled>
+            แก้ HTML<span class="arrow">→</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- OUTPUT -->
+    <section class="panel">
+      <div class="out-head">
+        <div class="out-head-left">
+          <span class="label">OUTPUT</span>
+          <span class="badge badge-accent">v4 · แก้แล้ว</span>
+        </div>
+        <div class="out-head-right">
+          <span class="pill pill-good hidden" id="okPill">✓ แก้แล้ว</span>
+          <span class="pill pill-bad hidden" id="badPill">✕ JSON ไม่ถูกต้อง</span>
+          <button class="download-btn hidden" id="downloadBtn" type="button">
+            <span class="icon">↓</span>ดาวน์โหลด JSON
+          </button>
+        </div>
+      </div>
+
+      <!-- HTML warnings banner -->
+      <details class="warn-banner hidden" id="warnBanner">
+        <summary>
+          <span id="warnTitle">⚠ พบ HTML ที่ต้องตรวจสอบ</span>
+          <span class="warn-count" id="warnCount"></span>
+        </summary>
+        <div class="warn-list" id="warnList"></div>
+      </details>
+
+      <!-- OK state: sidebar + viewer -->
+      <div class="out-body hidden" id="outBody">
+        <aside class="sidebar" id="sidebar"></aside>
+        <div class="viewer">
+          <div class="viewer-head">
+            <div class="viewer-head-left">
+              <span class="path" id="path">$</span>
+              <span class="slice-meta" id="sliceMeta"></span>
+            </div>
+            <button class="copy-btn" id="copyBtn" type="button">
+              <span class="icon" id="copyIcon">⧉</span><span id="copyLabel">คัดลอก</span>
+            </button>
+          </div>
+          <div class="code-scroll" id="codeScroll">
+            <div class="cm-host" id="outputHost"></div>
+          </div>
+          <div class="code-foot">
+            <span class="code-meta" id="codeMeta"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Error state -->
+      <div class="err-state hidden" id="errState">
+        <div class="err-state-icon">{ ! }</div>
+        <div class="err-state-title">แก้ไม่สำเร็จ</div>
+        <div class="err-state-msg" id="errStateMsg"></div>
+        <div class="err-state-hint">ตรวจสอบว่า JSON ในช่อง input ถูกต้องแล้วกด "แก้ HTML" อีกครั้ง</div>
+      </div>
+
+      <!-- Idle placeholder -->
+      <div class="placeholder" id="idleState">
+        <div class="placeholder-icon">{ }</div>
+        <div class="placeholder-text">วาง v4 JSON ที่ช่องซ้าย แล้วกด <strong>แก้ HTML</strong></div>
+      </div>
+
+    </section>
+  </main>
+</div>
+
+<!-- VERSION / WHAT'S-NEW POPUP -->
+<div class="modal-overlay hidden" id="infoOverlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="infoTitle">
+    <div class="modal-head">
+      <div class="modal-title" id="infoTitle">
+        htmlfix <span class="mver" id="infoVersion"></span>
+      </div>
+      <button class="modal-close" id="infoClose" type="button" aria-label="ปิด">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-section">
+        <h4>เครื่องมือนี้ทำอะไรได้</h4>
+        <ul class="modal-readme" id="infoReadme"></ul>
+      </div>
+      <div class="modal-section">
+        <h4>อัพเดทล่าสุด</h4>
+        <div class="changelog" id="infoChangelog"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+(async function(){
+  // ────────────────────────────────────────────────────────────────────
+  // ── Version / "what's new" popup ────────────────────────────────────
+  // The version, capabilities and changelog are the CONVERTER BACKEND's —
+  // read from converter.py once Pyodide loads (see renderInfo() call below).
+  // This keeps the log tied to what the converter can do, not to cosmetic
+  // changes in this HTML wrapper. Until then a placeholder shows.
+  document.title = "htmlfix — v4 JSON HTML fixer";
+  document.getElementById("versionTag").textContent = "…";
+  document.getElementById("versionTag").title = "ดูว่ามีอะไรใหม่";
+  document.getElementById("brandSub").innerHTML = `แก้ HTML ใน v4 JSON`;
+
+  function renderInfo(meta) {
+    // meta = { version, updated, capabilities:[...], changelog:[{version,date,items:[...]}] }
+    const v = "v" + meta.version;
+    document.title = `htmlfix ${v} — v4 JSON HTML fixer`;
+    document.getElementById("versionTag").textContent = v;
+    document.getElementById("infoVersion").textContent = v;
+    if (meta.updated) {
+      document.getElementById("brandSub").innerHTML =
+        `แก้ HTML ใน v4 JSON · เอนจิน ${meta.updated}`;
+    }
+    // htmlfix-specific description (don't reuse the converter's capabilities).
+    const README_HTMLFIX = [
+      "รับ <code>v4 JSON</code> ที่มี HTML ผิด แล้วคืน JSON เดิมที่แก้ HTML แล้ว",
+      "ปิด void tag อัตโนมัติ (เช่น <code>&lt;br&gt;</code> → <code>&lt;br/&gt;</code>) และตัด newline ระหว่าง tag",
+      "เตือนเมื่อพบ tag ที่ไม่ได้ปิด / ปิดผิด (ดูที่แถบเตือน)",
+      "ใช้เอนจินเดียวกับ converter2v4 (<code>normalize_html</code> ใน converter.py) — ไม่แปลง v3→v4",
+    ];
+    document.getElementById("infoReadme").innerHTML =
+      README_HTMLFIX.map(t => `<li>${t}</li>`).join("");
+    document.getElementById("infoChangelog").innerHTML = (meta.changelog || []).map(e => `
+      <div class="changelog-entry">
+        <div class="cl-ver"><span class="cl-tag">v${e.version}</span><span class="cl-date">${e.date}</span></div>
+        <ul>${(e.items || []).map(i => `<li>${i}</li>`).join("")}</ul>
+      </div>`).join("");
+  }
+
+  (function setupInfoPopup(){
+    const overlay = document.getElementById("infoOverlay");
+    const open = () => overlay.classList.remove("hidden");
+    const close = () => overlay.classList.add("hidden");
+    document.getElementById("versionTag").addEventListener("click", open);
+    document.getElementById("infoClose").addEventListener("click", close);
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !overlay.classList.contains("hidden")) close();
+    });
+  })();
+
+  const $ = (id) => document.getElementById(id);
+
+  // ── Theme persistence (localStorage) ───────────────────────────────
+  const THEME_KEY = "htmlfix_theme";
+  function loadTheme() {
+    try {
+      const v = localStorage.getItem(THEME_KEY);
+      if (v === "dark" || v === "light") return v;
+    } catch (_) {}
+    return "light";  // default
+  }
+  function saveTheme(t) {
+    try { localStorage.setItem(THEME_KEY, t); } catch (_) {}
+  }
+
+  // ── State ──────────────────────────────────────────────────────────
+  const state = {
+    theme: loadTheme(),
+    input: "",
+    parseError: null,   // {line, col, msg, loc}
+    result: null,       // converted output (object or array)
+    resultMode: null,   // detected mode of the conversion ("site"|"page"|"pages"|"sections"|"zones"|"global")
+    runError: null,     // string — Python-side error message
+    selected: "all",    // sidebar selection key
+    copied: false,
+    htmlWarnings: [],   // [{path, kind: "fixed"|"warn", msg, line}]
+    issueLines: [],     // [line] — 1-based line numbers in input that contain HTML issues
+    issueIdx: 0,        // current index into issueLines
+    cleanInput: null,   // normalized v3 data (used to look up values for output search)
+    outputActiveLine: null,  // line to highlight in the output code viewer
+  };
+
+  function applyTheme(t) {
+    document.querySelector(".root").dataset.theme = t;
+    $("themeIcon").textContent = t === "dark" ? "☾" : "☀";
+    $("themeLabel").textContent = t === "dark" ? "Dark" : "Light";
+  }
+  applyTheme(state.theme);
+
+  // ── CodeMirror init ────────────────────────────────────────────────
+  const inputCm = CodeMirror($("inputHost"), {
+    value: "",
+    mode: { name: "javascript", json: true },
+    lineNumbers: true,
+    lineWrapping: true,
+    styleActiveLine: false,
+    foldGutter: true,
+    gutters: ["CodeMirror-linenumbers", "cm-issue-gutter", "CodeMirror-foldgutter"],
+    indentUnit: 2,
+    tabSize: 2,
+  });
+
+  const outputCm = CodeMirror($("outputHost"), {
+    value: "",
+    mode: { name: "javascript", json: true },
+    lineNumbers: true,
+    lineWrapping: true,
+    readOnly: true,
+    foldGutter: true,
+    gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
+    indentUnit: 2,
+    tabSize: 2,
+  });
+
+  inputCm.on("change", () => {
+    state.input = inputCm.getValue();
+    state.parseError = null;
+    state.issueLines = [];
+    state.issueIdx = 0;
+    renderInputUI();
+  });
+
+  // Refresh CM when its container size could change (e.g. theme toggle ignored — same height).
+  // CM auto-refreshes on input.
+
+  // Helpers — input markers (issue gutter + line classes)
+  function setInputMarkers() {
+    const cm = inputCm;
+    cm.clearGutter("cm-issue-gutter");
+    if (cm._parseErrLine != null) {
+      cm.removeLineClass(cm._parseErrLine, "background", "cm-parse-error-line");
+      cm._parseErrLine = null;
+    }
+    if (cm._activeIssueLine != null) {
+      cm.removeLineClass(cm._activeIssueLine, "background", "cm-active-issue-line");
+      cm._activeIssueLine = null;
+    }
+    const pe = state.parseError;
+    if (pe && pe.line) {
+      cm.addLineClass(pe.line - 1, "background", "cm-parse-error-line");
+      cm._parseErrLine = pe.line - 1;
+    }
+    state.issueLines.forEach(ln => {
+      const el = document.createElement("div");
+      el.className = "cm-issue-marker";
+      el.textContent = "⚠";
+      el.title = `HTML issue · L${ln}`;
+      el.addEventListener("click", () => {
+        const idx = state.issueLines.indexOf(ln);
+        if (idx >= 0) goToIssue(idx);
+      });
+      cm.setGutterMarker(ln - 1, "cm-issue-gutter", el);
+    });
+    const active = state.issueLines[state.issueIdx];
+    if (active) {
+      cm.addLineClass(active - 1, "background", "cm-active-issue-line");
+      cm._activeIssueLine = active - 1;
+    }
+  }
+
+  let pyodide = null;
+  let pyodideReady = false;
+
+  // ── Pyodide boot ───────────────────────────────────────────────────
+  try {
+    setStatus("Loading Python runtime…", "loading");
+    pyodide = await loadPyodide();
+    setStatus("Fetching converter.py…", "loading");
+    const resp = await fetch("converter.py", { cache: "no-cache" });
+    if (!resp.ok) throw new Error("Could not fetch converter.py (HTTP " + resp.status + ")");
+    const code = await resp.text();
+    pyodide.runPython('__name__ = "converter_module"\n' + code);
+    pyodideReady = true;
+    setStatus("Ready", "ready");
+    $("convertBtn").disabled = false;
+
+    // htmlfix has its OWN version + changelog (HTMLFIX_*), separate from
+    // converter2v4's __version__/CHANGELOG. Both live in converter.py.
+    try {
+      pyodide.runPython(
+        "import json as _json\n" +
+        "_meta = _json.dumps({\n" +
+        "  'version': globals().get('HTMLFIX_VERSION', '?'),\n" +
+        "  'updated': globals().get('HTMLFIX_LAST_UPDATED', ''),\n" +
+        "  'changelog': globals().get('HTMLFIX_CHANGELOG', []),\n" +
+        "}, ensure_ascii=False)\n"
+      );
+      renderInfo(JSON.parse(pyodide.globals.get("_meta")));
+    } catch (e) {
+      console.warn("Could not read htmlfix version metadata:", e);
+    }
+  } catch (e) {
+    setStatus("Failed to load", "error");
+    showErrState("Init failed: " + e.message + "\n\nTip: serve over http(s). For local testing: `python3 -m http.server 8000`.");
+    console.error(e);
+    return;
+  }
+
+  // ── Lenient JSON parse (mirrors converter.py:_load_json) ───────────
+  function parseInput(raw) {
+    raw = raw.trim().replace(/\[\s*\.\.\s*\]/g, "[]");
+    if (!raw) throw mkParseErr("Input ว่างเปล่า", "", null);
+    try { return JSON.parse(raw); }
+    catch (e1) {
+      try { return JSON.parse("[" + raw + "]"); }
+      catch (_e2) { throw mkParseErr(e1.message, "", positionOf(e1.message, raw)); }
+    }
+  }
+  function positionOf(msg, src) {
+    const m = /position (\d+)/i.exec(msg);
+    if (!m) return null;
+    const pos = Math.min(parseInt(m[1], 10), src.length);
+    const before = src.slice(0, pos);
+    const line = before.split("\n").length;
+    const col  = pos - before.lastIndexOf("\n");
+    return { line, col };
+  }
+  function mkParseErr(msg, _loc, pos) {
+    const cleanMsg = msg.replace(/\s*in JSON at position \d+.*/i, "");
+    const loc = pos ? `บรรทัด ${pos.line} คอลัมน์ ${pos.col}` : "";
+    const err = new Error(cleanMsg);
+    err.parse = { msg: cleanMsg, loc, line: pos && pos.line, col: pos && pos.col };
+    return err;
+  }
+
+  // ── HTML normalize (auto-fix void tags + warn unclosed) ────────────
+  // This is the ONLY Python call htmlfix makes — no v3→v4 conversion.
+  function normalizeHtml(data) {
+    pyodide.globals.set("_raw", pyodide.toPy(data));
+    pyodide.runPython("_clean, _warns = normalize_html(_raw)");
+    const cleanProxy = pyodide.globals.get("_clean");
+    const warnsProxy = pyodide.globals.get("_warns");
+    const clean   = cleanProxy.toJs({ dict_converter: Object.fromEntries });
+    const warns   = warnsProxy.toJs({ dict_converter: Object.fromEntries });
+    cleanProxy.destroy();
+    warnsProxy.destroy();
+    return { clean, warns };
+  }
+
+  // ── UI helpers ─────────────────────────────────────────────────────
+  function setStatus(text, st) {
+    const el = $("status");
+    el.textContent = text;
+    el.dataset.state = st || "";
+  }
+
+  function escapeHTML(s){ return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+
+  // Navigate a JSON object by a path like "$.foo.bar[0].baz".
+  function getAtPath(obj, path) {
+    if (!path || path === "$") return obj;
+    let s = path.startsWith("$.") ? path.slice(2)
+          : path.startsWith("$") ? path.slice(1)
+          : path;
+    const tokens = [];
+    const re = /([^.[\]]+)|\[(\d+)\]/g;
+    let m;
+    while ((m = re.exec(s)) !== null) tokens.push(m[1] !== undefined ? m[1] : parseInt(m[2], 10));
+    let cur = obj;
+    for (const t of tokens) {
+      if (cur == null) return undefined;
+      cur = cur[t];
+    }
+    return cur;
+  }
+
+  // Find the line in the currently-rendered output JSON text where `value`
+  // appears (best-effort). Returns null if not found.
+  function findOutputLineForValue(value) {
+    if (!state.result || typeof value !== "string" || !value) return null;
+    const full = JSON.stringify(state.result, null, 2);
+    // JSON.stringify escapes the value (quotes, newlines, etc.). We search
+    // for the JSON-encoded substring, dropping the surrounding quotes.
+    // Pick a snippet from the value — first chunk before first newline, max 80 chars.
+    const firstLine = value.split("\n")[0].slice(0, 80);
+    if (firstLine.length < 6) return null;  // too short to be reliable
+    const encoded = JSON.stringify(firstLine);
+    const needle = encoded.slice(1, -1);
+    const idx = full.indexOf(needle);
+    if (idx < 0) return null;
+    return full.slice(0, idx).split("\n").length;
+  }
+
+  function setOutputActiveLine(line) {
+    state.outputActiveLine = line || null;
+    if (outputCm._activeIssueLine != null) {
+      outputCm.removeLineClass(outputCm._activeIssueLine, "background", "cm-active-issue-line");
+      outputCm._activeIssueLine = null;
+    }
+    if (line) {
+      const pos = { line: line - 1, ch: 0 };
+      try { outputCm.foldCode(pos, null, "unfold"); } catch (_) {}
+      outputCm.addLineClass(line - 1, "background", "cm-active-issue-line");
+      outputCm._activeIssueLine = line - 1;
+    }
+  }
+
+  function scrollOutputToLine(line) {
+    const pos = { line: line - 1, ch: 0 };
+    try { outputCm.foldCode(pos, null, "unfold"); } catch (_) {}
+    outputCm.scrollIntoView(pos, 60);
+  }
+
+  // Build a map of JSON path → starting line number (1-based) by tokenizing the
+  // raw text. Returns {} on parse failure (best-effort — we only need lines for
+  // valid input).
+  function buildPathLineMap(text) {
+    const map = {};
+    let i = 0, line = 1;
+    const adv = (n = 1) => {
+      for (let k = 0; k < n; k++) {
+        if (text[i] === "\n") line++;
+        i++;
+      }
+    };
+    const skipWS = () => { while (i < text.length && /\s/.test(text[i])) adv(); };
+    const parseString = () => {
+      // assumes text[i] === '"' — consumes the string incl. closing quote
+      adv();
+      while (i < text.length && text[i] !== '"') {
+        if (text[i] === "\\") adv();
+        adv();
+      }
+      if (i < text.length) adv();
+    };
+    const parseKey = () => {
+      skipWS();
+      if (text[i] !== '"') return null;
+      let j = i + 1;
+      while (j < text.length && text[j] !== '"') {
+        if (text[j] === "\\") j += 2;
+        else j++;
+      }
+      const key = text.slice(i + 1, j);
+      i = j + 1;
+      return key;
+    };
+    const parseValue = (path) => {
+      skipWS();
+      // Record the path's starting line.
+      if (!(path in map)) map[path] = line;
+      const c = text[i];
+      if (c === '"') {
+        parseString();
+      } else if (c === "{") {
+        adv(); skipWS();
+        while (i < text.length && text[i] !== "}") {
+          const key = parseKey();
+          if (key === null) break;
+          skipWS();
+          if (text[i] === ":") adv();
+          parseValue(path + "." + key);
+          skipWS();
+          if (text[i] === ",") { adv(); skipWS(); }
+        }
+        if (text[i] === "}") adv();
+      } else if (c === "[") {
+        adv(); skipWS();
+        let idx = 0;
+        while (i < text.length && text[i] !== "]") {
+          parseValue(path + "[" + idx + "]");
+          skipWS();
+          if (text[i] === ",") { adv(); skipWS(); }
+          idx++;
+        }
+        if (text[i] === "]") adv();
+      } else {
+        // primitive (number/bool/null) — skip until structural char
+        while (i < text.length && !/[,}\]]/.test(text[i])) adv();
+      }
+    };
+    try {
+      parseValue("$");
+    } catch (_) {
+      return {};
+    }
+    return map;
+  }
+
+  // Scan raw input for HTML issue patterns. Returns sorted, deduped line numbers (1-based).
+  // We scan the visible JSON source — so `\n` (escaped newline) appears as literal
+  // backslash-n. The regex `\\n` matches that 2-char sequence.
+  function scanIssueLines(rawText) {
+    const lines = rawText.split("\n");
+    const patterns = [
+      /<br(?![^>]*\/\s*>)[^>]*>/i,            // <br> without /
+      /<\/(?:br|hr|img|input|area|base|col|embed|link|meta|param|source|track|wbr)\s*>/i,
+      /<(?:style|script)\b/i,                 // embedded <style>/<script>
+      /\\n\s*<[A-Za-z]/,                      // \n immediately before a tag (e.g. \n<br>)
+    ];
+    const found = new Set();
+    lines.forEach((line, i) => {
+      for (const re of patterns) {
+        if (re.test(line)) { found.add(i + 1); break; }
+      }
+    });
+    return Array.from(found).sort((a, b) => a - b);
+  }
+
+  function scrollInputToLine(lineNum) {
+    const pos = { line: lineNum - 1, ch: 0 };
+    try { inputCm.foldCode(pos, null, "unfold"); } catch (_) {}
+    inputCm.scrollIntoView(pos, 60);
+    inputCm.setCursor(pos);
+    inputCm.focus();
+  }
+
+  function renderRuler() {
+    const ruler = $("editorRuler");
+    const lines = state.issueLines;
+    if (!lines.length || !state.input) {
+      ruler.innerHTML = "";
+      return;
+    }
+    const total = state.input.split("\n").length;
+    const activeLine = state.issueLines[state.issueIdx];
+    ruler.innerHTML = lines.map(ln => {
+      const top = ((ln - 1) / Math.max(total - 1, 1)) * 100;
+      const cls = (ln === activeLine) ? "marker active" : "marker";
+      return `<div class="${cls}" data-line="${ln}" style="top:calc(${top}% - 1.5px)" title="L${ln}"></div>`;
+    }).join("");
+    ruler.querySelectorAll(".marker").forEach(m => {
+      m.addEventListener("click", () => {
+        const ln = parseInt(m.dataset.line, 10);
+        const idx = state.issueLines.indexOf(ln);
+        if (idx >= 0) goToIssue(idx);
+      });
+    });
+  }
+
+  function renderIssueNav() {
+    const nav = $("issueNav");
+    const n = state.issueLines.length;
+    if (!n) {
+      nav.classList.add("hidden");
+      return;
+    }
+    nav.classList.remove("hidden");
+    $("issueCounter").textContent = `${state.issueIdx + 1}/${n}`;
+    $("issuePrev").disabled = n < 2;
+    $("issueNext").disabled = n < 2;
+  }
+
+  function goToIssue(idx) {
+    const n = state.issueLines.length;
+    if (!n) return;
+    state.issueIdx = ((idx % n) + n) % n;  // wrap around
+    scrollInputToLine(state.issueLines[state.issueIdx]);
+    setInputMarkers();
+    renderIssueNav();
+    renderRuler();
+    renderWarnings();
+  }
+
+  // Decide what the sidebar shows based on result + resultMode
+  function buildNav() {
+    const items = [];
+    const r = state.result;
+    if (!r) return items;
+
+    items.push({ key: "all", label: "ทั้งหมด (v4)", meta: "root", icon: "{}", iconColor: "var(--accent)" });
+
+    const mode = state.resultMode;
+    const isList = Array.isArray(r);
+
+    if (isList) {
+      // sections or pages list
+      const isPages = mode === "pages";
+      items.push({ heading: true, label: isPages ? "PAGES" : "SECTIONS", count: r.length });
+      r.forEach((item, i) => {
+        const num = String(i + 1).padStart(2, "0");
+        if (isPages) {
+          const label = item && item.nickname ? item.nickname : (item && item.path) || `Page ${i + 1}`;
+          const meta  = item && item.path ? item.path : "";
+          items.push({ key: `idx:${i}`, label, meta, icon: num, iconColor: "var(--c-num)" });
+        } else {
+          const label = (item && item.kind) ? item.kind : (item && item.type) || `Section ${i + 1}`;
+          const sub = (item && item.children) ? `${item.children.length} children` : "";
+          items.push({ key: `idx:${i}`, label, meta: sub, icon: num, iconColor: "var(--c-num)" });
+        }
+      });
+      return items;
+    }
+
+    // Dict-shaped result. Site mode has the canonical top-level keys.
+    if (mode === "site") {
+      // SECTIONS group (5 fixed)
+      items.push({ heading: true, label: "SECTIONS", count: 5 });
+      const sectionKeys = ["info", "style", "header_zone", "footer_zone", "free_zone"];
+      sectionKeys.forEach(k => {
+        const v = r[k];
+        items.push({ key: k, label: k, meta: sectionMetaFor(k, v), icon: "{}", iconColor: "var(--c-key)" });
+      });
+      const pages = Array.isArray(r.pages) ? r.pages : [];
+      items.push({ heading: true, label: "PAGES", count: pages.length });
+      items.push({ key: "pages", label: "ทั้งหมด (pages)", meta: `${pages.length} pages`, icon: "[]", iconColor: "var(--c-key)" });
+      pages.forEach((pg, i) => {
+        const label = pg && pg.nickname ? pg.nickname : (pg && pg.path) || `Page ${i + 1}`;
+        const path  = pg && pg.path ? pg.path : "";
+        const nSec  = (pg && pg.component && Array.isArray(pg.component.children)) ? pg.component.children.length : 0;
+        const meta  = nSec > 0 ? `${path} · ${nSec}§` : path;
+        items.push({ key: `page:${i}`, label, meta, icon: String(i + 1).padStart(2, "0"), iconColor: "var(--c-num)" });
+      });
+      return items;
+    }
+
+    // zones / global / page / single-section: enumerate top-level keys
+    const keys = Object.keys(r);
+    items.push({ heading: true, label: "SECTIONS", count: keys.length });
+    keys.forEach(k => {
+      items.push({ key: k, label: k, meta: sectionMetaFor(k, r[k]), icon: "{}", iconColor: "var(--c-key)" });
+    });
+    return items;
+  }
+
+  function sectionMetaFor(key, v) {
+    if (v == null) return "null";
+    if (typeof v !== "object") return String(v).slice(0, 24);
+    if (Array.isArray(v)) return `${v.length} items`;
+    if (Array.isArray(v.children)) return `${v.children.length} children`;
+    const n = Object.keys(v).length;
+    return `${n} keys`;
+  }
+
+  function renderSidebar() {
+    const items = buildNav();
+    const html = items.map(it => {
+      if (it.heading) {
+        return `<div class="nav-heading"><span>${it.label}</span><span class="count">${it.count}</span></div>`;
+      }
+      const active = state.selected === it.key ? " active" : "";
+      return `<button class="nav-item${active}" data-key="${it.key}">
+        <span class="nav-left">
+          <span class="nav-icon" style="color:${it.iconColor}">${escapeHTML(String(it.icon))}</span>
+          <span class="nav-label">${escapeHTML(it.label)}</span>
+        </span>
+        <span class="nav-meta">${escapeHTML(it.meta || "")}</span>
+      </button>`;
+    }).join("");
+    $("sidebar").innerHTML = html;
+    $("sidebar").querySelectorAll(".nav-item").forEach(btn => {
+      btn.addEventListener("click", () => {
+        state.selected = btn.dataset.key;
+        setOutputActiveLine(null);   // slice changed; line numbers no longer valid
+        renderSidebar();
+        renderViewer();
+      });
+    });
+  }
+
+  function getSlice() {
+    const r = state.result;
+    const sel = state.selected;
+    if (sel === "all") return { slice: r, path: "$" };
+    if (sel === "pages") return { slice: r.pages, path: "$.pages" };
+    if (sel.startsWith("idx:")) {
+      const i = parseInt(sel.slice(4), 10);
+      return { slice: r[i], path: `$[${i}]` };
+    }
+    if (sel.startsWith("page:")) {
+      const i = parseInt(sel.slice(5), 10);
+      return { slice: r.pages[i], path: `$.pages[${i}]` };
+    }
+    // Plain key access on dict result
+    return { slice: { [sel]: r[sel] }, path: `$.${sel}` };
+  }
+
+  function sliceMetaText() {
+    const r = state.result;
+    const sel = state.selected;
+    if (sel === "all") {
+      if (Array.isArray(r)) {
+        return state.resultMode === "pages"
+          ? `${r.length} pages`
+          : `${r.length} sections`;
+      }
+      if (state.resultMode === "site") {
+        const pages = (r.pages || []).length;
+        const totalSections = (r.pages || []).reduce((acc, p) => acc + ((p && p.component && p.component.children) ? p.component.children.length : 0), 0);
+        return `5 sections · ${pages} pages · ${totalSections} widgets`;
+      }
+      const keys = Object.keys(r || {}).length;
+      return `${keys} keys`;
+    }
+    if (sel === "pages") {
+      const arr = r.pages || [];
+      const totalSections = arr.reduce((acc, p) => acc + ((p && p.component && p.component.children) ? p.component.children.length : 0), 0);
+      return `${arr.length} pages · ${totalSections} sections`;
+    }
+    if (sel.startsWith("page:")) {
+      const i = parseInt(sel.slice(5), 10);
+      const pg = r.pages[i];
+      const w = pg && pg.component && Array.isArray(pg.component.children) ? pg.component.children.length : 0;
+      return `1 page · ${w} sections`;
+    }
+    if (sel.startsWith("idx:")) {
+      const i = parseInt(sel.slice(4), 10);
+      const v = r[i];
+      if (v && Array.isArray(v.children)) return `1 item · ${v.children.length} children`;
+      if (v && typeof v === "object") return `1 item · ${Object.keys(v).length} keys`;
+      return "1 item";
+    }
+    const v = r[sel];
+    if (v == null) return "null";
+    if (Array.isArray(v)) return `${v.length} items`;
+    if (typeof v === "object") return `1 section · ${Object.keys(v).length} keys`;
+    return "1 value";
+  }
+
+  function renderViewer() {
+    const { slice, path } = getSlice();
+    $("path").textContent = path;
+    $("sliceMeta").textContent = sliceMetaText();
+    const text = JSON.stringify(slice, null, 2) || "";
+    state._plain = text;
+    // CM update — preserve scroll/cursor only when content unchanged
+    if (outputCm.getValue() !== text) {
+      outputCm.setValue(text);
+    }
+    const lines = text.split("\n");
+    $("codeMeta").textContent = `JSON · ${lines.length} บรรทัด · ${text.length} ตัวอักษร`;
+    $("downloadBtn").classList.toggle("hidden", state.selected !== "all");
+    // Active line on output (re-applied when state.outputActiveLine is set)
+    if (state.outputActiveLine) setOutputActiveLine(state.outputActiveLine);
+  }
+
+  function renderWarnings() {
+    const banner = $("warnBanner");
+    const ws = state.htmlWarnings || [];
+    if (!ws.length || !state.result) {
+      banner.classList.add("hidden");
+      banner.open = false;
+      return;
+    }
+    banner.classList.remove("hidden");
+    const fixed = ws.filter(w => w.kind === "fixed").length;
+    const warns = ws.filter(w => w.kind === "warn").length;
+    const parts = [];
+    if (fixed) parts.push(`${fixed} แก้อัตโนมัติ`);
+    if (warns) parts.push(`${warns} ต้องตรวจ`);
+    $("warnCount").textContent = parts.join(" · ");
+    $("warnTitle").textContent = warns ? "⚠ พบ HTML ที่ต้องตรวจสอบ" : "✓ แก้ HTML อัตโนมัติ";
+    $("warnBanner").querySelector("summary").style.color =
+      warns ? "var(--warn)" : "var(--good)";
+    const activeLine = state.issueLines[state.issueIdx];
+    $("warnList").innerHTML = ws.map((w, i) => {
+      const line = w.line || null;
+      const isActive = line && line === activeLine ? " active" : "";
+      const linePill = line ? `<span class="line-pill">L${line}</span>` : `<span class="line-pill"></span>`;
+      return `<div class="row ${w.kind}${isActive}" data-line="${line || ''}" data-idx="${i}">
+        <span class="tag">${w.kind}</span>
+        ${linePill}
+        <span class="path">${escapeHTML(w.path)}</span>
+        <span class="msg">${escapeHTML(w.msg)}</span>
+      </div>`;
+    }).join("");
+    // Click handler: jump to line in both input and output
+    $("warnList").querySelectorAll(".row[data-idx]").forEach(row => {
+      const idx = parseInt(row.dataset.idx, 10);
+      const w = ws[idx];
+      if (!w) return;
+      row.addEventListener("click", () => {
+        // 1. Input jump
+        if (w.line) {
+          const issueIdx = state.issueLines.indexOf(w.line);
+          if (issueIdx >= 0) state.issueIdx = issueIdx;
+          scrollInputToLine(w.line);
+        }
+        // 2. Output jump — switch to "all", re-render, find line, scroll+highlight
+        const value = getAtPath(state.cleanInput, w.path);
+        state.selected = "all";
+        renderSidebar();
+        renderViewer();
+        const outLine = findOutputLineForValue(value);
+        if (outLine) {
+          setOutputActiveLine(outLine);
+          scrollOutputToLine(outLine);
+        } else {
+          setOutputActiveLine(null);
+        }
+        setInputMarkers();
+        renderRuler();
+        renderIssueNav();
+        renderWarnings();
+      });
+    });
+  }
+
+  function renderOutputArea() {
+    const r = state.result;
+    const runErr = state.runError;
+    const idle  = $("idleState");
+    const errSt = $("errState");
+    const body  = $("outBody");
+    const okPill = $("okPill");
+    const badPill = $("badPill");
+
+    if (runErr) {
+      idle.classList.add("hidden");
+      body.classList.add("hidden");
+      errSt.classList.remove("hidden");
+      $("errStateMsg").textContent = runErr;
+      okPill.classList.add("hidden");
+      badPill.classList.remove("hidden");
+      $("downloadBtn").classList.add("hidden");
+      $("warnBanner").classList.add("hidden");
+      return;
+    }
+    if (r == null) {
+      idle.classList.remove("hidden");
+      errSt.classList.add("hidden");
+      body.classList.add("hidden");
+      okPill.classList.add("hidden");
+      badPill.classList.add("hidden");
+      $("downloadBtn").classList.add("hidden");
+      $("warnBanner").classList.add("hidden");
+      return;
+    }
+    idle.classList.add("hidden");
+    errSt.classList.add("hidden");
+    body.classList.remove("hidden");
+    okPill.classList.remove("hidden");
+    badPill.classList.add("hidden");
+    renderSidebar();
+    renderViewer();
+    renderWarnings();
+  }
+
+  function renderInputUI() {
+    const text = state.input;
+    if (inputCm.getValue() !== text) {
+      inputCm.setValue(text);
+    }
+    const lines = text ? text.split("\n").length : 0;
+    $("inputMeta").textContent = `${lines} บรรทัด`;
+    const pe = state.parseError;
+    if (pe) {
+      $("errRow").classList.remove("hidden");
+      $("errLoc").textContent = pe.loc || "";
+      $("errMsg").textContent = pe.msg || "";
+    } else {
+      $("errRow").classList.add("hidden");
+    }
+    setInputMarkers();
+    renderIssueNav();
+    renderRuler();
+  }
+
+  // ── Handlers ───────────────────────────────────────────────────────
+
+  $("clearBtn").addEventListener("click", () => {
+    inputCm.setValue("");
+    inputCm.focus();
+  });
+  $("pasteBtn").addEventListener("click", async () => {
+    try {
+      const t = await navigator.clipboard.readText();
+      if (t) {
+        inputCm.setValue(t);
+        inputCm.setCursor({ line: 0, ch: 0 });
+        inputCm.focus();
+      }
+    } catch (_) {}
+  });
+
+  $("themeBtn").addEventListener("click", () => {
+    state.theme = state.theme === "dark" ? "light" : "dark";
+    applyTheme(state.theme);
+    saveTheme(state.theme);
+  });
+
+  $("convertBtn").addEventListener("click", async () => {
+    if (!pyodideReady) return;
+    state.runError = null;
+    state.parseError = null;
+    state.result = null;
+    state.selected = "all";
+    state.htmlWarnings = [];
+    state.issueLines = [];
+    state.issueIdx = 0;
+    state.outputActiveLine = null;
+
+    let data;
+    try {
+      data = parseInput(state.input);
+    } catch (e) {
+      state.parseError = e.parse || { msg: e.message, loc: "" };
+      renderInputUI();
+      renderOutputArea();
+      return;
+    }
+    // htmlfix: no v3→v4 conversion — just run normalize_html on the v4 JSON.
+    // Output IS the cleaned input (same shape); sidebar enumerates its keys.
+    state.resultMode = "fixed";
+    setStatus("Fixing HTML…", "loading");
+    try {
+      const { clean, warns } = normalizeHtml(data);
+      // Build path→line map once, attach line to each warning.
+      const pathLineMap = buildPathLineMap(state.input);
+      const toWarn = (w) => ({ ...w, line: pathLineMap[w.path] || null });
+      state.htmlWarnings = (warns || []).map(toWarn);
+      state.issueLines = scanIssueLines(state.input);
+      state.issueIdx = 0;
+      state.result = clean;
+      state.cleanInput = clean;
+      setStatus("Ready", "ready");
+    } catch (e) {
+      state.runError = e.message || String(e);
+      setStatus("Fix failed", "error");
+    }
+    renderInputUI();
+    renderOutputArea();
+  });
+
+  $("issuePrev").addEventListener("click", () => goToIssue(state.issueIdx - 1));
+  $("issueNext").addEventListener("click", () => goToIssue(state.issueIdx + 1));
+
+  $("copyBtn").addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(state._plain || "");
+      $("copyBtn").classList.add("copied");
+      $("copyIcon").textContent = "✓";
+      $("copyLabel").textContent = "คัดลอกแล้ว";
+      setTimeout(() => {
+        $("copyBtn").classList.remove("copied");
+        $("copyIcon").textContent = "⧉";
+        $("copyLabel").textContent = "คัดลอก";
+      }, 1500);
+    } catch (_) {}
+  });
+
+  $("downloadBtn").addEventListener("click", () => {
+    if (!state.result) return;
+    const text = JSON.stringify(state.result, null, 2);
+    const blob = new Blob([text], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "converted-v4.json";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+
+  function showErrState(msg) {
+    state.runError = msg;
+    renderOutputArea();
+  }
+
+  // Initial render
+  renderInputUI();
+  renderOutputArea();
+})();
+</script>
+
+</body>
+</html>
