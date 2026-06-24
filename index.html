@@ -3,7 +3,8 @@
 <!--
   converter2v4.html — LNW Shop v3 → v4 browser converter.
   Loads converter.py via Pyodide and runs the same Python pipeline as the CLI.
-  Update the @@VERSION-CONSTANTS block when shipping a change.
+  Version + changelog live in converter.py (__version__, CHANGELOG) and are
+  read at load time for the "what's new" popup — this wrapper is unversioned.
 -->
 <head>
 <meta charset="utf-8">
@@ -203,6 +204,31 @@
   .warn-list .row .path{color:var(--accent);white-space:nowrap;flex:none}
   .warn-list .row .msg{color:var(--fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
+  /* ── Version "what's new / readme" popup ───────────────────────────── */
+  .brand-version{cursor:pointer;transition:background .15s,border-color .15s}
+  .brand-version:hover{border-color:var(--accent);background:var(--accent-soft)}
+  .modal-overlay{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.45);display:flex;align-items:flex-start;justify-content:center;padding:64px 18px 18px;overflow-y:auto}
+  .modal{width:100%;max-width:560px;background:var(--panel);border:1px solid var(--border-strong);border-radius:14px;box-shadow:0 18px 60px rgba(0,0,0,.35);overflow:hidden;animation:modalIn .16s ease-out}
+  @keyframes modalIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+  .modal-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:15px 18px;border-bottom:1px solid var(--border);background:var(--panel-head)}
+  .modal-title{display:flex;align-items:center;gap:9px;font-size:15px;font-weight:600;color:var(--fg-strong)}
+  .modal-title .mver{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent-soft);padding:1px 6px;border-radius:5px}
+  .modal-close{border:none;background:transparent;color:var(--muted);font-size:20px;line-height:1;cursor:pointer;padding:2px 6px;border-radius:6px}
+  .modal-close:hover{background:var(--hover);color:var(--fg)}
+  .modal-body{padding:16px 18px 20px;max-height:70vh;overflow-y:auto}
+  .modal-section + .modal-section{margin-top:18px}
+  .modal-section h4{margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--muted);text-transform:uppercase}
+  .modal-readme{margin:0;padding-left:18px;font-size:13px;line-height:1.6;color:var(--fg)}
+  .modal-readme li{margin:2px 0}
+  .modal-readme code{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--accent);background:var(--accent-soft);padding:1px 5px;border-radius:4px}
+  .changelog{display:flex;flex-direction:column;gap:14px}
+  .changelog-entry{border-left:2px solid var(--border-strong);padding-left:13px}
+  .changelog-entry .cl-ver{display:flex;align-items:baseline;gap:8px;margin-bottom:5px}
+  .changelog-entry .cl-tag{font-size:11px;font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--fg-strong)}
+  .changelog-entry .cl-date{font-size:10.5px;font-family:'JetBrains Mono',monospace;color:var(--muted-2)}
+  .changelog-entry ul{margin:0;padding-left:16px;font-size:12.5px;line-height:1.55;color:var(--fg)}
+  .changelog-entry li{margin:1px 0}
+
   .hidden{display:none !important}
 </style>
 </head>
@@ -336,18 +362,72 @@
   </main>
 </div>
 
+<!-- VERSION / WHAT'S-NEW POPUP -->
+<div class="modal-overlay hidden" id="infoOverlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="infoTitle">
+    <div class="modal-head">
+      <div class="modal-title" id="infoTitle">
+        converter2v4 <span class="mver" id="infoVersion"></span>
+      </div>
+      <button class="modal-close" id="infoClose" type="button" aria-label="ปิด">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-section">
+        <h4>เครื่องมือนี้ทำอะไรได้</h4>
+        <ul class="modal-readme" id="infoReadme"></ul>
+      </div>
+      <div class="modal-section">
+        <h4>อัพเดทล่าสุด</h4>
+        <div class="changelog" id="infoChangelog"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
 <script>
 (async function(){
   // ────────────────────────────────────────────────────────────────────
-  // @@VERSION-CONSTANTS — bump these when you change the file
-  const VERSION = "v2.1";
-  const UPDATED = "2026-06-23";
-  // ────────────────────────────────────────────────────────────────────
+  // ── Version / "what's new" popup ────────────────────────────────────
+  // The version, capabilities and changelog are the CONVERTER BACKEND's —
+  // read from converter.py once Pyodide loads (see renderInfo() call below).
+  // This keeps the log tied to what the converter can do, not to cosmetic
+  // changes in this HTML wrapper. Until then a placeholder shows.
+  document.title = "converter2v4 — LNW Shop v3 → v4";
+  document.getElementById("versionTag").textContent = "…";
+  document.getElementById("versionTag").title = "ดูว่ามีอะไรใหม่";
+  document.getElementById("brandSub").innerHTML = `schema&nbsp;v3&nbsp;→&nbsp;v4`;
 
-  document.title = `converter2v4 ${VERSION} — LNW Shop v3 → v4`;
-  document.getElementById("versionTag").textContent = VERSION;
-  document.getElementById("brandSub").innerHTML = `schema&nbsp;v3&nbsp;→&nbsp;v4 · อัพเดท ${UPDATED}`;
+  function renderInfo(meta) {
+    // meta = { version, updated, capabilities:[...], changelog:[{version,date,items:[...]}] }
+    const v = "v" + meta.version;
+    document.title = `converter2v4 ${v} — LNW Shop v3 → v4`;
+    document.getElementById("versionTag").textContent = v;
+    document.getElementById("infoVersion").textContent = v;
+    if (meta.updated) {
+      document.getElementById("brandSub").innerHTML =
+        `schema&nbsp;v3&nbsp;→&nbsp;v4 · อัพเดท ${meta.updated}`;
+    }
+    document.getElementById("infoReadme").innerHTML =
+      (meta.capabilities || []).map(t => `<li>${t}</li>`).join("");
+    document.getElementById("infoChangelog").innerHTML = (meta.changelog || []).map(e => `
+      <div class="changelog-entry">
+        <div class="cl-ver"><span class="cl-tag">v${e.version}</span><span class="cl-date">${e.date}</span></div>
+        <ul>${(e.items || []).map(i => `<li>${i}</li>`).join("")}</ul>
+      </div>`).join("");
+  }
+
+  (function setupInfoPopup(){
+    const overlay = document.getElementById("infoOverlay");
+    const open = () => overlay.classList.remove("hidden");
+    const close = () => overlay.classList.add("hidden");
+    document.getElementById("versionTag").addEventListener("click", open);
+    document.getElementById("infoClose").addEventListener("click", close);
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !overlay.classList.contains("hidden")) close();
+    });
+  })();
 
   const $ = (id) => document.getElementById(id);
 
@@ -474,6 +554,22 @@
     pyodideReady = true;
     setStatus("Ready", "ready");
     $("convertBtn").disabled = false;
+
+    // Pull the backend version + changelog from converter.py for the popup.
+    try {
+      pyodide.runPython(
+        "import json as _json\n" +
+        "_meta = _json.dumps({\n" +
+        "  'version': globals().get('__version__', '?'),\n" +
+        "  'updated': globals().get('LAST_UPDATED', ''),\n" +
+        "  'capabilities': globals().get('CAPABILITIES', []),\n" +
+        "  'changelog': globals().get('CHANGELOG', []),\n" +
+        "}, ensure_ascii=False)\n"
+      );
+      renderInfo(JSON.parse(pyodide.globals.get("_meta")));
+    } catch (e) {
+      console.warn("Could not read backend version metadata:", e);
+    }
   } catch (e) {
     setStatus("Failed to load", "error");
     showErrState("Init failed: " + e.message + "\n\nTip: serve over http(s). For local testing: `python3 -m http.server 8000`.");

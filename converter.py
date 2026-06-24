@@ -11,6 +11,51 @@ import sys
 
 
 # ---------------------------------------------------------------------------
+# Backend version + changelog (single source of truth)
+#
+# This is the converter *engine* version — bump it when conversion behavior
+# changes (new section support, mapping fixes, HTML rules), NOT for cosmetic
+# changes to the browser tool (converter2v4.html). The browser tool reads
+# these constants out of the loaded module to render its "what's new" popup,
+# so the log stays tied to what the converter can actually do.
+# ---------------------------------------------------------------------------
+
+__version__ = "1.4"
+LAST_UPDATED = "2026-06-24"
+
+# Short summary of what the converter handles — shown in the browser popup.
+# Plain strings; inline HTML (e.g. <code>) is allowed for rendering there.
+CAPABILITIES = [
+    "แปลงโค้ด JSON หน้าร้าน LNW Shop จาก <code>v3</code> เป็น <code>v4</code>",
+    "ตรวจชนิดข้อมูลอัตโนมัติ: section เดี่ยว, ทั้งเว็บ (<code>site</code>), zone, หรือ global component",
+    "รองรับครบ 16 content section + Header/Footer zone + Global component",
+    "จัดระเบียบ HTML ในเนื้อหาอัตโนมัติ (ปิด tag เช่น <code>&lt;br&gt;</code>) และเตือนเมื่อพบ tag ที่ไม่ได้ปิด",
+]
+
+# Backend changelog, newest first. Add an entry + bump __version__ whenever
+# conversion behavior changes.
+CHANGELOG = [
+    {"version": "1.4", "date": "2026-06-24", "items": [
+        "เลิกปิด <code>&lt;img&gt;</code> เป็น <code>&lt;img/&gt;</code> — ใช้รูปแบบ HTML5 ปกติ",
+    ]},
+    {"version": "1.3", "date": "2026-06-23", "items": [
+        "รองรับ Global component (info / style / free_zone)",
+        "จัดระเบียบ HTML อัตโนมัติ: ปิด void tag (<code>&lt;br&gt;</code>, <code>&lt;hr&gt;</code>) และเตือน tag ที่ไม่ได้ปิด",
+    ]},
+    {"version": "1.2", "date": "2026-06-15", "items": [
+        "รองรับ Header section ครบ (sticky, mega menu, drawer, โหมดโปร่งใส)",
+        "จัดการ system page (404, blog, promotion) + สงวน path ระบบของ v4",
+    ]},
+    {"version": "1.1", "date": "2026-06-08", "items": [
+        "รองรับ Footer zone และ Header zone",
+    ]},
+    {"version": "1.0", "date": "2026-05-29", "items": [
+        "ตัวแปลง v3 → v4 เวอร์ชันเสถียรแรก — รองรับ section และแปลงทั้งหน้า/ทั้งเว็บ",
+    ]},
+]
+
+
+# ---------------------------------------------------------------------------
 # HTML normalization (auto-fix void tags + detect unclosed tags)
 #
 # Some v3 widget content fields hold HTML written by hand. v4 renders this as
