@@ -141,6 +141,15 @@
   .convert-btn:not(:disabled):active{transform:translateY(1px)}
   .arrow{font-family:'JetBrains Mono',monospace;font-size:15px}
 
+  /* ── Output config toggles ─────────────────────────────────────────── */
+  .config-bar{display:flex;align-items:center;flex-wrap:wrap;gap:7px;padding:9px 13px 0}
+  .config-label{font-size:10.5px;font-weight:700;letter-spacing:.06em;color:var(--muted);text-transform:uppercase}
+  .cfg-chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--fg);
+            border:1px solid var(--border-strong);border-radius:7px;padding:3px 9px;cursor:pointer;user-select:none}
+  .cfg-chip:hover{background:var(--hover)}
+  .cfg-chip input{accent-color:var(--accent);margin:0;cursor:pointer}
+  .cfg-chip.off{color:var(--muted-2);border-color:var(--border)}
+
   /* ── OUTPUT ────────────────────────────────────────────────────────── */
   .out-head{height:46px;flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 13px;border-bottom:1px solid var(--border);background:var(--panel-head)}
   .out-head-left{display:flex;align-items:center;gap:9px;flex:none}
@@ -281,6 +290,13 @@
             <span class="err-title">JSON ไม่ถูกต้อง <span class="err-loc" id="errLoc"></span></span>
             <span class="err-msg" id="errMsg"></span>
           </div>
+        </div>
+        <div class="config-bar" id="configBar" title="เลือกส่วนที่จะรวมในผลลัพธ์ (ใช้กับโหมดทั้งเว็บ)">
+          <span class="config-label">รวมในผลลัพธ์</span>
+          <label class="cfg-chip"><input type="checkbox" id="cfgContent" checked> เนื้อหา</label>
+          <label class="cfg-chip"><input type="checkbox" id="cfgThemeColor" checked> สีธีม</label>
+          <label class="cfg-chip"><input type="checkbox" id="cfgThemeFont" checked> ฟอนต์ธีม</label>
+          <label class="cfg-chip"><input type="checkbox" id="cfgGlobal" checked> ตั้งค่ารวม</label>
         </div>
         <div class="foot-row">
           <span class="foot-meta" id="inputMeta">0 บรรทัด</span>
@@ -444,9 +460,23 @@
     try { localStorage.setItem(THEME_KEY, t); } catch (_) {}
   }
 
+  // ── Output config (what to include) — persisted in localStorage ─────
+  const CONFIG_KEY = "converter2v4_outputConfig";
+  const CONFIG_DEFAULT = { content: true, themeColor: true, themeFont: true, global: true };
+  function loadConfig() {
+    try {
+      const v = JSON.parse(localStorage.getItem(CONFIG_KEY) || "{}");
+      return { ...CONFIG_DEFAULT, ...(v && typeof v === "object" ? v : {}) };
+    } catch (_) { return { ...CONFIG_DEFAULT }; }
+  }
+  function saveConfig(cfg) {
+    try { localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg)); } catch (_) {}
+  }
+
   // ── State ──────────────────────────────────────────────────────────
   const state = {
     theme: loadTheme(),
+    config: loadConfig(),
     input: "",
     parseError: null,   // {line, col, msg, loc}
     result: null,       // converted output (object or array)
@@ -467,6 +497,27 @@
     $("themeLabel").textContent = t === "dark" ? "Dark" : "Light";
   }
   applyTheme(state.theme);
+
+  // ── Output config toggles ──────────────────────────────────────────
+  const CFG_BOXES = {
+    content:    "cfgContent",
+    themeColor: "cfgThemeColor",
+    themeFont:  "cfgThemeFont",
+    global:     "cfgGlobal",
+  };
+  function setupConfigToggles() {
+    for (const [key, id] of Object.entries(CFG_BOXES)) {
+      const box = $(id);
+      box.checked = !!state.config[key];
+      box.closest(".cfg-chip").classList.toggle("off", !box.checked);
+      box.addEventListener("change", () => {
+        state.config[key] = box.checked;
+        box.closest(".cfg-chip").classList.toggle("off", !box.checked);
+        saveConfig(state.config);
+      });
+    }
+  }
+  setupConfigToggles();
 
   // ── CodeMirror init ────────────────────────────────────────────────
   const inputCm = CodeMirror($("inputHost"), {
@@ -639,27 +690,32 @@
   // ── Run conversion ─────────────────────────────────────────────────
   async function runConversion(mode, data) {
     pyodide.globals.set("_input", pyodide.toPy(data));
+    const cfg = state.config;
+    const py = (b) => (b ? "True" : "False");   // JS bool → Python literal
+    const gkw = `include_components=${py(cfg.global)}, include_colors=${py(cfg.themeColor)}, include_fonts=${py(cfg.themeFont)}`;
     let snippet;
     if (mode === "site") {
       snippet =
-        "_pages = convert_site(_input)\n" +
+        "_twarns = []\n" +
+        `_pages = convert_site(_input) if ${py(cfg.content)} else []\n` +
         "_zones = convert_zones(_input)\n" +
-        "_globals = convert_global(_input)\n" +
+        `_globals = convert_global(_input, _twarns, ${gkw})\n` +
         "_result = {\n" +
         "    'nickname':    'Imported',\n" +
         "    'theme_key':   'base',\n" +
         "    'info':        _globals['info'],\n" +
         "    'style':       _globals['style'],\n" +
         "    'css':         None,\n" +
-        "    'header_zone': _zones['header_zone'],\n" +
-        "    'footer_zone': _zones['footer_zone'],\n" +
-        "    'free_zone':   _zones['free_zone'],\n" +
+        `    'header_zone': _zones['header_zone'] if ${py(cfg.content)} else None,\n` +
+        `    'footer_zone': _zones['footer_zone'] if ${py(cfg.content)} else None,\n` +
+        "    'free_zone':   _globals['free_zone'],\n" +
         "    'pages':       _pages,\n" +
+        "    'unuse_configs': [],\n" +
         "}\n_errors = []\n";
     } else if (mode === "zones") {
-      snippet = "_result = convert_zones(_input)\n_errors = []\n";
+      snippet = "_twarns = []\n_result = convert_zones(_input)\n_errors = []\n";
     } else if (mode === "global") {
-      snippet = "_result = convert_global(_input)\n_errors = []\n";
+      snippet = `_twarns = []\n_result = convert_global(_input, _twarns, ${gkw})\n_errors = []\n`;
     } else if (mode === "pages") {
       snippet =
         "_result = [convert_page(p) for p in _input if isinstance(p, dict) and 'layouts' in p]\n" +
@@ -678,14 +734,17 @@
         "else:\n" +
         "    _result = convert_section(_input)\n    _errors = []\n";
     }
-    pyodide.runPython(snippet);
+    pyodide.runPython(snippet + "\ntry:\n    _twarns\nexcept NameError:\n    _twarns = []\n");
     const resultProxy = pyodide.globals.get("_result");
     const errorsProxy = pyodide.globals.get("_errors");
+    const twarnsProxy = pyodide.globals.get("_twarns");
     const result = resultProxy.toJs({ dict_converter: Object.fromEntries });
     const errors = errorsProxy.toJs();
+    const themeWarns = twarnsProxy.toJs({ dict_converter: Object.fromEntries });
     resultProxy.destroy();
     errorsProxy.destroy();
-    return { result, errors };
+    twarnsProxy.destroy();
+    return { result, errors, themeWarns };
   }
 
   // ── UI helpers ─────────────────────────────────────────────────────
@@ -1248,11 +1307,14 @@
       state.cleanInput = clean;
       // Build path→line map once, attach line to each warning.
       const pathLineMap = buildPathLineMap(state.input);
-      state.htmlWarnings = (warns || []).map(w => ({ ...w, line: pathLineMap[w.path] || null }));
+      const toWarn = (w) => ({ ...w, line: pathLineMap[w.path] || null });
+      state.htmlWarnings = (warns || []).map(toWarn);
       state.issueLines = scanIssueLines(state.input);
       state.issueIdx = 0;
-      const { result } = await runConversion(mode, clean);
+      const { result, themeWarns } = await runConversion(mode, clean);
       state.result = result;
+      // Append theme/font warnings (e.g. dropped Google fonts) from conversion.
+      state.htmlWarnings = state.htmlWarnings.concat((themeWarns || []).map(toWarn));
       setStatus(`Ready (${mode})`, "ready");
     } catch (e) {
       state.runError = e.message || String(e);

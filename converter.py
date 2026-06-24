@@ -5,6 +5,7 @@ Usage:
     If output.json is omitted, result is printed to stdout.
 """
 
+import difflib
 import json
 import re
 import sys
@@ -20,7 +21,7 @@ import sys
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.4"
+__version__ = "1.6"
 LAST_UPDATED = "2026-06-24"
 
 # Short summary of what the converter handles — shown in the browser popup.
@@ -35,6 +36,13 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.6", "date": "2026-06-24", "items": [
+        "เลือกได้ว่าจะรวมส่วนไหนในผลลัพธ์: เนื้อหา / สีธีม / ฟอนต์ธีม / ตั้งค่ารวม (จำค่าไว้ในเบราว์เซอร์)",
+    ]},
+    {"version": "1.5", "date": "2026-06-24", "items": [
+        "แปลง theme config: <code>currentColors</code> → สีแบรนด์ใน <code>:root</code>, <code>currentFonts</code> → ฟอนต์",
+        "ฟอนต์นอกระบบ (Google font) จะถูกตัดออกพร้อมแจ้งเตือน — เพิ่มเองใน v4",
+    ]},
     {"version": "1.4", "date": "2026-06-24", "items": [
         "เลิกปิด <code>&lt;img&gt;</code> เป็น <code>&lt;img/&gt;</code> — ใช้รูปแบบ HTML5 ปกติ",
     ]},
@@ -3845,71 +3853,177 @@ def convert_header(header_json: dict) -> dict:
     return header_zone
 
 
-def convert_global(site_json: dict) -> dict:
+# ---------------------------------------------------------------------------
+# Theme config (currentColors / currentFonts → :root + fontManifest)
+# ---------------------------------------------------------------------------
+
+# Fonts bundled in the v4 system (canonical names, from fontlist.txt). A font
+# NOT in this set is treated as a Google font; because the converter runs
+# offline (CLI + Pyodide) it can't verify Google availability, so such fonts
+# are dropped from the family stack with a warning — handle them manually in v4.
+_SYSTEM_FONTS = [
+    # Thai
+    "IBM Plex Sans Thai", "Noto Sans Thai", "Prompt", "Sarabun", "Kanit",
+    "Mitr", "Tahoma", "Leelawadee UI", "Sukhumvit Set", "Thonburi",
+    # English / Latin
+    "Inter", "Roboto", "Open Sans", "Poppins", "Lato", "Cormorant Garamond",
+    "Arial", "Helvetica Neue", "Helvetica", "Segoe UI", "Georgia",
+    "Times New Roman", "Times", "Trebuchet MS",
+]
+_SYSTEM_FONTS_LOWER = {f.lower(): f for f in _SYSTEM_FONTS}
+
+# v3 currentColors array index → v4 style[":root"] color variable.
+_THEME_COLOR_KEYS = [
+    "colorBrand",            # [0]
+    "colorBrandAlt",         # [1]
+    "colorNeutralSubtlest",  # [2]
+    "colorNeutralBoldest",   # [3]
+    "colorBrandSubtle",      # [4]
+    "colorBrandBold",        # [5]
+]
+
+
+def _resolve_system_font(name):
+    """Map a v3 font name to its canonical v4 system-font name, or return None
+    if it is not a system font (i.e. a Google/unknown font). Tolerates case
+    differences and minor misspellings (e.g. "Saraban" → "Sarabun")."""
+    if not isinstance(name, str) or not name.strip():
+        return None
+    key = name.strip().lower()
+    if key in _SYSTEM_FONTS_LOWER:
+        return _SYSTEM_FONTS_LOWER[key]
+    close = difflib.get_close_matches(key, list(_SYSTEM_FONTS_LOWER), n=1, cutoff=0.8)
+    return _SYSTEM_FONTS_LOWER[close[0]] if close else None
+
+
+def _resolve_font_family(names, warnings, path):
+    """Resolve a v3 font-name list to canonical system fonts, dropping (and
+    warning about) any non-system Google fonts. Returns the kept list."""
+    kept, dropped = [], []
+    for n in names or []:
+        canon = _resolve_system_font(n)
+        if canon is not None:
+            if canon not in kept:
+                kept.append(canon)
+        elif isinstance(n, str) and n.strip():
+            dropped.append(n.strip())
+    if dropped and warnings is not None:
+        warnings.append({
+            "path": path,
+            "kind": "warn",
+            "msg": "Google font(s) dropped (not in system list — add manually in v4): "
+                   + ", ".join(dropped),
+        })
+    return kept
+
+
+def _build_free_zone(components: dict) -> dict:
+    """Build the free_zone node from `components.ContactWidget`."""
+    children: list = []
+    cw = components.get("ContactWidget")
+    if isinstance(cw, dict) and cw.get("enableContactWidget"):
+        children.append(make_node("widget", "WidgetChat", None, {}))
+    return make_node("page", "free", "Free", {}, children)
+
+
+def convert_global(site_json: dict, warnings: list = None, *,
+                   include_components: bool = True,
+                   include_colors: bool = True,
+                   include_fonts: bool = True) -> dict:
     """Convert v3 site-level `components.*` config to v4 global triplet.
 
     Returns {"info": {...}, "style": {...}, "free_zone": {...}}.
     Always emits a free_zone wrapper (children may be empty).
-    `:root` and `fontManifest` are intentionally not produced — the target
-    system fills those from theme presets after import.
+
+    When the v3 input carries theme config (`currentColors` / `currentFonts`),
+    they are mapped to `style[":root"]` (brand colors + font families) and
+    `info.fontManifest`. Non-system fonts are dropped and reported via the
+    optional `warnings` list (see _resolve_font_family).
+
+    The `include_*` flags select which parts to emit (the browser tool exposes
+    these as output toggles; all default True so CLI behavior is unchanged):
+      - include_components: `components.*` → info/style selectors + free_zone
+      - include_colors:     `currentColors` → :root brand colors
+      - include_fonts:      `currentFonts`  → :root font families + fontManifest
     """
     components = (site_json.get("components") or {}) if isinstance(site_json, dict) else {}
 
     info: dict = {}
     style: dict = {}
 
-    # ── ProductBox → style[".element-card-product"] + info.Element.CardProduct.cardConfig ──
-    pb = components.get("ProductBox")
-    if isinstance(pb, dict):
-        ecp_style: dict = {}
-        if "isThumbnailHeight" in pb:
-            ecp_style["cardProductThumbnailRatio"] = "3 / 4" if pb["isThumbnailHeight"] else "1 / 1"
-        image_type = pb.get("imageType")
-        if image_type in _IMAGE_TYPE_TO_OBJECT_FIT:
-            ecp_style["cardProductThumbnailObjectFit"] = _IMAGE_TYPE_TO_OBJECT_FIT[image_type]
-        font_color = (pb.get("pTitleStyle") or {}).get("fontColor")
-        if isinstance(font_color, str) and font_color:
-            ecp_style["cardProductNameColor"] = font_color.lower()
-        if ecp_style:
-            style[".element-card-product"] = ecp_style
+    if include_components:
+        # ── ProductBox → style[".element-card-product"] + info.Element.CardProduct.cardConfig ──
+        pb = components.get("ProductBox")
+        if isinstance(pb, dict):
+            ecp_style: dict = {}
+            if "isThumbnailHeight" in pb:
+                ecp_style["cardProductThumbnailRatio"] = "3 / 4" if pb["isThumbnailHeight"] else "1 / 1"
+            image_type = pb.get("imageType")
+            if image_type in _IMAGE_TYPE_TO_OBJECT_FIT:
+                ecp_style["cardProductThumbnailObjectFit"] = _IMAGE_TYPE_TO_OBJECT_FIT[image_type]
+            font_color = (pb.get("pTitleStyle") or {}).get("fontColor")
+            if isinstance(font_color, str) and font_color:
+                ecp_style["cardProductNameColor"] = font_color.lower()
+            if ecp_style:
+                style[".element-card-product"] = ecp_style
 
-        card_config: dict = {}
-        if "isUseHoverImage" in pb:
-            card_config["isEnableImageTransitionOverlay"] = bool(pb["isUseHoverImage"])
-        if pb.get("isShowCode") is True:
-            card_config["isShowCode"] = True
-        if card_config:
-            info.setdefault("Element", {}).setdefault("CardProduct", {})["cardConfig"] = card_config
+            card_config: dict = {}
+            if "isUseHoverImage" in pb:
+                card_config["isEnableImageTransitionOverlay"] = bool(pb["isUseHoverImage"])
+            if pb.get("isShowCode") is True:
+                card_config["isShowCode"] = True
+            if card_config:
+                info.setdefault("Element", {}).setdefault("CardProduct", {})["cardConfig"] = card_config
 
-    # ── ProductList → style[".widget-product-list"] + info.Widget.ProductList ──
-    pl = components.get("ProductList")
-    if isinstance(pl, dict):
-        box_num = pl.get("productBoxNumber")
-        if isinstance(box_num, int):
-            style[".widget-product-list"] = {"layoutGridCols": {"xs": box_num}}
-        limit = pl.get("limit")
-        if isinstance(limit, int):
-            info.setdefault("Widget", {}).setdefault("ProductList", {})["productNumber"] = limit
+        # ── ProductList → style[".widget-product-list"] + info.Widget.ProductList ──
+        pl = components.get("ProductList")
+        if isinstance(pl, dict):
+            box_num = pl.get("productBoxNumber")
+            if isinstance(box_num, int):
+                style[".widget-product-list"] = {"layoutGridCols": {"xs": box_num}}
+            limit = pl.get("limit")
+            if isinstance(limit, int):
+                info.setdefault("Widget", {}).setdefault("ProductList", {})["productNumber"] = limit
 
-    # ── ContactWidget → free_zone children + style[".widget-chat"] ──
-    free_zone_children: list = []
-    cw = components.get("ContactWidget")
-    if isinstance(cw, dict):
-        if cw.get("enableContactWidget"):
-            free_zone_children.append(make_node("widget", "WidgetChat", None, {}))
-        chat_btn = cw.get("iconChatButtonStyle") or {}
-        if isinstance(chat_btn, dict):
-            wc_style: dict = {}
-            bg = chat_btn.get("bgColor")
-            if isinstance(bg, str) and bg:
-                wc_style["bgColor"] = bg.lower()
-            fc = chat_btn.get("fontColor")
-            if isinstance(fc, str) and fc:
-                wc_style["textColor"] = fc.lower()
-            if wc_style:
-                style[".widget-chat"] = wc_style
+        # ── ContactWidget → style[".widget-chat"] (free_zone via _build_free_zone) ──
+        cw = components.get("ContactWidget")
+        if isinstance(cw, dict):
+            chat_btn = cw.get("iconChatButtonStyle") or {}
+            if isinstance(chat_btn, dict):
+                wc_style: dict = {}
+                bg = chat_btn.get("bgColor")
+                if isinstance(bg, str) and bg:
+                    wc_style["bgColor"] = bg.lower()
+                fc = chat_btn.get("fontColor")
+                if isinstance(fc, str) and fc:
+                    wc_style["textColor"] = fc.lower()
+                if wc_style:
+                    style[".widget-chat"] = wc_style
 
-    free_zone = make_node("page", "free", "Free", {}, free_zone_children)
+    # ── Theme config → style[":root"] (colors + fonts) + info.fontManifest ──
+    root: dict = {}
+    if include_colors:
+        colors = site_json.get("currentColors") if isinstance(site_json, dict) else None
+        if isinstance(colors, list):
+            for i, key in enumerate(_THEME_COLOR_KEYS):
+                if i < len(colors) and isinstance(colors[i], str) and colors[i]:
+                    root[key] = colors[i].lower()
+
+    if include_fonts:
+        fonts = site_json.get("currentFonts") if isinstance(site_json, dict) else None
+        if isinstance(fonts, dict):
+            root["typoHeadingFontFamily"] = _resolve_font_family(
+                fonts.get("heading"), warnings, "$.currentFonts.heading")
+            root["typoParagraphFontFamily"] = _resolve_font_family(
+                fonts.get("text"), warnings, "$.currentFonts.text")
+            # Google fonts are dropped (see _resolve_font_family), so the manifest
+            # is always empty; the key is still emitted to match the v4 shape.
+            info["fontManifest"] = {}
+
+    if root:
+        style[":root"] = root
+
+    free_zone = _build_free_zone(components if include_components else {})
 
     return {"info": info, "style": style, "free_zone": free_zone}
 
@@ -3918,7 +4032,7 @@ def convert_zones(site_json: dict) -> dict:
     """Extract global zones from a v3 site JSON.
 
     Returns {"header_zone": {...}|None, "footer_zone": {...}|None, "free_zone": {...}}.
-    free_zone is built from `components.ContactWidget` (see convert_global).
+    free_zone is built from `components.ContactWidget` (see _build_free_zone).
     """
     result: dict = {
         "header_zone": None,
@@ -3931,7 +4045,8 @@ def convert_zones(site_json: dict) -> dict:
     footer = site_json.get("footer")
     if isinstance(footer, dict) and "FooterSection" in footer:
         result["footer_zone"] = convert_footer(footer)
-    result["free_zone"] = convert_global(site_json).get("free_zone")
+    components = (site_json.get("components") or {}) if isinstance(site_json, dict) else {}
+    result["free_zone"] = _build_free_zone(components)
     return result
 
 
@@ -4542,7 +4657,8 @@ def main():
             sys.exit(1)
         pages  = convert_site(data)
         zones  = convert_zones(data)
-        globals_ = convert_global(data)
+        theme_warnings: list = []
+        globals_ = convert_global(data, theme_warnings)
         result = {
             "nickname":    "Imported",
             "theme_key":   "base",
@@ -4553,6 +4669,7 @@ def main():
             "footer_zone": zones["footer_zone"],
             "free_zone":   zones["free_zone"],
             "pages":       pages,
+            "unuse_configs": [],
         }
         if output_path:
             _write(result, output_path)
@@ -4565,6 +4682,8 @@ def main():
                 print(f"   {p['path']:25s} {p['nickname'] or '':30s} ({n} sections)")
         else:
             print(json.dumps(result, indent=2, ensure_ascii=False))
+        for w in theme_warnings:
+            print(f"⚠️   {w['msg']}", file=sys.stderr)
         return
 
     # ── global ─────────────────────────────────────────────────────────────
@@ -4572,7 +4691,8 @@ def main():
         if not isinstance(data, dict):
             print("❌  global mode expects a JSON object at the top level.")
             sys.exit(1)
-        result = convert_global(data)
+        theme_warnings: list = []
+        result = convert_global(data, theme_warnings)
         if output_path:
             _write(result, output_path)
             n_children = len(result["free_zone"].get("children", []))
@@ -4583,6 +4703,8 @@ def main():
                   f"free_zone children: {n_children})")
         else:
             print(json.dumps(result, indent=2, ensure_ascii=False))
+        for w in theme_warnings:
+            print(f"⚠️   {w['msg']}", file=sys.stderr)
         return
 
     # ── zones ──────────────────────────────────────────────────────────────
