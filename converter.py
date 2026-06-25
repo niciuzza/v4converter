@@ -21,8 +21,8 @@ import sys
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.6"
-LAST_UPDATED = "2026-06-24"
+__version__ = "1.7"
+LAST_UPDATED = "2026-06-25"
 
 # Short summary of what the converter handles — shown in the browser popup.
 # Plain strings; inline HTML (e.g. <code>) is allowed for rendering there.
@@ -36,6 +36,14 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.7", "date": "2026-06-25", "items": [
+        "เติม <code>:root</code> ให้ครบ: คำนวณเฉดสีแบรนด์/รอง/กลาง 5 ระดับจากสีที่ตั้งไว้",
+        "จัดให้ <code>:root</code> อยู่บนสุดของ <code>style</code> เสมอ และเรียงชื่อสีตามตัวอักษร",
+        "ค่าที่ตรงกับ v4-base อยู่แล้วจะไม่ใส่ซ้ำ — เก็บเฉพาะค่าที่ override จริง (สี status ใช้ค่า v4)",
+        "เลือกได้ว่าจะสร้างเฉดสีอัตโนมัติหรือไม่ (toggle “สร้างเฉดสีอัตโนมัติ” ในหน้าเครื่องมือ)",
+        "ไม่ใส่ฟอนต์ที่เป็นค่าว่าง (เช่น <code>typoHeadingFontFamily: []</code>) ใน global setting",
+        "ดึง typography ฐานราย theme (ขนาด/น้ำหนัก/line-height) ตาม <code>currentTheme</code> เฉพาะค่าที่ต่างจาก base",
+    ]},
     {"version": "1.6", "date": "2026-06-24", "items": [
         "เลือกได้ว่าจะรวมส่วนไหนในผลลัพธ์: เนื้อหา / สีธีม / ฟอนต์ธีม / ตั้งค่ารวม (จำค่าไว้ในเบราว์เซอร์)",
     ]},
@@ -3898,6 +3906,135 @@ _THEME_COLOR_KEYS = [
     "colorBrandBold",        # [5]
 ]
 
+# v3 base typography constants (from v3/palletes/color-x_main.css), the same for
+# every v3 site. Status colors are intentionally NOT carried over — v4's own status
+# palette is used instead (see _seed_base + skip-if-equals-base).
+# --text_base_size (1.4em) × --text_base_html (62.5%) = 14px; --text_base_lineheight;
+# --text_base_weight (normal → 400). These match v4 defaults but are emitted for completeness.
+_V3_BASE_TYPOGRAPHY = {
+    "bodyFontSize": {"xs": {"value": 14, "unit": "px"}},
+    "typoParagraphLineHeight": 1.5,
+    "typoParagraphFontWeightRegular": 400,
+}
+
+# v4-base :root defaults (from v3/v4-base.json) for the keys we synthesize. A
+# synthesized value equal to its base default is redundant (the base layer already
+# supplies it), so it is NOT written — keeps the website JSON to real overrides only.
+_V4_BASE_ROOT_DEFAULTS = {
+    "bodyFontSize": {"xs": {"value": 14, "unit": "px"}, "lg": {"value": 16, "unit": "px"}},
+    "typoParagraphLineHeight": 1.5,
+    "typoParagraphFontWeightRegular": 400,
+}
+
+
+# Per-theme global text-base typography that OVERRIDES the v3/v4 base default,
+# keyed by v3 `currentTheme`. Generated from the theme palette CSS by
+# tools/gen_theme_typography.py (only in-themes.js themes; only values ≠ base).
+# Looked up at convert time and emitted via _seed_base (skip-if-equals-base).
+_THEME_TYPOGRAPHY = {
+    "x_elite":          {"typoParagraphLineHeight": 1.4},
+    "x_luxurygold":     {"typoParagraphFontWeightRegular": 300},
+    "x_solid_round_fw": {"typoParagraphLineHeight": 1.4},
+    "x_solid_shape_fw": {"typoParagraphLineHeight": 1.4},
+    "x_solid_wide_fw":  {"typoParagraphLineHeight": 1.4},
+    "x_solidfw":        {"bodyFontSize": {"xs": {"value": 16, "unit": "px"}}},
+    "x_swift":          {"bodyFontSize": {"xs": {"value": 16, "unit": "px"}}},
+}
+
+
+def _same_as_base(key, value):
+    """True if `value` for `key` matches the v4-base default. For breakpoint-object
+    values, matches when every breakpoint we set equals base's same breakpoint."""
+    base = _V4_BASE_ROOT_DEFAULTS.get(key)
+    if base is None:
+        return False
+    if isinstance(value, dict) and isinstance(base, dict):
+        return all(base.get(bp) == v for bp, v in value.items())
+    return base == value
+
+
+def _seed_base(root, key, value):
+    """Write a v3 base-constant into root only if it is absent AND not already the
+    v4-base default."""
+    if key not in root and not _same_as_base(key, value):
+        root[key] = value
+
+_WHITE = (255, 255, 255)
+_BLACK = (0, 0, 0)
+
+
+def _hex(s):
+    """Parse '#rgb' / '#rrggbb' → (r, g, b); None on bad input."""
+    if not isinstance(s, str):
+        return None
+    s = s.strip().lstrip("#")
+    if len(s) == 3:
+        s = "".join(c * 2 for c in s)
+    if len(s) != 6:
+        return None
+    try:
+        return tuple(int(s[i:i + 2], 16) for i in (0, 2, 4))
+    except ValueError:
+        return None
+
+
+def _to_hex(rgb):
+    return "#" + "".join("%02x" % max(0, min(255, int(round(c)))) for c in rgb)
+
+
+def _mix(hexc, target, pct):
+    """Mix `hexc` toward `target` rgb by `pct` (0..1). White=tint, black=shade.
+    Returns '#rrggbb' or None if `hexc` is unparseable."""
+    rgb = _hex(hexc)
+    if rgb is None:
+        return None
+    return _to_hex(tuple(rgb[i] + (target[i] - rgb[i]) * pct for i in range(3)))
+
+
+def _interp(a, b, t):
+    """Linear interpolate between two hex colors at t (0..1). None if either bad."""
+    ra, rb = _hex(a), _hex(b)
+    if ra is None or rb is None:
+        return None
+    return _to_hex(tuple(ra[i] + (rb[i] - ra[i]) * t for i in range(3)))
+
+
+def _fill_color_scale(root):
+    """Fill the missing v4 5-step color scales (Subtlest→Boldest) for brand,
+    brandAlt and neutral from the anchor colors that currentColors provided.
+    Approximate ('close enough'); never overwrites a key already present."""
+    def setk(k, v):
+        if v and k not in root:
+            root[k] = v
+
+    # Brand: have base / Subtle / Bold → extend the two ends.
+    b, bs, bb = root.get("colorBrand"), root.get("colorBrandSubtle"), root.get("colorBrandBold")
+    if bs:
+        setk("colorBrandSubtlest", _mix(bs, _WHITE, 0.5))
+    elif b:
+        setk("colorBrandSubtle", _mix(b, _WHITE, 0.4))
+        setk("colorBrandSubtlest", _mix(b, _WHITE, 0.8))
+    if bb:
+        setk("colorBrandBoldest", _mix(bb, _BLACK, 0.4))
+    elif b:
+        setk("colorBrandBold", _mix(b, _BLACK, 0.25))
+        setk("colorBrandBoldest", _mix(b, _BLACK, 0.5))
+
+    # BrandAlt: only the base anchor → compute all four steps.
+    ba = root.get("colorBrandAlt")
+    if ba:
+        setk("colorBrandAltSubtle", _mix(ba, _WHITE, 0.4))
+        setk("colorBrandAltSubtlest", _mix(ba, _WHITE, 0.8))
+        setk("colorBrandAltBold", _mix(ba, _BLACK, 0.25))
+        setk("colorBrandAltBoldest", _mix(ba, _BLACK, 0.5))
+
+    # Neutral: have Subtlest + Boldest → interpolate the three middles.
+    ns, nb = root.get("colorNeutralSubtlest"), root.get("colorNeutralBoldest")
+    if ns and nb:
+        setk("colorNeutralSubtle", _interp(ns, nb, 0.12))
+        setk("colorNeutral", _interp(ns, nb, 0.30))
+        setk("colorNeutralBold", _interp(ns, nb, 0.72))
+
 
 def _resolve_system_font(name):
     """Map a v3 font name to its canonical v4 system-font name, or return None
@@ -3945,7 +4082,8 @@ def _build_free_zone(components: dict) -> dict:
 def convert_global(site_json: dict, warnings: list = None, *,
                    include_components: bool = True,
                    include_colors: bool = True,
-                   include_fonts: bool = True) -> dict:
+                   include_fonts: bool = True,
+                   generate_color_scale: bool = True) -> dict:
     """Convert v3 site-level `components.*` config to v4 global triplet.
 
     Returns {"info": {...}, "style": {...}, "free_zone": {...}}.
@@ -3959,8 +4097,14 @@ def convert_global(site_json: dict, warnings: list = None, *,
     The `include_*` flags select which parts to emit (the browser tool exposes
     these as output toggles; all default True so CLI behavior is unchanged):
       - include_components: `components.*` → info/style selectors + free_zone
-      - include_colors:     `currentColors` → :root brand colors
-      - include_fonts:      `currentFonts`  → :root font families + fontManifest
+      - include_colors:     `currentColors` → :root brand colors, plus a computed
+                            5-step color scale (status colors left to v4 default)
+      - include_fonts:      `currentFonts`  → :root font families + fontManifest,
+                            plus per-theme text-base typography (by `currentTheme`,
+                            only where it differs from the v4-base default)
+      - generate_color_scale: when True, fill the missing v4 5-step color scale from
+                            the currentColors anchors; when False, emit only the
+                            anchors. (Requires include_colors.)
     """
     components = (site_json.get("components") or {}) if isinstance(site_json, dict) else {}
 
@@ -4020,24 +4164,51 @@ def convert_global(site_json: dict, warnings: list = None, *,
     root: dict = {}
     if include_colors:
         colors = site_json.get("currentColors") if isinstance(site_json, dict) else None
+        colors_emitted = False
         if isinstance(colors, list):
             for i, key in enumerate(_THEME_COLOR_KEYS):
                 if i < len(colors) and isinstance(colors[i], str) and colors[i]:
                     root[key] = colors[i].lower()
+                    colors_emitted = True
+        if colors_emitted and generate_color_scale:
+            # Fill the v4 5-step scales from the anchors (does not overwrite a value
+            # the user's currentColors provided). Status colors are left to v4.
+            _fill_color_scale(root)
 
     if include_fonts:
         fonts = site_json.get("currentFonts") if isinstance(site_json, dict) else None
         if isinstance(fonts, dict):
-            root["typoHeadingFontFamily"] = _resolve_font_family(
-                fonts.get("heading"), warnings, "$.currentFonts.heading")
-            root["typoParagraphFontFamily"] = _resolve_font_family(
-                fonts.get("text"), warnings, "$.currentFonts.text")
+            # Skip a font-family key entirely when it resolves to an empty list
+            # (e.g. every name was a dropped Google font) — no empty arrays in :root.
+            heading = _resolve_font_family(fonts.get("heading"), warnings, "$.currentFonts.heading")
+            if heading:
+                root["typoHeadingFontFamily"] = heading
+            paragraph = _resolve_font_family(fonts.get("text"), warnings, "$.currentFonts.text")
+            if paragraph:
+                root["typoParagraphFontFamily"] = paragraph
             # Google fonts are dropped (see _resolve_font_family), so the manifest
             # is always empty; the key is still emitted to match the v4 shape.
             info["fontManifest"] = {}
+            # v3 base typography metrics — only when they differ from the v4-base
+            # default (else redundant). All three currently equal base → omitted.
+            for k, v in _V3_BASE_TYPOGRAPHY.items():
+                _seed_base(root, k, v)
+            # Per-theme text-base overrides (font-size/weight/line-height), keyed
+            # by currentTheme — emitted only where they differ from v4-base.
+            theme_typo = _THEME_TYPOGRAPHY.get(
+                site_json.get("currentTheme") if isinstance(site_json, dict) else None)
+            if theme_typo:
+                for k, v in theme_typo.items():
+                    _seed_base(root, k, v)
 
     if root:
-        style[":root"] = root
+        # Color keys first, sorted alphabetically; then the rest (fonts/typography)
+        # in their existing order.
+        color_keys = sorted(k for k in root if k.startswith("color"))
+        other_keys = [k for k in root if not k.startswith("color")]
+        root = {k: root[k] for k in color_keys + other_keys}
+        # :root always sits at the top of style, above any component selectors.
+        style = {":root": root, **style}
 
     free_zone = _build_free_zone(components if include_components else {})
 

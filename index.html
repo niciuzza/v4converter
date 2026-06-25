@@ -295,6 +295,7 @@
           <span class="config-label">รวมในผลลัพธ์</span>
           <label class="cfg-chip"><input type="checkbox" id="cfgContent" checked> เนื้อหา</label>
           <label class="cfg-chip"><input type="checkbox" id="cfgThemeColor" checked> สีธีม</label>
+          <label class="cfg-chip"><input type="checkbox" id="cfgAutoColor" checked title="สร้างเฉดสี 5 ระดับ (อ่อน→เข้ม) จากสีที่ตั้งไว้อัตโนมัติ"> สร้างเฉดสีอัตโนมัติ</label>
           <label class="cfg-chip"><input type="checkbox" id="cfgThemeFont" checked> ฟอนต์ธีม</label>
           <label class="cfg-chip"><input type="checkbox" id="cfgGlobal" checked> ตั้งค่ารวม</label>
         </div>
@@ -462,7 +463,7 @@
 
   // ── Output config (what to include) — persisted in localStorage ─────
   const CONFIG_KEY = "converter2v4_outputConfig";
-  const CONFIG_DEFAULT = { content: true, themeColor: true, themeFont: true, global: true };
+  const CONFIG_DEFAULT = { content: true, themeColor: true, autoColor: true, themeFont: true, global: true };
   function loadConfig() {
     try {
       const v = JSON.parse(localStorage.getItem(CONFIG_KEY) || "{}");
@@ -502,6 +503,7 @@
   const CFG_BOXES = {
     content:    "cfgContent",
     themeColor: "cfgThemeColor",
+    autoColor:  "cfgAutoColor",
     themeFont:  "cfgThemeFont",
     global:     "cfgGlobal",
   };
@@ -692,7 +694,7 @@
     pyodide.globals.set("_input", pyodide.toPy(data));
     const cfg = state.config;
     const py = (b) => (b ? "True" : "False");   // JS bool → Python literal
-    const gkw = `include_components=${py(cfg.global)}, include_colors=${py(cfg.themeColor)}, include_fonts=${py(cfg.themeFont)}`;
+    const gkw = `include_components=${py(cfg.global)}, include_colors=${py(cfg.themeColor)}, include_fonts=${py(cfg.themeFont)}, generate_color_scale=${py(cfg.autoColor)}`;
     let snippet;
     if (mode === "site") {
       snippet =
