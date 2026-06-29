@@ -21,8 +21,8 @@ import sys
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.7"
-LAST_UPDATED = "2026-06-25"
+__version__ = "1.8"
+LAST_UPDATED = "2026-06-29"
 
 # Short summary of what the converter handles — shown in the browser popup.
 # Plain strings; inline HTML (e.g. <code>) is allowed for rendering there.
@@ -36,6 +36,14 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.8", "date": "2026-06-29", "items": [
+        "จัดระเบียบ HTML ละเอียดขึ้น: รวม void ที่มี close tag (<code>&lt;img&gt;&lt;/img&gt;</code> → <code>&lt;img&gt;</code>)",
+        "ลบ close tag ที่ไม่มีคู่เปิด (เช่น <code>&lt;/span&gt;</code> ลอย ๆ)",
+        "แก้ self-closed ของ tag ที่ไม่ใช่ void (<code>&lt;div/&gt;</code> → <code>&lt;div&gt;</code>)",
+        "แปลง smart quote ใน tag เป็น quote ตรง, ตัด <br> หัว/ท้าย, ลบ tag ว่าง (<code>&lt;p&gt;&lt;/p&gt;</code>)",
+        "ล้างขยะจากการวางจาก MS Word (<code>&lt;o:p&gt;</code>, MsoNormal, mso-*)",
+        "เตือนเมื่อ nesting ซ้อนผิดลำดับ (<code>&lt;b&gt;&lt;i&gt;…&lt;/b&gt;&lt;/i&gt;</code>) แทนที่จะใส่ tag ปิดเกิน",
+    ]},
     {"version": "1.7", "date": "2026-06-25", "items": [
         "เติม <code>:root</code> ให้ครบ: คำนวณเฉดสีแบรนด์/รอง/กลาง 5 ระดับจากสีที่ตั้งไว้",
         "จัดให้ <code>:root</code> อยู่บนสุดของ <code>style</code> เสมอ และเรียงชื่อสีตามตัวอักษร",
@@ -76,10 +84,18 @@ CHANGELOG = [
 # from converter2v4's __version__/CHANGELOG above). htmlfix.html reads these.
 # ---------------------------------------------------------------------------
 
-HTMLFIX_VERSION = "1.0"
-HTMLFIX_LAST_UPDATED = "2026-06-24"
+HTMLFIX_VERSION = "1.1"
+HTMLFIX_LAST_UPDATED = "2026-06-29"
 
 HTMLFIX_CHANGELOG = [
+    {"version": "1.1", "date": "2026-06-29", "items": [
+        "รวม void ที่มี close tag (<code>&lt;img&gt;&lt;/img&gt;</code> → <code>&lt;img&gt;</code>, <code>&lt;br&gt;&lt;/br&gt;</code> → <code>&lt;br/&gt;</code>)",
+        "ลบ close tag ที่ไม่มีคู่เปิด (เช่น <code>&lt;/span&gt;</code> ลอย ๆ)",
+        "แก้ self-closed ของ tag ที่ไม่ใช่ void (<code>&lt;div/&gt;</code> → <code>&lt;div&gt;</code>)",
+        "แปลง smart quote ใน tag เป็น quote ตรง, ตัด <br> หัว/ท้าย, ลบ tag ว่าง (<code>&lt;p&gt;&lt;/p&gt;</code>)",
+        "ล้างขยะจากการวางจาก MS Word (<code>&lt;o:p&gt;</code>, MsoNormal, mso-*)",
+        "เตือนเมื่อ nesting ซ้อนผิดลำดับ แทนที่จะใส่ tag ปิดเกิน",
+    ]},
     {"version": "1.0", "date": "2026-06-24", "items": [
         "เครื่องมือแก้ HTML ใน v4 JSON เวอร์ชันแรก — แยกออกจาก converter2v4",
         "ปิด void tag อัตโนมัติ (<code>&lt;br&gt;</code>, <code>&lt;hr&gt;</code>) + เตือน tag ที่ไม่ได้ปิด",
@@ -123,6 +139,49 @@ _TAG_RE = re.compile(r"<(/?)([A-Za-z][\w-]*)(\b[^>]*?)(/?)>")
 _INTER_TAG_NEWLINE_RE = re.compile(r">[ \t]*\n+[ \t]*<")
 # Embedded <style>...</style> / <script>...</script> blocks (warn only).
 _STYLE_SCRIPT_RE = re.compile(r"<(style|script)\b", re.IGNORECASE)
+
+# Smart/curly quotes → straight (applied INSIDE tags only — curly quotes in
+# visible prose are legitimate and must be left alone).
+_SMART_QUOTE_MAP = {"“": '"', "”": '"', "‘": "'", "’": "'"}
+_TAG_SPAN_RE = re.compile(r"<[^>]*>")
+
+# A void element written with an explicit close tag: `<img ...></img>`,
+# `<br></br>`. Collapsed to a single void element so the open/close void rules
+# below don't double it (img stays non-self-closed per the convention above).
+_VOID_PAIR_RE = re.compile(
+    r"<(" + "|".join(_VOID_TAGS) + r")(\b[^>]*?)\s*/?>\s*</\s*\1\s*>",
+    re.IGNORECASE,
+)
+
+# A non-void element self-closed XHTML-style: `<div/>`, `<span/>`. Browsers
+# treat these as an *open* tag, so we strip the slash and let the nesting pass
+# append the close.
+_SELF_CLOSE_RE = re.compile(r"<([A-Za-z][\w-]*)(\b[^>]*?)\s*/>")
+
+# Empty text elements safe to drop (open immediately followed by its close with
+# only whitespace between). Restricted to a safelist so structural tags like
+# <td>/<li>/<tr> are never collapsed. `&nbsp;` counts as content (kept).
+_EMPTY_TAG_SAFELIST = ["p", "div", "span", "strong", "em", "b", "i", "u",
+                       "s", "small", "blockquote",
+                       "h1", "h2", "h3", "h4", "h5", "h6"]
+_EMPTY_TAG_RE = re.compile(
+    r"<(" + "|".join(_EMPTY_TAG_SAFELIST) + r")(\b[^>]*?)>\s*</\s*\1\s*>",
+    re.IGNORECASE,
+)
+
+# Leading / trailing <br> (and surrounding whitespace) at a field boundary.
+_EDGE_BR_LEAD_RE = re.compile(r"^(?:\s*<br\s*/?>\s*)+", re.IGNORECASE)
+_EDGE_BR_TRAIL_RE = re.compile(r"(?:\s*<br\s*/?>\s*)+$", re.IGNORECASE)
+
+# MS Word paste artifacts.
+_WORD_CONDITIONAL_RE = re.compile(
+    r"<!--\[if[^\]]*\]>.*?<!\[endif\]-->", re.IGNORECASE | re.DOTALL)
+_WORD_CONDITIONAL_STRAY_RE = re.compile(r"<!\[(?:end)?if[^\]]*\]>", re.IGNORECASE)
+_WORD_OFFICE_TAG_RE = re.compile(r"</?o:[a-z0-9]+\b[^>]*>", re.IGNORECASE)
+_WORD_MSO_STYLE_DECL_RE = re.compile(r"\s*mso-[^:;\"']+:[^;\"']*;?", re.IGNORECASE)
+_WORD_MSO_CLASS_RE = re.compile(r"\bMso[A-Za-z0-9]+\b")
+# A class="" / style="" / style="  " attribute left empty after stripping.
+_EMPTY_ATTR_RE = re.compile(r"""\s+(?:class|style)\s*=\s*(["'])\s*\1""")
 
 # Paths (or path prefixes) whose values are NOT carried over to v4 — we skip
 # HTML warnings for them since fixing or warning has no effect on the output.
@@ -196,37 +255,167 @@ def _trim_edge_newlines(s: str):
     return stripped, had_newline
 
 
-def _detect_unclosed_tags(s: str):
-    """Return (mismatched_msgs, unclosed_stack) for non-void tags.
-    mismatched_msgs: list of messages for unexpected close tags
-    unclosed_stack:  list of open tag names (in order opened) never closed
+def _fix_smart_quotes_in_tags(s: str):
+    """Replace curly quotes (“ ” ‘ ’) with straight quotes INSIDE tags only.
+    Returns (new_string, count_replaced). Curly quotes in visible text are
+    intentionally left untouched.
     """
-    mismatched: list = []
+    count = 0
+    def repl(m):
+        nonlocal count
+        tag = m.group(0)
+        for ch, straight in _SMART_QUOTE_MAP.items():
+            if ch in tag:
+                count += tag.count(ch)
+                tag = tag.replace(ch, straight)
+        return tag
+    out = _TAG_SPAN_RE.sub(repl, s)
+    return out, count
+
+
+def _collapse_void_pairs(s: str):
+    """Collapse a void element written with a close tag — `<img ...></img>`,
+    `<br></br>` — into a single void element. Returns (new_string, tags).
+    img stays non-self-closed (`<img ...>`); others self-close (`<br/>`).
+    """
+    collapsed = []
+    def repl(m):
+        tag   = m.group(1).lower()
+        attrs = m.group(2) or ""
+        collapsed.append(tag)
+        if tag == "img":
+            return f"<{tag}{attrs}>"
+        return f"<{tag}{attrs}/>"
+    out = _VOID_PAIR_RE.sub(repl, s)
+    return out, collapsed
+
+
+def _expand_self_closed_nonvoid(s: str):
+    """Strip the slash from XHTML-style self-closed NON-void tags (`<div/>` →
+    `<div>`), matching browser parsing. Void tags are left as-is. Returns
+    (new_string, tags).
+    """
+    expanded = []
+    def repl(m):
+        tag   = m.group(1).lower()
+        attrs = m.group(2) or ""
+        if tag in _VOID_TAGS:
+            return m.group(0)
+        expanded.append(tag)
+        return f"<{tag}{attrs}>"
+    out = _SELF_CLOSE_RE.sub(repl, s)
+    return out, expanded
+
+
+def _remove_empty_tags(s: str):
+    """Remove empty text tags (`<p></p>`) from the safelist, iterating so nested
+    empties collapse. `&nbsp;`-only is kept (counts as content). Returns
+    (new_string, tags).
+    """
+    removed = []
+    out = s
+    while True:
+        m = _EMPTY_TAG_RE.search(out)
+        if not m:
+            break
+        removed.append(m.group(1).lower())
+        out = out[:m.start()] + out[m.end():]
+    return out, removed
+
+
+def _strip_edge_breaks(s: str):
+    """Remove leading/trailing `<br>`/`<br/>` (and surrounding whitespace) at a
+    field boundary. Returns (new_string, did_strip).
+    """
+    out = _EDGE_BR_LEAD_RE.sub("", s)
+    out = _EDGE_BR_TRAIL_RE.sub("", out)
+    return out, (out != s)
+
+
+def _strip_word_artifacts(s: str):
+    """Remove MS Word paste cruft. Returns (new_string, list_of_msgs)."""
+    msgs = []
+    out = s
+    out, n = _WORD_CONDITIONAL_RE.subn("", out)
+    if n:
+        msgs.append(f"Removed {n} Word conditional comment(s)")
+    out, n = _WORD_CONDITIONAL_STRAY_RE.subn("", out)
+    if n:
+        msgs.append(f"Removed {n} stray Word conditional marker(s)")
+    out, n = _WORD_OFFICE_TAG_RE.subn("", out)
+    if n:
+        msgs.append(f"Removed {n} Office namespace tag(s)")
+    out, n = _WORD_MSO_STYLE_DECL_RE.subn("", out)
+    if n:
+        msgs.append(f"Removed {n} mso-* style declaration(s)")
+    out, n = _WORD_MSO_CLASS_RE.subn("", out)
+    if n:
+        msgs.append(f"Removed {n} Mso* class(es)")
+    # Drop class=""/style="" attributes left empty by the strips above.
+    out = _EMPTY_ATTR_RE.sub("", out)
+    return out, msgs
+
+
+def _resolve_nesting(s: str):
+    """Walk non-void tags and fix structural problems. Returns
+    (new_string, fixed_msgs, warn_msgs):
+      - orphan close tags (no matching open anywhere) are REMOVED from the string
+      - crossed nesting (`<b><i>x</b></i>`) is left as-is but WARNED — the matched
+        open is dropped from the stack so no spurious close is appended
+      - genuinely-unclosed tags get their close appended at the end
+    """
+    fixed: list = []
+    warns: list = []
     stack: list = []
+    parts: list = []  # rebuilt string, dropping orphan close tags
+    last = 0
     for m in _TAG_RE.finditer(s):
         is_close   = m.group(1) == "/"
         tag        = m.group(2).lower()
         self_close = m.group(4) == "/"
         if tag in _VOID_TAGS or self_close:
             continue
-        if is_close:
-            if stack and stack[-1] == tag:
-                stack.pop()
-            else:
-                mismatched.append(f"Unexpected </{tag}>")
-        else:
+        if not is_close:
             stack.append(tag)
-    return mismatched, stack
+            continue
+        # closing tag
+        if stack and stack[-1] == tag:
+            stack.pop()
+        elif tag in stack:
+            # crossed nesting — drop the nearest matching open, don't rewrite
+            warns.append(f"Improper nesting: </{tag}> closed out of order")
+            for i in range(len(stack) - 1, -1, -1):
+                if stack[i] == tag:
+                    del stack[i]
+                    break
+        else:
+            # orphan close — remove it from the string
+            parts.append(s[last:m.start()])
+            last = m.end()
+            fixed.append(f"Removed orphan </{tag}>")
+    parts.append(s[last:])
+    out = "".join(parts)
+    if stack:
+        out += "".join(f"</{t}>" for t in reversed(stack))
+        for t in reversed(stack):
+            fixed.append(f"Auto-appended </{t}> at end")
+    return out, fixed, warns
 
 
 def normalize_html(data, path: str = "$"):
     """Walk v3 input recursively. Apply HTML hygiene to string values that
     look like HTML (contain `<` and `>`):
-      - auto-close void tags (except img): `<br>` → `<br/>`
-      - rewrite invalid void close tags: `</br>` → `<br/>`
-      - strip `\\n` (and surrounding spaces) between two tags
+      - strip MS Word paste artifacts (<o:p>, MsoNormal, conditional comments, mso-*)
+      - straighten curly quotes inside tags (“ → ")
       - trim leading/trailing whitespace that includes a newline
-      - warn on unclosed/mismatched non-void tags
+      - strip `\\n` (and surrounding spaces) between two tags
+      - collapse void-with-close pairs: `<img></img>` → `<img>`, `<br></br>` → `<br/>`
+      - strip leading/trailing `<br>`
+      - auto-close void tags (except img): `<br>` → `<br/>`; fix `</br>` → `<br/>`
+      - expand self-closed non-void tags: `<div/>` → `<div>`
+      - remove empty text tags: `<p></p>`
+      - remove orphan close tags; warn on crossed nesting
+      - auto-close genuinely-unclosed non-void tags
       - warn on embedded <style>/<script>
     Returns (new_data, warnings). Does not mutate the input.
     Warning shape: {path, kind: "fixed"|"warn", msg}.
@@ -247,35 +436,66 @@ def _walk_html(v, path: str, warnings: list):
     if isinstance(v, str) and "<" in v and ">" in v:
         out = v
 
-        # 1. Trim leading/trailing newlines.
+        def fix(msg):
+            warnings.append({"path": path, "kind": "fixed", "msg": msg})
+
+        # 1. Strip MS Word paste artifacts.
+        out, word_msgs = _strip_word_artifacts(out)
+        for msg in word_msgs:
+            fix(msg)
+
+        # 2. Straighten curly quotes inside tags.
+        out, n_sq = _fix_smart_quotes_in_tags(out)
+        if n_sq:
+            fix(f"Straightened {n_sq} curly quote(s) in tag(s)")
+
+        # 3. Trim leading/trailing newlines.
         out, did_edge_trim = _trim_edge_newlines(out)
         if did_edge_trim:
-            warnings.append({"path": path, "kind": "fixed", "msg": "Trimmed leading/trailing newline"})
+            fix("Trimmed leading/trailing newline")
 
-        # 2. Strip \n between tags.
+        # 4. Strip \n between tags.
         out, n_inter = _strip_inter_tag_newlines(out)
         if n_inter:
-            warnings.append({"path": path, "kind": "fixed",
-                             "msg": f"Removed {n_inter} newline(s) between tags"})
+            fix(f"Removed {n_inter} newline(s) between tags")
 
-        # 3. Auto-fix void open + invalid close tags.
+        # 5. Collapse void elements written with a close tag (<img></img>).
+        out, collapsed = _collapse_void_pairs(out)
+        for tag in collapsed:
+            fix(f"Collapsed <{tag}></{tag}> → single <{tag}>")
+
+        # 6. Strip leading/trailing <br> (before void-fix, so a bare <br> at the
+        #    edge is removed once, not auto-closed then removed).
+        out, did_edge_br = _strip_edge_breaks(out)
+        if did_edge_br:
+            fix("Removed leading/trailing <br>")
+
+        # 7. Auto-fix void open + invalid close tags.
         out, fixed_tags = _fix_void_tags(out)
         for tag in fixed_tags:
-            warnings.append({"path": path, "kind": "fixed", "msg": f"Auto-closed <{tag}> → <{tag}/>"})
+            fix(f"Auto-closed <{tag}> → <{tag}/>")
 
-        # 4. Warn on <style>/<script>.
+        # 8. Expand self-closed non-void tags (<div/> → <div>).
+        out, expanded = _expand_self_closed_nonvoid(out)
+        for tag in expanded:
+            fix(f"Expanded self-closed <{tag}/> → <{tag}>")
+
+        # 9. Remove empty text tags (<p></p>).
+        out, emptied = _remove_empty_tags(out)
+        for tag in emptied:
+            fix(f"Removed empty <{tag}></{tag}>")
+
+        # 10. Warn on <style>/<script>.
         for m in _STYLE_SCRIPT_RE.finditer(out):
             warnings.append({"path": path, "kind": "warn",
                              "msg": f"<{m.group(1).lower()}> embedded in content"})
 
-        # 5. Auto-close unclosed non-void tags + warn on mismatched closes.
-        mismatched, unclosed = _detect_unclosed_tags(out)
-        if unclosed:
-            out += "".join(f"</{t}>" for t in reversed(unclosed))
-            for t in reversed(unclosed):
-                warnings.append({"path": path, "kind": "fixed",
-                                 "msg": f"Auto-appended </{t}> at end"})
-        for msg in mismatched:
+        # 11. Resolve nesting: remove orphan closes, warn on crossed nesting,
+        #     auto-close genuinely-unclosed tags.
+        out, nest_fixed, nest_warns = _resolve_nesting(out)
+        for msg in nest_fixed:
+            fix(msg)
+        for msg in nest_warns:
             warnings.append({"path": path, "kind": "warn", "msg": msg})
         return out
     return v
