@@ -84,10 +84,13 @@ CHANGELOG = [
 # from converter2v4's __version__/CHANGELOG above). htmlfix.html reads these.
 # ---------------------------------------------------------------------------
 
-HTMLFIX_VERSION = "1.1"
+HTMLFIX_VERSION = "1.101"
 HTMLFIX_LAST_UPDATED = "2026-06-29"
 
 HTMLFIX_CHANGELOG = [
+    {"version": "1.101", "date": "2026-06-29", "items": [
+        "แก้บั๊ก: ไม่ตัด key ที่มีค่า <code>null</code> ออกอีกต่อไป — ผลลัพธ์คงโครงสร้าง JSON เดิมครบทุก key",
+    ]},
     {"version": "1.1", "date": "2026-06-29", "items": [
         "รวม void ที่มี close tag (<code>&lt;img&gt;&lt;/img&gt;</code> → <code>&lt;img&gt;</code>, <code>&lt;br&gt;&lt;/br&gt;</code> → <code>&lt;br/&gt;</code>)",
         "ลบ close tag ที่ไม่มีคู่เปิด (เช่น <code>&lt;/span&gt;</code> ลอย ๆ)",
