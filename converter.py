@@ -21,7 +21,7 @@ import sys
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.8"
+__version__ = "1.9"
 LAST_UPDATED = "2026-06-29"
 
 # Short summary of what the converter handles — shown in the browser popup.
@@ -36,6 +36,9 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.9", "date": "2026-06-29", "items": [
+        "tag ที่ซ้อนปิดผิดลำดับ (<code>&lt;b&gt;&lt;i&gt;x&lt;/b&gt;</code>) แก้อัตโนมัติแล้ว — ปิด tag ตัวในก่อน (<code>&lt;b&gt;&lt;i&gt;x&lt;/i&gt;&lt;/b&gt;</code>) แทนการเตือนเฉย ๆ",
+    ]},
     {"version": "1.8", "date": "2026-06-29", "items": [
         "จัดระเบียบ HTML ละเอียดขึ้น: รวม void ที่มี close tag (<code>&lt;img&gt;&lt;/img&gt;</code> → <code>&lt;img&gt;</code>)",
         "ลบ close tag ที่ไม่มีคู่เปิด (เช่น <code>&lt;/span&gt;</code> ลอย ๆ)",
@@ -84,10 +87,18 @@ CHANGELOG = [
 # from converter2v4's __version__/CHANGELOG above). htmlfix.html reads these.
 # ---------------------------------------------------------------------------
 
-HTMLFIX_VERSION = "1.101"
+HTMLFIX_VERSION = "1.2"
 HTMLFIX_LAST_UPDATED = "2026-06-29"
 
 HTMLFIX_CHANGELOG = [
+    {"version": "1.2", "date": "2026-06-29", "items": [
+        "tag ซ้อนปิดผิดลำดับ แก้อัตโนมัติแล้ว (ปิดตัวในก่อน) — เลิกเตือนเฉย ๆ",
+        "กล่องผลลัพธ์แก้มือได้ + ตรวจซ้ำสด ๆ ว่ายังมีจุดต้องแก้ไหม",
+        "ค้นหาในกล่อง (⌕ / Ctrl-F, ▴▾ ก่อนหน้า/ถัดไป), ย่อระดับบนสุด (⊟) / ขยายทั้งหมด (⊞)",
+        "แถบไฮไลต์จุดที่แก้ข้าง scrollbar — คลิกกระโดด + กางส่วนที่ย่อให้",
+        "ปุ่มคัดลอก: ถ้าแก้มือจะ “ตรวจและคัดลอก” (รัน fix ซ้ำ + apply กลับกล่องก่อน), ขนาดปุ่มไม่เด้ง",
+        "รายการที่แก้: ตัด JSON path ออก แสดงบรรทัด + รายละเอียดแทน",
+    ]},
     {"version": "1.101", "date": "2026-06-29", "items": [
         "แก้บั๊ก: ไม่ตัด key ที่มีค่า <code>null</code> ออกอีกต่อไป — ผลลัพธ์คงโครงสร้าง JSON เดิมครบทุก key",
     ]},
@@ -363,14 +374,19 @@ def _resolve_nesting(s: str):
     """Walk non-void tags and fix structural problems. Returns
     (new_string, fixed_msgs, warn_msgs):
       - orphan close tags (no matching open anywhere) are REMOVED from the string
-      - crossed nesting (`<b><i>x</b></i>`) is left as-is but WARNED — the matched
-        open is dropped from the stack so no spurious close is appended
+      - crossed nesting (`<b><i>x</b>` or `<b><i>x</b></i>`) is auto-fixed by
+        closing the still-open inner tags BEFORE the out-of-order close — i.e.
+        `<b><i>x</b>` → `<b><i>x</i></b>` — matching how browsers and HTML
+        sanitizers normalize it (close innermost first). A later redundant close
+        for an already-closed inner tag then drops out as an orphan.
       - genuinely-unclosed tags get their close appended at the end
+    `warn_msgs` is kept in the return signature for the caller but nesting no
+    longer emits warnings (everything resolvable is now auto-fixed).
     """
     fixed: list = []
     warns: list = []
     stack: list = []
-    parts: list = []  # rebuilt string, dropping orphan close tags
+    parts: list = []  # rebuilt string (insert inner closes, drop orphans)
     last = 0
     for m in _TAG_RE.finditer(s):
         is_close   = m.group(1) == "/"
@@ -385,12 +401,18 @@ def _resolve_nesting(s: str):
         if stack and stack[-1] == tag:
             stack.pop()
         elif tag in stack:
-            # crossed nesting — drop the nearest matching open, don't rewrite
-            warns.append(f"Improper nesting: </{tag}> closed out of order")
-            for i in range(len(stack) - 1, -1, -1):
-                if stack[i] == tag:
-                    del stack[i]
-                    break
+            # crossed nesting — auto-close the inner tags opened after `tag`,
+            # innermost first, right before this close tag.
+            idx = len(stack) - 1
+            while idx >= 0 and stack[idx] != tag:
+                idx -= 1
+            inner = stack[idx + 1:]                 # tags above `tag`, outer→inner
+            parts.append(s[last:m.start()])
+            parts.append("".join(f"</{t}>" for t in reversed(inner)))
+            last = m.start()                        # keep the original </tag>
+            del stack[idx:]                         # pop inner tags + tag
+            for t in reversed(inner):
+                fixed.append(f"Auto-closed <{t}> before </{tag}>")
         else:
             # orphan close — remove it from the string
             parts.append(s[last:m.start()])

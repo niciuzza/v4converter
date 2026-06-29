@@ -19,12 +19,18 @@
      code folding, syntax highlighting, and active-line decorations). -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/fold/foldgutter.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/dialog/dialog.min.css">
 <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/javascript/javascript.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/fold/foldcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/fold/foldgutter.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/fold/brace-fold.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/selection/active-line.min.js"></script>
+<!-- search-within-box (Cmd/Ctrl-F) -->
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/dialog/dialog.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/search/searchcursor.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/search/search.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/search/jump-to-line.min.js"></script>
 
 <style>
   *{box-sizing:border-box}
@@ -91,6 +97,8 @@
   .editor-ruler .marker{position:absolute;right:0;width:8px;height:3px;background:var(--warn);border-radius:1px;pointer-events:auto;cursor:pointer;transition:background .15s, transform .15s}
   .editor-ruler .marker:hover{background:var(--accent);transform:scaleX(1.3)}
   .editor-ruler .marker.active{background:var(--accent);width:10px;height:4px;right:-1px}
+  .editor-ruler .marker.is-fixed{background:var(--good)}
+  .editor-ruler .marker.is-fixed:hover{background:var(--accent)}
 
   /* CodeMirror host: fills available space */
   .cm-host{flex:1;min-width:0;height:100%;display:flex}
@@ -112,6 +120,14 @@
   .CodeMirror-foldgutter-open:after{content:"▾";color:var(--muted-2);font-size:9px}
   .CodeMirror-foldgutter-folded:after{content:"▸";color:var(--accent);font-size:9px}
   .CodeMirror-foldmarker{color:var(--warn);background:var(--accent-soft);padding:0 5px;border-radius:3px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:600}
+  /* Search dialog — pinned to the top edge of the box (findPersistent) */
+  .CodeMirror-dialog{position:absolute;left:0;right:0;top:0;z-index:20;margin:0;padding:6px 12px;background:var(--panel-head);border-bottom:1px solid var(--border-strong);color:var(--fg);font-family:'IBM Plex Sans Thai',sans-serif;font-size:11.5px;box-shadow:0 2px 6px rgba(0,0,0,.12)}
+  .CodeMirror-dialog-top{border-bottom:1px solid var(--border-strong)}
+  .CodeMirror-dialog input{font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--elev);color:var(--fg);border:1px solid var(--border-strong);border-radius:5px;padding:3px 8px;outline:none;min-width:240px}
+  .CodeMirror-dialog input:focus{border-color:var(--accent)}
+  .CodeMirror-search-hint,.CodeMirror-dialog .CodeMirror-search-hint{color:var(--muted-2);font-size:10.5px}
+  /* keep scrollIntoView from parking a line under the pinned search bar */
+  .CodeMirror-dialog ~ .CodeMirror-scroll{scroll-padding-top:40px}
   /* Issue gutter (left side, for ⚠ markers next to v3 lines with HTML issues) */
   .CodeMirror-gutter.cm-issue-gutter{width:14px}
   .cm-issue-marker{color:var(--warn);cursor:pointer;font-size:11px;text-align:center;line-height:20px;width:14px}
@@ -170,13 +186,21 @@
   .viewer-head-left{display:flex;flex-direction:column;gap:2px;min-width:0}
   .path{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .slice-meta{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .copy-btn{display:flex;align-items:center;gap:6px;height:28px;padding:0 11px;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:7px;cursor:pointer;font-family:inherit;font-size:11.5px;font-weight:500}
+  .copy-btn{display:flex;align-items:center;justify-content:center;gap:6px;height:28px;padding:0 11px;min-width:140px;white-space:nowrap;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:7px;cursor:pointer;font-family:inherit;font-size:11.5px;font-weight:500}
   .copy-btn:hover{background:var(--hover)}
   .copy-btn.copied{color:var(--good);border-color:var(--good)}
   .copy-btn .icon{font-family:'JetBrains Mono',monospace;font-size:12px}
+  .viewer-tools{display:flex;align-items:center;gap:6px;flex:none}
+  .tool-btn{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:7px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:14px;line-height:1}
+  .tool-btn:hover{background:var(--hover);color:var(--fg)}
+  .edit-hint{font-size:10.5px;color:var(--accent);font-weight:600;white-space:nowrap}
   .code-scroll{flex:1;min-height:0;position:relative;display:flex}
   .code-foot{flex:none;height:28px;display:flex;align-items:center;gap:14px;padding:0 14px;border-top:1px solid var(--border);background:var(--panel-head)}
   .code-meta{font-size:10.5px;font-family:'JetBrains Mono',monospace;color:var(--muted-2)}
+  .edit-status{font-size:10.5px;font-weight:600;white-space:nowrap}
+  .edit-status[data-state="good"]{color:var(--good)}
+  .edit-status[data-state="warn"]{color:var(--warn)}
+  .edit-status[data-state="bad"]{color:var(--bad)}
 
   .err-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:30px;text-align:center;background:var(--elev)}
   .err-state-icon{font-family:'JetBrains Mono',monospace;font-size:30px;color:var(--bad)}
@@ -203,8 +227,7 @@
   .warn-list .row.fixed .tag{color:var(--good)}
   .warn-list .row.warn .tag{color:var(--warn)}
   .warn-list .row .line-pill{flex:none;width:48px;text-align:right;color:var(--warn);font-weight:700;font-size:10.5px}
-  .warn-list .row .path{color:var(--accent);white-space:nowrap;flex:none}
-  .warn-list .row .msg{color:var(--fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .warn-list .row .msg{color:var(--fg);flex:1;white-space:normal;word-break:break-word}
 
   /* ── Version "what's new / readme" popup ───────────────────────────── */
   .brand-version{cursor:pointer;transition:background .15s,border-color .15s}
@@ -332,16 +355,26 @@
             <div class="viewer-head-left">
               <span class="path" id="path">$</span>
               <span class="slice-meta" id="sliceMeta"></span>
+              <span class="edit-hint hidden" id="editHint">✎ แก้ไขได้</span>
             </div>
-            <button class="copy-btn" id="copyBtn" type="button">
-              <span class="icon" id="copyIcon">⧉</span><span id="copyLabel">คัดลอก</span>
-            </button>
+            <div class="viewer-tools">
+              <button class="tool-btn" id="findBtn" type="button" title="ค้นหาในกล่อง (Ctrl/Cmd-F)">⌕</button>
+              <button class="tool-btn" id="findPrevBtn" type="button" title="ผลก่อนหน้า (Shift-Enter / Shift-Cmd-G)">▴</button>
+              <button class="tool-btn" id="findNextBtn" type="button" title="ผลถัดไป (Enter / Cmd-G)">▾</button>
+              <button class="tool-btn" id="foldAllBtn" type="button" title="ย่อระดับบนสุด">⊟</button>
+              <button class="tool-btn" id="unfoldAllBtn" type="button" title="ขยายทั้งหมด">⊞</button>
+              <button class="copy-btn" id="copyBtn" type="button">
+                <span class="icon" id="copyIcon">⧉</span><span id="copyLabel">คัดลอก</span>
+              </button>
+            </div>
           </div>
           <div class="code-scroll" id="codeScroll">
             <div class="cm-host" id="outputHost"></div>
+            <div class="editor-ruler" id="outputRuler"></div>
           </div>
           <div class="code-foot">
             <span class="code-meta" id="codeMeta"></span>
+            <span class="edit-status" id="editStatus"></span>
           </div>
         </div>
       </div>
@@ -414,7 +447,10 @@
     const README_HTMLFIX = [
       "รับ <code>v4 JSON</code> ที่มี HTML ผิด แล้วคืน JSON เดิมที่แก้ HTML แล้ว",
       "ปิด void tag อัตโนมัติ (เช่น <code>&lt;br&gt;</code> → <code>&lt;br/&gt;</code>) และตัด newline ระหว่าง tag",
-      "เตือนเมื่อพบ tag ที่ไม่ได้ปิด / ปิดผิด (ดูที่แถบเตือน)",
+      "เตือนเมื่อพบ tag ที่ไม่ได้ปิด / ปิดผิด (ดูที่แถบเตือน) — คลิกที่รายการเพื่อกระโดดไปจุดนั้นในโค้ด",
+      "กล่อง OUTPUT แก้มือได้ (มุมมอง “ทั้งหมด”) แล้วระบบ re-check ให้สด ๆ ว่ายังเหลือจุดต้องแก้ไหม · กดคัดลอกจะตรวจซ้ำให้อีกที",
+      "<b>ค้นหาในกล่อง:</b> กดปุ่ม <code>⌕</code> หรือ <code>Ctrl/Cmd-F</code> → พิมพ์คำที่ช่องค้นหาบนสุดของกล่อง · <code>Enter</code> = ผลถัดไป, <code>Shift-Enter</code> = ก่อนหน้า · หรือกดปุ่ม <code>▾</code>/<code>▴</code> · (นอกช่องค้นหาใช้ <code>Cmd/Ctrl-G</code> = ถัดไป, <code>Shift-Cmd/Ctrl-G</code> = ก่อนหน้า) · ปิดช่องค้นหาด้วย <code>Esc</code>",
+      "<b>ย่อ/ขยาย:</b> <code>⊟</code> ย่อเฉพาะระดับบนสุด · <code>⊞</code> ขยายทั้งหมด",
       "ใช้เอนจินเดียวกับ converter2v4 (<code>normalize_html</code> ใน converter.py) — ไม่แปลง v3→v4",
     ];
     document.getElementById("infoReadme").innerHTML =
@@ -495,7 +531,7 @@
     mode: { name: "javascript", json: true },
     lineNumbers: true,
     lineWrapping: true,
-    readOnly: true,
+    readOnly: false,   // editable in the "all" view; renderViewer locks slices
     foldGutter: true,
     gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
     indentUnit: 2,
@@ -509,6 +545,140 @@
     state.issueIdx = 0;
     renderInputUI();
   });
+
+  // ── Output editing (manual fixes) + realtime re-check ──────────────
+  // Guard: true while WE call outputCm.setValue() so renderViewer's writes
+  // don't trigger the user-edit re-check.
+  let outputProgrammatic = false;
+  let outputRecheckTimer = null;
+
+  // Collapse only the first nested level (direct children of the root), leaving
+  // the outermost {}/[] open. Folding the root too would hide everything as
+  // "{…}" — useless. Children sit one indent unit in (2 spaces).
+  function foldLevel1(cm) {
+    const unit = cm.getOption("indentUnit") || 2;
+    cm.operation(() => {
+      for (let l = cm.firstLine(); l <= cm.lastLine(); l++)
+        cm.foldCode(CodeMirror.Pos(l, 0), null, "unfold");   // reset
+      for (let l = cm.firstLine(); l <= cm.lastLine(); l++) {
+        const indent = cm.getLine(l).match(/^ */)[0].length;
+        if (indent === unit) cm.foldCode(CodeMirror.Pos(l, 0), null, "fold");
+      }
+    });
+  }
+  function unfoldAll(cm) {
+    cm.operation(() => {
+      for (let l = cm.firstLine(); l <= cm.lastLine(); l++)
+        cm.foldCode(CodeMirror.Pos(l, 0), null, "unfold");
+    });
+  }
+
+  // Copy button label reflects whether the output was hand-edited: a clean
+  // (un-edited) output just copies; an edited one is re-checked first.
+  function updateCopyLabel() {
+    $("copyLabel").textContent = state.outputEdited ? "ตรวจและคัดลอก" : "คัดลอก";
+  }
+
+  outputCm.on("change", (cm, chg) => {
+    if (outputProgrammatic) return;            // our own setValue
+    if (chg && chg.origin === "setValue") return;
+    if (state.selected !== "all") return;      // only full-doc edits are live-rechecked
+    state.outputEdited = true;
+    updateCopyLabel();
+    if (outputRecheckTimer) clearTimeout(outputRecheckTimer);
+    outputRecheckTimer = setTimeout(recheckOutput, 350);
+  });
+
+  // Re-run normalize_html on the user-edited output and refresh the warning
+  // list — WITHOUT rewriting the editor (re-check only, never fights the cursor).
+  function recheckOutput() {
+    if (!pyodideReady || state.selected !== "all") return;
+    const text = outputCm.getValue();
+    const es = $("editStatus");
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch (e) {
+      $("okPill").classList.add("hidden");
+      $("badPill").classList.remove("hidden");
+      es.textContent = "JSON ไม่ถูกต้อง — แก้ให้ครบก่อน";
+      es.dataset.state = "bad";
+      return;
+    }
+    $("badPill").classList.add("hidden");
+    $("okPill").classList.remove("hidden");
+    let warns = [];
+    try {
+      warns = (normalizeHtml(parsed).warns) || [];
+    } catch (e) {
+      state.runError = e.message || String(e);
+      renderOutputArea();
+      return;
+    }
+    // Edited doc becomes the result (download/copy reflect the edits).
+    state.result = parsed;
+    state.cleanInput = parsed;
+    state._plain = text;
+    const pathLineMap = buildPathLineMap(text);
+    state.htmlWarnings = warns.map(w => ({ ...w, line: pathLineMap[w.path] || null }));
+    const lines = text.split("\n");
+    $("codeMeta").textContent = `JSON · ${lines.length} บรรทัด · ${text.length} ตัวอักษร`;
+    renderWarnings();
+    renderOutputRuler();
+    // warn-kind = ต้องแก้เอง; fixed-kind = ยังไม่ถูก apply ในกล่อง (รออัตโนมัติตอนคัดลอก)
+    const warnN = state.htmlWarnings.filter(w => w.kind === "warn").length;
+    const fixN  = state.htmlWarnings.filter(w => w.kind === "fixed").length;
+    if (warnN) {
+      es.textContent = `ยังเหลือ ${warnN} จุดที่ต้องแก้เอง`;
+      es.dataset.state = "warn";
+    } else if (fixN) {
+      es.textContent = `มี ${fixN} จุดที่จะถูกแก้อัตโนมัติเมื่อกดคัดลอก`;
+      es.dataset.state = "warn";
+    } else {
+      es.textContent = "✓ สะอาดแล้ว";
+      es.dataset.state = "good";
+    }
+  }
+
+  // Right-edge tick overview of warning lines in the OUTPUT (like the input
+  // ruler). Only meaningful in the full-doc ("all") view.
+  function renderOutputRuler() {
+    const ruler = $("outputRuler");
+    const ws = state.htmlWarnings || [];
+    if (!ws.length || !state.result || state.selected !== "all") {
+      ruler.innerHTML = "";
+      return;
+    }
+    const total = outputCm.lineCount();
+    const seen = new Set();
+    const ticks = [];
+    ws.forEach(w => {
+      // Locate the line in the OUTPUT by value (same approach the warning-row
+      // click uses) so it works regardless of path/line shifts.
+      const ln = findOutputLineForValue(getAtPath(state.cleanInput, w.path));
+      if (!ln) return;
+      const key = ln + ":" + w.kind;
+      if (seen.has(key)) return;
+      seen.add(key);
+      const top = ((ln - 1) / Math.max(total - 1, 1)) * 100;
+      const cls = w.kind === "warn" ? "marker" : "marker is-fixed";
+      ticks.push(`<div class="${cls}" data-line="${ln}" style="top:calc(${top}% - 1.5px)" title="L${ln} · ${escapeHTML(w.kind)}"></div>`);
+    });
+    ruler.innerHTML = ticks.join("");
+    ruler.querySelectorAll(".marker").forEach(m => {
+      m.addEventListener("click", () => {
+        const ln = parseInt(m.dataset.line, 10);
+        setOutputActiveLine(ln);
+        scrollOutputToLine(ln);
+      });
+    });
+  }
+
+  $("foldAllBtn").addEventListener("click", () => foldLevel1(outputCm));
+  $("unfoldAllBtn").addEventListener("click", () => unfoldAll(outputCm));
+  $("findBtn").addEventListener("click", () => { outputCm.focus(); outputCm.execCommand("findPersistent"); });
+  $("findNextBtn").addEventListener("click", () => { outputCm.focus(); outputCm.execCommand("findNext"); });
+  $("findPrevBtn").addEventListener("click", () => { outputCm.focus(); outputCm.execCommand("findPrev"); });
 
   // Refresh CM when its container size could change (e.g. theme toggle ignored — same height).
   // CM auto-refreshes on input.
@@ -673,6 +843,18 @@
     return full.slice(0, idx).split("\n").length;
   }
 
+  // Clear every fold that hides `line0` (0-based) so a warning target nested
+  // inside a collapsed block becomes visible. (foldCode "unfold" only clears a
+  // fold that STARTS on that line — not an enclosing parent fold.) Fold marks
+  // created by the fold addon carry __isFold.
+  function revealOutputLine(line0) {
+    outputCm.getAllMarks().forEach(m => {
+      if (!m.__isFold) return;
+      const r = m.find();
+      if (r && r.from.line <= line0 && r.to.line >= line0) m.clear();
+    });
+  }
+
   function setOutputActiveLine(line) {
     state.outputActiveLine = line || null;
     if (outputCm._activeIssueLine != null) {
@@ -680,17 +862,15 @@
       outputCm._activeIssueLine = null;
     }
     if (line) {
-      const pos = { line: line - 1, ch: 0 };
-      try { outputCm.foldCode(pos, null, "unfold"); } catch (_) {}
+      revealOutputLine(line - 1);
       outputCm.addLineClass(line - 1, "background", "cm-active-issue-line");
       outputCm._activeIssueLine = line - 1;
     }
   }
 
   function scrollOutputToLine(line) {
-    const pos = { line: line - 1, ch: 0 };
-    try { outputCm.foldCode(pos, null, "unfold"); } catch (_) {}
-    outputCm.scrollIntoView(pos, 60);
+    revealOutputLine(line - 1);
+    outputCm.scrollIntoView({ line: line - 1, ch: 0 }, 60);
   }
 
   // Build a map of JSON path → starting line number (1-based) by tokenizing the
@@ -842,6 +1022,22 @@
     renderIssueNav();
     renderRuler();
     renderWarnings();
+  }
+
+  // Detect the shape of the v4 JSON so the sidebar can group it sensibly.
+  // (htmlfix doesn't convert — output shape == input shape.)
+  //   site     → full v4 site: object with a `pages` array
+  //   pages    → bare array of v4 pages (objects with component/path)
+  //   sections → bare array of v4 section nodes (objects with kind/type)
+  //   fixed    → anything else: a single page/zone/fragment → enumerate keys
+  function detectResultMode(data) {
+    if (Array.isArray(data)) {
+      const f = data.find(x => x && typeof x === "object");
+      if (f && ("component" in f || "path" in f)) return "pages";
+      return "sections";
+    }
+    if (data && typeof data === "object" && Array.isArray(data.pages)) return "site";
+    return "fixed";
   }
 
   // Decide what the sidebar shows based on result + resultMode
@@ -1005,13 +1201,26 @@
     $("sliceMeta").textContent = sliceMetaText();
     const text = JSON.stringify(slice, null, 2) || "";
     state._plain = text;
-    // CM update — preserve scroll/cursor only when content unchanged
+    // Editing is allowed only in the full-document ("all") view — slices map to
+    // sub-paths, so an edit there can't be safely re-checked/downloaded.
+    const editable = state.selected === "all";
+    outputCm.setOption("readOnly", editable ? false : true);
+    $("editHint").classList.toggle("hidden", !editable);
+    // CM update — preserve scroll/cursor only when content unchanged.
+    // Flag the write so the change handler ignores it (not a user edit).
     if (outputCm.getValue() !== text) {
+      outputProgrammatic = true;
       outputCm.setValue(text);
+      outputProgrammatic = false;
     }
+    $("editStatus").textContent = "";
+    $("editStatus").dataset.state = "";
+    state.outputEdited = false;
+    updateCopyLabel();
     const lines = text.split("\n");
     $("codeMeta").textContent = `JSON · ${lines.length} บรรทัด · ${text.length} ตัวอักษร`;
     $("downloadBtn").classList.toggle("hidden", state.selected !== "all");
+    renderOutputRuler();
     // Active line on output (re-applied when state.outputActiveLine is set)
     if (state.outputActiveLine) setOutputActiveLine(state.outputActiveLine);
   }
@@ -1042,7 +1251,6 @@
       return `<div class="row ${w.kind}${isActive}" data-line="${line || ''}" data-idx="${i}">
         <span class="tag">${w.kind}</span>
         ${linePill}
-        <span class="path">${escapeHTML(w.path)}</span>
         <span class="msg">${escapeHTML(w.msg)}</span>
       </div>`;
     }).join("");
@@ -1182,8 +1390,9 @@
       return;
     }
     // htmlfix: no v3→v4 conversion — just run normalize_html on the v4 JSON.
-    // Output IS the cleaned input (same shape); sidebar enumerates its keys.
-    state.resultMode = "fixed";
+    // Output IS the cleaned input (same shape); detect that shape so a full v4
+    // site lists its PAGES (like converter2v4) instead of every raw parent key.
+    state.resultMode = detectResultMode(data);
     setStatus("Fixing HTML…", "loading");
     try {
       const { clean, warns } = normalizeHtml(data);
@@ -1208,15 +1417,64 @@
   $("issueNext").addEventListener("click", () => goToIssue(state.issueIdx + 1));
 
   $("copyBtn").addEventListener("click", async () => {
+    // Re-run the HTML fix on the CURRENT output, then APPLY the result back into
+    // the box before copying. `clean` = normalize(user-edited text), so every
+    // manual edit is preserved and only the still-auto-fixable bits (e.g. a
+    // leftover orphan </i>) get applied — the user never has to redo their work.
+    const text = outputCm.getValue();
+    let parsed;
     try {
-      await navigator.clipboard.writeText(state._plain || "");
+      parsed = JSON.parse(text);
+    } catch (e) {
+      alert("คัดลอกไม่ได้ — JSON ในกล่องยังไม่ถูกต้อง กรุณาแก้ให้ครบก่อน");
+      return;
+    }
+    let clean, warns;
+    try {
+      ({ clean, warns } = normalizeHtml(parsed));
+    } catch (e) {
+      alert("รัน HTML fix ไม่สำเร็จ: " + (e.message || e));
+      return;
+    }
+    warns = warns || [];
+    const cleanText = JSON.stringify(clean, null, 2);
+    // Apply the auto-fixes back into the editor (full-doc view only).
+    if (state.selected === "all" && cleanText !== text) {
+      outputProgrammatic = true;
+      outputCm.setValue(cleanText);
+      outputProgrammatic = false;
+      state.result = clean;
+      state.cleanInput = clean;
+      state._plain = cleanText;
+      const pathLineMap = buildPathLineMap(cleanText);
+      state.htmlWarnings = warns.map(w => ({ ...w, line: pathLineMap[w.path] || null }));
+      const lines = cleanText.split("\n");
+      $("codeMeta").textContent = `JSON · ${lines.length} บรรทัด · ${cleanText.length} ตัวอักษร`;
+      renderWarnings();
+      renderOutputRuler();
+      const fixedN = warns.filter(w => w.kind === "fixed").length;
+      if (fixedN) {
+        $("editStatus").textContent = `แก้อัตโนมัติเพิ่มให้ ${fixedN} จุดแล้ว`;
+        $("editStatus").dataset.state = "good";
+      }
+    }
+    // Anything still kind:"warn" can't be auto-fixed (e.g. tags closed out of
+    // order) — warn before copying so the user knows it's still imperfect.
+    const warnN = warns.filter(w => w.kind === "warn").length;
+    if (warnN > 0) {
+      const ok = confirm(`ยังพบ ${warnN} จุดที่ต้องแก้เอง (HTML fix แก้อัตโนมัติให้ไม่ได้ เช่น tag ซ้อนปิดผิดลำดับ)\n\nคัดลอกต่อหรือไม่?`);
+      if (!ok) return;
+    }
+    try {
+      await navigator.clipboard.writeText(cleanText);
+      state.outputEdited = false;   // just checked + applied → clean baseline
       $("copyBtn").classList.add("copied");
       $("copyIcon").textContent = "✓";
       $("copyLabel").textContent = "คัดลอกแล้ว";
       setTimeout(() => {
         $("copyBtn").classList.remove("copied");
         $("copyIcon").textContent = "⧉";
-        $("copyLabel").textContent = "คัดลอก";
+        updateCopyLabel();
       }, 1500);
     } catch (_) {}
   });
