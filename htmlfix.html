@@ -616,15 +616,17 @@
   // ── HTML normalize (auto-fix void tags + warn unclosed) ────────────
   // This is the ONLY Python call htmlfix makes — no v3→v4 conversion.
   function normalizeHtml(data) {
-    pyodide.globals.set("_raw", pyodide.toPy(data));
-    pyodide.runPython("_clean, _warns = normalize_html(_raw)");
-    const cleanProxy = pyodide.globals.get("_clean");
-    const warnsProxy = pyodide.globals.get("_warns");
-    const clean   = cleanProxy.toJs({ dict_converter: Object.fromEntries });
-    const warns   = warnsProxy.toJs({ dict_converter: Object.fromEntries });
-    cleanProxy.destroy();
-    warnsProxy.destroy();
-    return { clean, warns };
+    // Round-trip via a JSON string (not pyodide.toPy/toJs object conversion):
+    // the proxy conversion drops object keys whose value is null, so we hand
+    // Python the raw JSON text and read back json.dumps() — fully lossless.
+    pyodide.globals.set("_raw_json", JSON.stringify(data));
+    pyodide.runPython(
+      "import json\n" +
+      "_clean, _warns = normalize_html(json.loads(_raw_json))\n" +
+      "_out_json = json.dumps({'clean': _clean, 'warns': _warns}, ensure_ascii=False)"
+    );
+    const outJson = pyodide.globals.get("_out_json");
+    return JSON.parse(outJson);  // { clean, warns }
   }
 
   // ── UI helpers ─────────────────────────────────────────────────────
