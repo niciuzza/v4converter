@@ -7,6 +7,7 @@ Usage:
 
 import difflib
 import json
+import os
 import re
 import sys
 
@@ -21,8 +22,8 @@ import sys
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.9"
-LAST_UPDATED = "2026-06-29"
+__version__ = "1.10"
+LAST_UPDATED = "2026-07-01"
 
 # Short summary of what the converter handles — shown in the browser popup.
 # Plain strings; inline HTML (e.g. <code>) is allowed for rendering there.
@@ -36,6 +37,9 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.10", "date": "2026-07-01", "items": [
+        "ปิด quote ของ attribute ที่เปิดค้าง (เช่น <code>&lt;a href='http://x&gt;…</code>) — เติม quote ปิดก่อน <code>&gt;</code> ไม่ให้ browser กลืนเนื้อหาหลัง tag",
+    ]},
     {"version": "1.9", "date": "2026-06-29", "items": [
         "tag ที่ซ้อนปิดผิดลำดับ (<code>&lt;b&gt;&lt;i&gt;x&lt;/b&gt;</code>) แก้อัตโนมัติแล้ว — ปิด tag ตัวในก่อน (<code>&lt;b&gt;&lt;i&gt;x&lt;/i&gt;&lt;/b&gt;</code>) แทนการเตือนเฉย ๆ",
     ]},
@@ -87,10 +91,13 @@ CHANGELOG = [
 # from converter2v4's __version__/CHANGELOG above). htmlfix.html reads these.
 # ---------------------------------------------------------------------------
 
-HTMLFIX_VERSION = "1.2"
-HTMLFIX_LAST_UPDATED = "2026-06-29"
+HTMLFIX_VERSION = "1.3"
+HTMLFIX_LAST_UPDATED = "2026-07-01"
 
 HTMLFIX_CHANGELOG = [
+    {"version": "1.3", "date": "2026-07-01", "items": [
+        "ปิด quote ของ attribute ที่เปิดค้าง (เช่น <code>&lt;a href='http://x&gt;aaa&lt;/a&gt;</code>) — เติม quote ปิดก่อน <code>&gt;</code> แทนที่จะปล่อยให้ browser กลืน <code>&gt;aaa&lt;/a&gt;</code> เข้าไปในค่า",
+    ]},
     {"version": "1.2", "date": "2026-06-29", "items": [
         "tag ซ้อนปิดผิดลำดับ แก้อัตโนมัติแล้ว (ปิดตัวในก่อน) — เลิกเตือนเฉย ๆ",
         "กล่องผลลัพธ์แก้มือได้ + ตรวจซ้ำสด ๆ ว่ายังมีจุดต้องแก้ไหม",
@@ -287,6 +294,27 @@ def _fix_smart_quotes_in_tags(s: str):
     return out, count
 
 
+# An attribute value opened with a quote but never closed before the tag's '>'
+# (e.g. <a href='http://x>text</a>). A browser then swallows everything after the
+# '>' into the value, so the link text / following markup disappears. Anchored on
+# a tag start so it won't touch quotes/`>` in visible text; the value run excludes
+# quotes and angle brackets, so a properly-closed attribute never matches.
+_UNCLOSED_ATTR_RE = re.compile(r"""(<[a-zA-Z][a-zA-Z0-9]*[^<>]*?=\s*)(['"])([^'"<>]*)>""")
+
+
+def _fix_unclosed_attr_quotes(s: str):
+    """Close an attribute value opened with a quote but not closed before the tag's
+    '>', inserting the matching quote just before the '>'. Returns (new, count)."""
+    count = 0
+    def repl(m):
+        nonlocal count
+        count += 1
+        q = m.group(2)
+        return f"{m.group(1)}{q}{m.group(3)}{q}>"
+    out = _UNCLOSED_ATTR_RE.sub(repl, s)
+    return out, count
+
+
 def _collapse_void_pairs(s: str):
     """Collapse a void element written with a close tag — `<img ...></img>`,
     `<br></br>` — into a single void element. Returns (new_string, tags).
@@ -432,6 +460,8 @@ def normalize_html(data, path: str = "$"):
     look like HTML (contain `<` and `>`):
       - strip MS Word paste artifacts (<o:p>, MsoNormal, conditional comments, mso-*)
       - straighten curly quotes inside tags (“ → ")
+      - close an attribute value opened with a quote but not closed before '>'
+        (`<a href='http://x>` → `<a href='http://x'>`)
       - trim leading/trailing whitespace that includes a newline
       - strip `\\n` (and surrounding spaces) between two tags
       - collapse void-with-close pairs: `<img></img>` → `<img>`, `<br></br>` → `<br/>`
@@ -473,6 +503,11 @@ def _walk_html(v, path: str, warnings: list):
         out, n_sq = _fix_smart_quotes_in_tags(out)
         if n_sq:
             fix(f"Straightened {n_sq} curly quote(s) in tag(s)")
+
+        # 2b. Close attribute values opened with a quote but not closed before '>'.
+        out, n_uq = _fix_unclosed_attr_quotes(out)
+        if n_uq:
+            fix(f"Closed {n_uq} unclosed attribute quote(s) in tag(s)")
 
         # 3. Trim leading/trailing newlines.
         out, did_edge_trim = _trim_edge_newlines(out)
@@ -4187,6 +4222,182 @@ _THEME_TYPOGRAPHY = {
 }
 
 
+# Per-theme source data for the `theme` CLI mode (v3 theme → v4 theme JSON).
+# Covers the selectable themes (isSelectable:true) in v3/themes.js — `title` for
+# the envelope, `fonts` (heading/text stacks, may be empty → inherit Base), and
+# `colors` (6 anchors, same shape as a site's currentColors; an empty slot means
+# that anchor is absent and the index alignment is preserved). Pyodide can't read
+# themes.js at runtime, so this is embedded — regenerate with
+# tools/gen_theme_registry.py when themes.js changes.
+_THEME_REGISTRY = {
+    "x_eco": {
+        "title": "Eco", "demo": "https://demoeco.lnwx.com/",
+        "fonts": {"heading": ["IBM Plex Serif", "Noto Sans Thai", "sans-serif"], "text": ["Inter", "Noto Sans Thai", "sans-serif"]},
+        "colors": ["#588157", "#dda15e", "#ffffff", "#0b0c0a", "#f5f7f5", "#344e41"],
+    },
+    "x_bakery": {
+        "title": "Bakery", "demo": "https://demobakery.lnwx.com/",
+        "fonts": {"heading": ["IBM Plex Serif", "Noto Sans Thai", "serif"], "text": ["Poppins", "Noto Sans Thai", "sans-serif"]},
+        "colors": ["#c1121f", "#fdf0d5", "#ffffff", "#0a100d", "#c1121f", "#9e0f19"],
+    },
+    "x_bluehorizon": {
+        "title": "Blue Horizon", "demo": "https://demobluehorizon.lnwx.com/",
+        "fonts": {"heading": ["IBM Plex Serif", "IBM Plex Sans Thai", "serif"], "text": ["Inter", "IBM Plex Sans Thai", "sans-serif"]},
+        "colors": ["#6096ba", "#fffbf2", "#ffffff", "#121f38", "#f8fbfd", "#121f38"],
+    },
+    "x_futuristic": {
+        "title": "Futuristic", "demo": "https://demofuturistic.lnwx.com/",
+        "fonts": {"heading": ["Open sans", "Prompt", "sans-serif"], "text": ["Open sans", "Prompt", "sans-serif"]},
+        "colors": ["#644fe1", "#6655cb", "#ffffff", "#1b1c1e", "#f3f4fa", "#7e6af2"],
+    },
+    "x_playground": {
+        "title": "Playground", "demo": "https://demoplayground.lnwx.com/",
+        "fonts": {"heading": ["Nunito", "Noto Sans Thai", "sans-serif"], "text": ["Nunito", "Noto Sans Thai", "sans-serif"]},
+        "colors": ["#9486e9", "#ffd33a", "#ffffff", "#3a3a3a", "#3ec293", "#fa9db7"],
+    },
+    "x_luxurygold": {
+        "title": "Luxury Gold", "demo": "https://demoluxurygold.lnwx.com/",
+        "fonts": {"heading": ["Abhaya Libre", "IBM Plex Sans Thai", "serif"], "text": ["Montserrat", "IBM Plex Sans Thai", "sans-serif"]},
+        "colors": ["#e0c06e", "#e0c06e", "#ffffff", "#222222", "#f8f5f0", "#ab8a36"],
+    },
+    "x_supercar": {
+        "title": "Supercar", "demo": "https://demosupercar.lnwx.com/",
+        "fonts": {"heading": ["Roboto", "Noto Sans Thai", "sans-serif"], "text": ["Roboto", "Noto Sans Thai", "sans-serif"]},
+        "colors": ["#bc1212", "#e7e7e7", "#ffffff", "#171717", "#fd1313", "#972b2b"],
+    },
+    "x_adventure": {
+        "title": "Adventure", "demo": "https://demoadventure.lnwx.com/",
+        "fonts": {"heading": ["Roboto", "Noto Sans Thai", "sans-serif"], "text": ["Roboto", "Noto Sans Thai", "sans-serif"]},
+        "colors": ["#9e3224", "#f5f5f5", "#ffffff", "#171717", "#eb3e3e", "#9e3224"],
+    },
+    "x_petfriendly": {
+        "title": "Pet Friendly", "demo": "https://demopetfriendly.lnwx.com/",
+        "fonts": {"heading": ["Nunito", "Kanit", "sans-serif"], "text": ["Nunito", "Kanit", "sans-serif"]},
+        "colors": ["#f46f43", "#3f9cce", "#ffffff", "#000000", "#eff7fb", "#f46f43"],
+    },
+    "x_cozy_fw": {
+        "title": "Cozy (Full Width)", "demo": "https://democozy.lnwx.com/",
+        "fonts": {"heading": ["Inter", "Noto Sans Thai", "sans-serif"], "text": ["Inter", "Noto Sans Thai", "sans-serif"]},
+        "colors": ["#d49f4d", "#d49f4d", "#ffffff", "#000000", "#fefbf8", "#f4f4f4"],
+    },
+    "x_periwinkle": {
+        "title": "Periwinkle", "demo": "",
+        "fonts": {"heading": ["Playfair Display", "Noto Sans Thai", "sans-serif"], "text": ["Roboto", "Noto Sans Thai", "sans-serif"]},
+        "colors": ["#9a9cea", "#a2dcee", "#fff", "#1a202c", "#aeb0ee", "#7b7dbb"],
+    },
+    "x_denim_fw": {
+        "title": "Denim (Full Width)", "demo": "https://demodenim.lnwx.com/",
+        "fonts": {"heading": ["Poppins", "Noto Sans Thai", "sans-serif"], "text": ["Poppins", "Noto Sans Thai", "sans-serif"]},
+        "colors": ["#334eac", "#f5f7f9", "#ffffff", "#000000", "#c2cae6", "#243778"],
+    },
+    "x_oasis": {
+        "title": "Oasis", "demo": "https://demooasis.lnwx.com/",
+        "fonts": {"heading": ["Roboto", "Noto Sans Thai", "sans-serif"], "text": ["Roboto", "Noto Sans Thai", "sans-serif"]},
+        "colors": ["#40966c", "#f4f4f4", "#ffffff", "#000000", "#f3f9f6", "#2f895d"],
+    },
+    "x_swift": {
+        "title": "Swift", "demo": "https://demoswift.lnwx.com/",
+        "fonts": {"heading": [], "text": []},
+        "colors": ["#e94f37", "#01a7c2", "#f6f7eb", "#393e41", "#f5998b", "#9f2727"],
+    },
+    "x_elite": {
+        "title": "Elite", "demo": "https://demoelite.lnwx.com",
+        "fonts": {"heading": [], "text": []},
+        "colors": ["#c9b399", "#4c403b", "#faf8f7", "#000500", "#bbb59d", "#7c674a"],
+    },
+    "x_modernmerce": {
+        "title": "Modernmerce", "demo": "https://demomodernmerce.lnwx.com/",
+        "fonts": {"heading": ["Noto Sans Thai"], "text": ["Noto Sans Thai"]},
+        "colors": ["#ffd00a", "#2667d2", "#fff", "#014247", "#ffd00a", "#ffc100"],
+    },
+    "x_downtown": {
+        "title": "Down Town", "demo": "https://demodowntown.lnwx.com/",
+        "fonts": {"heading": ["Noto Sans Thai"], "text": ["Noto Sans Thai"]},
+        "colors": ["#000000", "#cc0001", "#fff", "#000000", "#404040", "#000"],
+    },
+    "x_pottery": {
+        "title": "Pottery", "demo": "https://demopottery.lnwx.com/",
+        "fonts": {"heading": [], "text": []},
+        "colors": ["#5b3131", "#e1dfd3", "#fff", "#404040", "#a42332", "#3a2020"],
+    },
+    "x_ceramicstore": {
+        "title": "Ceramic Store", "demo": "https://democeramicstore.lnwx.com/",
+        "fonts": {"heading": ["Noto Sans", "Noto Sans Thai"], "text": ["Noto Sans", "Noto Sans Thai"]},
+        "colors": ["#617ba0", "#855443", "#fff", "#000", "#faf7f3", "#e1a79c"],
+    },
+    "x_optic": {
+        "title": "Optic", "demo": "https://demooptic.lnwx.com/",
+        "fonts": {"heading": ["Noto Sans Thai"], "text": ["Noto Sans Thai"]},
+        "colors": ["#3276b5", "#dcedf7", "#fff", "#414b56", "#fff", "#255b8d"],
+    },
+    "x_borsa": {
+        "title": "Borsa", "demo": "https://demoborsa.lnwx.com/",
+        "fonts": {"heading": ["Noto Sans Thai"], "text": ["Noto Sans Thai"]},
+        "colors": ["#332115", "#f2ede1", "#fff", "#262626", "#4d3726", "#262626"],
+    },
+    "x_orderly": {
+        "title": "Orderly", "demo": "https://demoorderly.lnwx.com",
+        "fonts": {"heading": ["IBM Plex Sans", "IBM Plex Sans Thai"], "text": ["IBM Plex Sans Thai"]},
+        "colors": ["#1e65ff", "#1e65ff", "#fff", "#042a2b", "#c9c7cb", "#1343ad"],
+    },
+    "x_seat": {
+        "title": "Seat", "demo": "https://demoseat.lnwx.com/",
+        "fonts": {"heading": ["Noto Sans Thai"], "text": ["Noto Sans Thai"]},
+        "colors": ["#ff7b18", "#ced0d6", "#fff", "#272e36", "#fff", "#fff"],
+    },
+    "x_mixednuts": {
+        "title": "Mixed Nuts", "demo": "https://demomixednuts.lnwx.com/",
+        "fonts": {"heading": ["Noto Sans Thai"], "text": ["Noto Sans Thai"]},
+        "colors": ["#849940", "#f4edd4", "#fff", "#4d311e", "#fff", "#fff"],
+    },
+    "x_petestate": {
+        "title": "Pet Estate", "demo": "https://demopetestate.lnwx.com/",
+        "fonts": {"heading": ["Kanit"], "text": ["Kanit"]},
+        "colors": ["#fcd226", "#108690", "#fff", "#1d1e4e", "#f5f6f8", "#fff"],
+    },
+    "x_plaza": {
+        "title": "Plaza", "demo": "https://demoplaza.lnwx.com/",
+        "fonts": {"heading": ["Noto Sans Thai"], "text": []},
+        "colors": ["#dd2c28", "#e63e3b", "#fff", "#000", "#fff", "#fff"],
+    },
+    "x_knowledge": {
+        "title": "Knowledge", "demo": "https://demoknowledge.lnwx.com/",
+        "fonts": {"heading": ["Noto Sans Thai"], "text": ["Noto Sans Thai"]},
+        "colors": ["#2667d2", "#dd2c28", "#fff", "#000", "#f1f5f9", "#1759c6"],
+    },
+    "x_voice": {
+        "title": "Voice", "demo": "https://demovoice.lnwx.com/",
+        "fonts": {"heading": ["Noto Sans Thai"], "text": ["Noto Sans Thai"]},
+        "colors": ["#000", "#dc2626", "#fff", "#000", "#262626", "#000"],
+    },
+    "x_cha": {
+        "title": "Cha", "demo": "https://democha.lnwx.com/",
+        "fonts": {"heading": ["Nunito", "Kanit"], "text": ["Nunito", "Kanit"]},
+        "colors": ["#f59749", "#faefe2", "#fff", "#333", "#f59749", "#f08024"],
+    },
+    "x_wichittra": {
+        "title": "Wichittra", "demo": "https://demowichittra.lnwx.com/",
+        "fonts": {"heading": ["Noto Sans Thai"], "text": ["Noto Sans Thai"]},
+        "colors": ["#cec0af", "#d2b48c", "#fff", "#444240", "#f6f3ec", "#b3a694"],
+    },
+    "x_writenow": {
+        "title": "Write Now", "demo": "https://demowritenow.lnwx.com/",
+        "fonts": {"heading": ["Nunito", "Noto Sans Thai"], "text": ["Nunito", "Noto Sans Thai"]},
+        "colors": ["#f995b5", "#ffbbd4", "#fff", "#171717", "#fff5f9", "#ed548b"],
+    },
+    "x_soda": {
+        "title": "Soda", "demo": "https://demosoda.lnwx.com/",
+        "fonts": {"heading": ["Noto Sans Thai"], "text": ["Noto Sans Thai"]},
+        "colors": ["#cec0af", "#d2b48c", "#fff", "#444240", "#f6f3ec", "#b3a694"],
+    },
+    "x_void": {
+        "title": "Void", "demo": "https://demovoid.lnwx.com",
+        "fonts": {"heading": ["Roboto", "Noto Sans Thai", "sans-serif"], "text": ["Noto Sans", "Noto Sans Thai", "sans-serif"]},
+        "colors": ["#000000", "#3fc4c0", "#fff", "#000000", "#ddd", "#5e2bff"],
+    },
+}
+
+
 def _same_as_base(key, value):
     """True if `value` for `key` matches the v4-base default. For breakpoint-object
     values, matches when every breakpoint we set equals base's same breakpoint."""
@@ -4225,6 +4436,15 @@ def _hex(s):
 
 def _to_hex(rgb):
     return "#" + "".join("%02x" % max(0, min(255, int(round(c)))) for c in rgb)
+
+
+def _norm_hex(s):
+    """Normalize a hex color to 6-digit lowercase (e.g. '#000' → '#000000').
+    Returns the input unchanged (lowercased str) if it isn't a parseable hex."""
+    rgb = _hex(s)
+    if rgb is None:
+        return s.lower() if isinstance(s, str) else s
+    return _to_hex(rgb)
 
 
 def _mix(hexc, target, pct):
@@ -4291,28 +4511,132 @@ def _resolve_system_font(name):
     if key in _SYSTEM_FONTS_LOWER:
         return _SYSTEM_FONTS_LOWER[key]
     close = difflib.get_close_matches(key, list(_SYSTEM_FONTS_LOWER), n=1, cutoff=0.8)
-    return _SYSTEM_FONTS_LOWER[close[0]] if close else None
+    if not close:
+        return None
+    ck = close[0]
+    # Reject a fuzzy "match" that is really a DISTINCT family one is a substring
+    # of (e.g. "ibm plex sans" vs the list's "ibm plex sans thai") — that's a
+    # different font, not a typo, and must stay a Google font.
+    if key != ck and (key in ck or ck in key):
+        return None
+    return _SYSTEM_FONTS_LOWER[ck]
 
 
-def _resolve_font_family(names, warnings, path):
-    """Resolve a v3 font-name list to canonical system fonts, dropping (and
-    warning about) any non-system Google fonts. Returns the kept list."""
-    kept, dropped = [], []
+# CSS generic font families — valid fallbacks, kept as-is (lowercased) in the
+# stack but never registered in fontManifest (they aren't Google fonts).
+_GENERIC_FAMILIES = {
+    "serif", "sans-serif", "monospace", "cursive", "fantasy", "system-ui",
+    "ui-serif", "ui-sans-serif", "ui-monospace", "ui-rounded", "math", "emoji",
+}
+
+
+def _resolve_font_family(names, warnings, path, *, keep_google=False):
+    """Resolve a v3 font-name list to canonical system fonts. Returns
+    `(kept, google)`.
+
+    A non-system, non-generic name is a Google/unknown font:
+      - keep_google=False (website default): it is DROPPED + warned, `google` is [].
+      - keep_google=True  (theme): it is KEPT in the stack with its ORIGINAL case
+        and collected into `google` for fontManifest; a warning notes it was added.
+        Original case matters — the Google Fonts API is case-sensitive
+        ("IBM Plex Serif" loads, "ibm plex serif" 404s)."""
+    kept, google, dropped = [], [], []
+    seen = set()  # case-insensitive dedup for the kept stack
     for n in names or []:
         canon = _resolve_system_font(n)
         if canon is not None:
-            if canon not in kept:
-                kept.append(canon)
-        elif isinstance(n, str) and n.strip():
-            dropped.append(n.strip())
+            if canon.lower() not in seen:
+                kept.append(canon); seen.add(canon.lower())
+            continue
+        if not isinstance(n, str) or not n.strip():
+            continue
+        name = n.strip()
+        if name.lower() in _GENERIC_FAMILIES:
+            if name.lower() not in seen:
+                kept.append(name.lower()); seen.add(name.lower())
+        elif keep_google:
+            if name.lower() not in seen:
+                kept.append(name); seen.add(name.lower())   # keep original case
+            if not any(g.lower() == name.lower() for g in google):
+                google.append(name)
+        else:
+            dropped.append(name)
     if dropped and warnings is not None:
         warnings.append({
-            "path": path,
-            "kind": "warn",
+            "path": path, "kind": "warn",
             "msg": "Google font(s) dropped (not in system list — add manually in v4): "
                    + ", ".join(dropped),
         })
-    return kept
+    if google and warnings is not None:
+        warnings.append({
+            "path": path, "kind": "warn",
+            "msg": "Google font(s) added to fontManifest (verify they exist in v4): "
+                   + ", ".join(google),
+        })
+    return kept, google
+
+
+def _build_theme_root(colors, fonts, theme_id, *, include_colors=True,
+                      include_fonts=True, generate_color_scale=True, warnings=None,
+                      keep_google=False, manifest=None):
+    """Build the v4 style[":root"] override dict from v3 theme inputs.
+
+    Shared by convert_global (website JSON) and convert_theme (theme JSON) so both
+    produce identical color/font/typography output. `colors` is the 6-anchor list
+    (currentColors / themes.js colors), `fonts` the {heading,text} stacks,
+    `theme_id` the v3 theme id used to look up per-theme typography overrides.
+    Returns the ordered root dict (color keys sorted first, then fonts/typography);
+    only values that differ from v4-base are kept (skip-if-equals-base).
+
+    `keep_google` (theme only) keeps Google fonts in the family stack instead of
+    dropping them; when a `manifest` dict is passed, the kept Google fonts are
+    recorded as `manifest["google"]` (for theme.info.fontManifest)."""
+    root: dict = {}
+    if include_colors and isinstance(colors, list):
+        for i, key in enumerate(_THEME_COLOR_KEYS):
+            if i < len(colors) and isinstance(colors[i], str) and colors[i]:
+                root[key] = colors[i].lower()
+        if any(k.startswith("color") for k in root) and generate_color_scale:
+            # Fill the v4 5-step scales from the anchors (does not overwrite an
+            # anchor the theme provided). Status colors are left to v4.
+            _fill_color_scale(root)
+
+    if include_fonts and isinstance(fonts, dict):
+        # Skip a font-family key entirely when it resolves to an empty list (e.g.
+        # every name was a dropped Google font, or the theme inherits Base fonts).
+        heading, gh = _resolve_font_family(fonts.get("heading"), warnings,
+                                           "$.currentFonts.heading", keep_google=keep_google)
+        if heading:
+            root["typoHeadingFontFamily"] = heading
+        paragraph, gp = _resolve_font_family(fonts.get("text"), warnings,
+                                             "$.currentFonts.text", keep_google=keep_google)
+        if paragraph:
+            root["typoParagraphFontFamily"] = paragraph
+        if manifest is not None:
+            google = []
+            for g in gh + gp:
+                if g not in google:
+                    google.append(g)
+            if google:
+                manifest["google"] = google
+        # v3 base typography metrics — only when they differ from the v4-base
+        # default (else redundant). All three currently equal base → omitted.
+        for k, v in _V3_BASE_TYPOGRAPHY.items():
+            _seed_base(root, k, v)
+        # Per-theme text-base overrides (font-size/weight/line-height), keyed by
+        # theme id — emitted only where they differ from v4-base.
+        theme_typo = _THEME_TYPOGRAPHY.get(theme_id)
+        if theme_typo:
+            for k, v in theme_typo.items():
+                _seed_base(root, k, v)
+
+    if root:
+        # Color keys first, sorted alphabetically; then the rest (fonts/typography)
+        # in their existing order.
+        color_keys = sorted(k for k in root if k.startswith("color"))
+        other_keys = [k for k in root if not k.startswith("color")]
+        root = {k: root[k] for k in color_keys + other_keys}
+    return root
 
 
 def _build_free_zone(components: dict) -> dict:
@@ -4406,58 +4730,124 @@ def convert_global(site_json: dict, warnings: list = None, *,
                     style[".widget-chat"] = wc_style
 
     # ── Theme config → style[":root"] (colors + fonts) + info.fontManifest ──
-    root: dict = {}
-    if include_colors:
-        colors = site_json.get("currentColors") if isinstance(site_json, dict) else None
-        colors_emitted = False
-        if isinstance(colors, list):
-            for i, key in enumerate(_THEME_COLOR_KEYS):
-                if i < len(colors) and isinstance(colors[i], str) and colors[i]:
-                    root[key] = colors[i].lower()
-                    colors_emitted = True
-        if colors_emitted and generate_color_scale:
-            # Fill the v4 5-step scales from the anchors (does not overwrite a value
-            # the user's currentColors provided). Status colors are left to v4.
-            _fill_color_scale(root)
-
-    if include_fonts:
-        fonts = site_json.get("currentFonts") if isinstance(site_json, dict) else None
-        if isinstance(fonts, dict):
-            # Skip a font-family key entirely when it resolves to an empty list
-            # (e.g. every name was a dropped Google font) — no empty arrays in :root.
-            heading = _resolve_font_family(fonts.get("heading"), warnings, "$.currentFonts.heading")
-            if heading:
-                root["typoHeadingFontFamily"] = heading
-            paragraph = _resolve_font_family(fonts.get("text"), warnings, "$.currentFonts.text")
-            if paragraph:
-                root["typoParagraphFontFamily"] = paragraph
-            # Google fonts are dropped (see _resolve_font_family), so the manifest
-            # is always empty; the key is still emitted to match the v4 shape.
-            info["fontManifest"] = {}
-            # v3 base typography metrics — only when they differ from the v4-base
-            # default (else redundant). All three currently equal base → omitted.
-            for k, v in _V3_BASE_TYPOGRAPHY.items():
-                _seed_base(root, k, v)
-            # Per-theme text-base overrides (font-size/weight/line-height), keyed
-            # by currentTheme — emitted only where they differ from v4-base.
-            theme_typo = _THEME_TYPOGRAPHY.get(
-                site_json.get("currentTheme") if isinstance(site_json, dict) else None)
-            if theme_typo:
-                for k, v in theme_typo.items():
-                    _seed_base(root, k, v)
-
+    # Shared with convert_theme via _build_theme_root (same color/font/typography
+    # rules); convert_global additionally emits info.fontManifest.
+    cfg = site_json if isinstance(site_json, dict) else {}
+    root = _build_theme_root(
+        cfg.get("currentColors"), cfg.get("currentFonts"), cfg.get("currentTheme"),
+        include_colors=include_colors, include_fonts=include_fonts,
+        generate_color_scale=generate_color_scale, warnings=warnings)
+    if include_fonts and isinstance(cfg.get("currentFonts"), dict):
+        # Google fonts are dropped (see _resolve_font_family), so the manifest is
+        # always empty; the key is still emitted to match the v4 shape.
+        info["fontManifest"] = {}
     if root:
-        # Color keys first, sorted alphabetically; then the rest (fonts/typography)
-        # in their existing order.
-        color_keys = sorted(k for k in root if k.startswith("color"))
-        other_keys = [k for k in root if not k.startswith("color")]
-        root = {k: root[k] for k in color_keys + other_keys}
         # :root always sits at the top of style, above any component selectors.
         style = {":root": root, **style}
 
     free_zone = _build_free_zone(components if include_components else {})
 
     return {"info": info, "style": style, "free_zone": free_zone}
+
+
+def convert_theme(theme_id: str, warnings: list = None) -> dict:
+    """Convert a v3 theme (by id, from _THEME_REGISTRY) → a v4 *theme* JSON.
+
+    The v4 theme is the "Theme" layer that sits on top of Base: it carries only a
+    SPARSE :root override (brand/neutral colors, fonts, per-theme typography) —
+    every key that differs from Base — plus a theme envelope. Structure shared with
+    Base (.color-scheme-main, widget/typo rules, info defaults) is left out; the v4
+    system merges this over Base. id is left null (assigned on import).
+
+    Google fonts are KEPT in the family stack (unlike the website converter, which
+    drops them) and registered in info.fontManifest = {"google": [...]}; a warning
+    notes each so the theme team can verify they exist in v4."""
+    entry = _THEME_REGISTRY.get(theme_id)
+    if entry is None:
+        raise ValueError(
+            "Unknown theme id %r. Valid ids: %s"
+            % (theme_id, ", ".join(sorted(_THEME_REGISTRY)))
+        )
+    manifest: dict = {}
+    root = _build_theme_root(
+        entry.get("colors"), entry.get("fonts"), theme_id, warnings=warnings,
+        keep_google=True, manifest=manifest)
+    # Normalize anchor hex values to 6-digit lowercase (e.g. "#000" → "#000000");
+    # the computed scale is already 6-digit. Theme-only — website is untouched.
+    for k in root:
+        if k.startswith("color"):
+            root[k] = _norm_hex(root[k])
+    return {
+        "id": None,                 # assigned by the target system on import
+        "theme_key": theme_id,
+        "name": entry.get("title", theme_id),
+        "description": "",
+        "images": None,
+        "thumbnail": None,
+        "status": "public",
+        "style": {":root": root} if root else {},
+        # Only fontManifest (Google fonts to load); else {} — no overrides on Base.
+        "info": {"fontManifest": manifest} if manifest else {},
+        "preset": None,
+    }
+
+
+def list_themes() -> list:
+    """Return the selectable themes as [{"id","title"}], sorted by title — for the
+    batch generator and any caller listing what `theme` mode accepts."""
+    return sorted(
+        ({"id": tid, "title": e.get("title", tid)} for tid, e in _THEME_REGISTRY.items()),
+        key=lambda t: t["title"].lower(),
+    )
+
+
+def generate_all_themes(outdir: str) -> list:
+    """Write a v4 theme JSON for every selectable theme into `outdir`, one file per
+    theme (`<theme_id>.json`), plus a CHECKLIST.md for eyeball verification.
+
+    Theme conversion is a one-time batch (the selectable set is fixed), so this is
+    the primary entry point — not a long-lived UI. Returns summary rows
+    [{"id","name","root","google"}] (google = Google fonts kept in fontManifest, to
+    verify exist in v4)."""
+    os.makedirs(outdir, exist_ok=True)
+    rows = []
+    for t in list_themes():
+        warns: list = []
+        res = convert_theme(t["id"], warns)
+        _write(res, os.path.join(outdir, t["id"] + ".json"))
+        google = sorted((res.get("info", {}).get("fontManifest", {}) or {}).get("google", []))
+        rows.append({"id": t["id"], "name": res["name"],
+                     "demo": _THEME_REGISTRY[t["id"]].get("demo", ""),
+                     "root": len(res["style"].get(":root", {})),
+                     "google": google})
+    _write_theme_checklist(outdir, rows)
+    return rows
+
+
+def _write_theme_checklist(outdir: str, rows: list) -> None:
+    """Render CHECKLIST.md as an interactive task list (so `- [ ]` renders as a real
+    checkbox in a Markdown preview and toggles with editor shortcuts like Alt+C)."""
+    lines = [
+        "# v4 Theme Conversion — Checklist",
+        "",
+        f"{len(rows)} selectable v3 themes → v4 theme JSON "
+        "(`python3 converter.py theme all <dir>`).",
+        "Each output is a **sparse `:root` override** on top of Base "
+        "(colors + fonts + typography). Google fonts are kept in the stack and listed "
+        "in `info.fontManifest` — **verify each exists in v4**.",
+        "See **REVIEW-GUIDE.md** for what to spot-check per theme (font/color conflicts).",
+        "Tick a theme (`- [ ]` → `- [x]`) after eyeballing its JSON against the live v3 demo.",
+        "",
+    ]
+    for r in rows:
+        demo = f"[demo]({r['demo']})" if r.get("demo") else "demo??"
+        google = f" · google: {', '.join(r['google'])}" if r["google"] else ""
+        lines.append(
+            f"- [ ] **{r['name']}** `{r['id']}` — {demo} · `:root` {r['root']}{google}"
+        )
+    lines.append("")
+    with open(os.path.join(outdir, "CHECKLIST.md"), "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
 
 
 def convert_zones(site_json: dict) -> dict:
@@ -5029,6 +5419,15 @@ Usage:
       Convert global components (ProductBox, ProductList, ContactWidget) to
       the v4 triplet {info, style, free_zone}.
 
+  python3 converter.py theme <theme_id> [output.json]
+      Convert a v3 theme (by id, e.g. x_bakery) → a v4 theme JSON. Output is a
+      sparse :root override (colors/fonts/typography) on top of Base, with a
+      theme envelope. theme_id must be a selectable theme in _THEME_REGISTRY.
+
+  python3 converter.py theme all [outdir]
+      Batch-convert ALL selectable themes into outdir/<theme_id>.json (default
+      outdir: v4-themes/) plus a CHECKLIST.md for eyeball verification.
+
   python3 converter.py <input.json> [output.json]
       Legacy auto-detect (sections or single page).
 """
@@ -5063,7 +5462,7 @@ def _section_count(page_result: dict) -> int:
 
 def main():
     args = sys.argv[1:]
-    MODES = {"sections", "page", "pages", "site", "zones", "global"}
+    MODES = {"sections", "page", "pages", "site", "zones", "global", "theme"}
 
     if args and args[0] in MODES:
         mode, args = args[0], args[1:]
@@ -5073,6 +5472,38 @@ def main():
     if not args:
         print(_USAGE)
         sys.exit(1)
+
+    # ── theme ────────────────────────────────────────────────────────────────
+    # Input is a theme id (from _THEME_REGISTRY), NOT a JSON file — handle before
+    # the _load_json path below.
+    if mode == "theme":
+        # Batch: `theme all [outdir]` writes every selectable theme + CHECKLIST.md.
+        if args[0] == "all":
+            outdir = args[1] if len(args) > 1 else "v4-themes"
+            rows = generate_all_themes(outdir)
+            print(f"✅  Generated {len(rows)} theme(s) → {outdir}/  (+ CHECKLIST.md)")
+            for r in rows:
+                g = f"  ⚑ google: {', '.join(r['google'])}" if r["google"] else ""
+                print(f"   {r['id']:18s} {r['name']:20s} :root {r['root']:2d}{g}")
+            return
+        theme_id    = args[0]
+        output_path = args[1] if len(args) > 1 else None
+        theme_warnings: list = []
+        try:
+            result = convert_theme(theme_id, theme_warnings)
+        except ValueError as e:
+            print(f"❌  {e}")
+            sys.exit(1)
+        if output_path:
+            _write(result, output_path)
+            n_root = len(result["style"].get(":root", {}))
+            print(f"✅  Converted theme {theme_id} ({result['name']}) → {output_path}"
+                  f" (:root: {n_root} override(s))")
+        else:
+            print(json.dumps(result, indent=2, ensure_ascii=False))
+        for w in theme_warnings:
+            print(f"⚠️   {w['msg']}", file=sys.stderr)
+        return
 
     input_path  = args[0]
     output_path = args[1] if len(args) > 1 else None
