@@ -22,8 +22,8 @@ import sys
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.10"
-LAST_UPDATED = "2026-07-01"
+__version__ = "1.11"
+LAST_UPDATED = "2026-07-09"
 
 # Short summary of what the converter handles — shown in the browser popup.
 # Plain strings; inline HTML (e.g. <code>) is allowed for rendering there.
@@ -37,6 +37,9 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.11", "date": "2026-07-09", "items": [
+        "FeatureSection: เมื่อ <code>isCropImage: false</code> จะตั้ง <code>mediaRatio: \"auto\"</code> (ให้รูปคงอัตราส่วนเดิม) แทนการปล่อยว่าง; <code>true</code> ยังครอปเป็น <code>1 / 1</code> เหมือนเดิม",
+    ]},
     {"version": "1.10", "date": "2026-07-01", "items": [
         "ปิด quote ของ attribute ที่เปิดค้าง (เช่น <code>&lt;a href='http://x&gt;…</code>) — เติม quote ปิดก่อน <code>&gt;</code> ไม่ให้ browser กลืนเนื้อหาหลัง tag",
     ]},
@@ -1806,8 +1809,9 @@ def _feat_list_widget(props: dict) -> dict:
         "layoutGridCols": {"lg": lg_cols, "xs": xs_cols},
     }
 
-    if any(obj.get("isCropImage") for obj in feat_objects):
-        info["mediaRatio"] = "1 / 1"
+    # isCropImage on any feature crops to square (1/1); otherwise the image keeps its
+    # natural ratio — emit "auto" explicitly so it doesn't inherit a template default.
+    info["mediaRatio"] = "1 / 1" if any(obj.get("isCropImage") for obj in feat_objects) else "auto"
 
     if is_buy_ch:
         info["cardDirection"]      = "row"
@@ -4223,7 +4227,8 @@ _THEME_TYPOGRAPHY = {
 
 
 # Per-theme source data for the `theme` CLI mode (v3 theme → v4 theme JSON).
-# Covers the selectable themes (isSelectable:true) in v3/themes.js — `title` for
+# Covers the published themes (isActive:true AND isSelectable:true — live/in real
+# use) in v3/themes.js — `title` for
 # the envelope, `fonts` (heading/text stacks, may be empty → inherit Base), and
 # `colors` (6 anchors, same shape as a site's currentColors; an empty slot means
 # that anchor is absent and the index alignment is preserved). Pyodide can't read
@@ -4237,18 +4242,13 @@ _THEME_REGISTRY = {
     },
     "x_bakery": {
         "title": "Bakery", "demo": "https://demobakery.lnwx.com/",
-        "fonts": {"heading": ["IBM Plex Serif", "Noto Sans Thai", "serif"], "text": ["Poppins", "Noto Sans Thai", "sans-serif"]},
+        "fonts": {"heading": ["IBM Plex Serif", "IBM Plex Sans Thai", "serif"], "text": ["IBM Plex Sans", "IBM Plex Sans Thai", "sans-serif"]},
         "colors": ["#c1121f", "#fdf0d5", "#ffffff", "#0a100d", "#c1121f", "#9e0f19"],
     },
     "x_bluehorizon": {
         "title": "Blue Horizon", "demo": "https://demobluehorizon.lnwx.com/",
         "fonts": {"heading": ["IBM Plex Serif", "IBM Plex Sans Thai", "serif"], "text": ["Inter", "IBM Plex Sans Thai", "sans-serif"]},
         "colors": ["#6096ba", "#fffbf2", "#ffffff", "#121f38", "#f8fbfd", "#121f38"],
-    },
-    "x_futuristic": {
-        "title": "Futuristic", "demo": "https://demofuturistic.lnwx.com/",
-        "fonts": {"heading": ["Open sans", "Prompt", "sans-serif"], "text": ["Open sans", "Prompt", "sans-serif"]},
-        "colors": ["#644fe1", "#6655cb", "#ffffff", "#1b1c1e", "#f3f4fa", "#7e6af2"],
     },
     "x_playground": {
         "title": "Playground", "demo": "https://demoplayground.lnwx.com/",
@@ -4258,7 +4258,7 @@ _THEME_REGISTRY = {
     "x_luxurygold": {
         "title": "Luxury Gold", "demo": "https://demoluxurygold.lnwx.com/",
         "fonts": {"heading": ["Abhaya Libre", "IBM Plex Sans Thai", "serif"], "text": ["Montserrat", "IBM Plex Sans Thai", "sans-serif"]},
-        "colors": ["#e0c06e", "#e0c06e", "#ffffff", "#222222", "#f8f5f0", "#ab8a36"],
+        "colors": ["#e0c06e", "", "#ffffff", "#222222", "#f8f5f0", "#ab8a36"],
     },
     "x_supercar": {
         "title": "Supercar", "demo": "https://demosupercar.lnwx.com/",
@@ -4307,95 +4307,287 @@ _THEME_REGISTRY = {
     },
     "x_modernmerce": {
         "title": "Modernmerce", "demo": "https://demomodernmerce.lnwx.com/",
-        "fonts": {"heading": ["Noto Sans Thai"], "text": ["Noto Sans Thai"]},
+        "fonts": {"heading": ["Noto Sans Thai", "sans-serif"], "text": ["Noto Sans Thai", "sans-serif"]},
         "colors": ["#ffd00a", "#2667d2", "#fff", "#014247", "#ffd00a", "#ffc100"],
     },
     "x_downtown": {
         "title": "Down Town", "demo": "https://demodowntown.lnwx.com/",
-        "fonts": {"heading": ["Noto Sans Thai"], "text": ["Noto Sans Thai"]},
+        "fonts": {"heading": ["Noto Sans Thai", "sans-serif"], "text": ["Noto Sans Thai", "sans-serif"]},
         "colors": ["#000000", "#cc0001", "#fff", "#000000", "#404040", "#000"],
     },
     "x_pottery": {
         "title": "Pottery", "demo": "https://demopottery.lnwx.com/",
-        "fonts": {"heading": [], "text": []},
-        "colors": ["#5b3131", "#e1dfd3", "#fff", "#404040", "#a42332", "#3a2020"],
+        "fonts": {"heading": ["Playfair Display", "IBM Plex Sans Thai", "serif"], "text": ["IBM Plex Sans Thai", "sans-serif"]},
+        "colors": ["#5b3131", "#e1dfd3", "#fff", "#555", "#a42332", "#3a2020"],
     },
     "x_ceramicstore": {
         "title": "Ceramic Store", "demo": "https://democeramicstore.lnwx.com/",
-        "fonts": {"heading": ["Noto Sans", "Noto Sans Thai"], "text": ["Noto Sans", "Noto Sans Thai"]},
+        "fonts": {"heading": ["Noto Sans", "Noto Sans Thai", "sans-serif"], "text": ["Noto Sans Thai", "sans-serif"]},
         "colors": ["#617ba0", "#855443", "#fff", "#000", "#faf7f3", "#e1a79c"],
     },
     "x_optic": {
         "title": "Optic", "demo": "https://demooptic.lnwx.com/",
-        "fonts": {"heading": ["Noto Sans Thai"], "text": ["Noto Sans Thai"]},
+        "fonts": {"heading": ["IBM Plex Sans Thai", "sans-serif"], "text": ["IBM Plex Sans Thai", "sans-serif"]},
         "colors": ["#3276b5", "#dcedf7", "#fff", "#414b56", "#fff", "#255b8d"],
     },
     "x_borsa": {
         "title": "Borsa", "demo": "https://demoborsa.lnwx.com/",
-        "fonts": {"heading": ["Noto Sans Thai"], "text": ["Noto Sans Thai"]},
+        "fonts": {"heading": ["Noto Sans Thai", "sans-serif"], "text": ["Noto Sans Thai", "sans-serif"]},
         "colors": ["#332115", "#f2ede1", "#fff", "#262626", "#4d3726", "#262626"],
     },
     "x_orderly": {
         "title": "Orderly", "demo": "https://demoorderly.lnwx.com",
-        "fonts": {"heading": ["IBM Plex Sans", "IBM Plex Sans Thai"], "text": ["IBM Plex Sans Thai"]},
+        "fonts": {"heading": ["IBM Plex Sans", "IBM Plex Sans Thai", "sans-serif"], "text": ["IBM Plex Sans Thai", "sans-serif"]},
         "colors": ["#1e65ff", "#1e65ff", "#fff", "#042a2b", "#c9c7cb", "#1343ad"],
     },
     "x_seat": {
         "title": "Seat", "demo": "https://demoseat.lnwx.com/",
-        "fonts": {"heading": ["Noto Sans Thai"], "text": ["Noto Sans Thai"]},
+        "fonts": {"heading": ["Noto Sans Thai", "sans-serif"], "text": ["Noto Sans Thai", "sans-serif"]},
         "colors": ["#ff7b18", "#ced0d6", "#fff", "#272e36", "#fff", "#fff"],
     },
     "x_mixednuts": {
         "title": "Mixed Nuts", "demo": "https://demomixednuts.lnwx.com/",
-        "fonts": {"heading": ["Noto Sans Thai"], "text": ["Noto Sans Thai"]},
+        "fonts": {"heading": ["Noto Sans Thai", "sans-serif"], "text": ["Noto Sans Thai", "sans-serif"]},
         "colors": ["#849940", "#f4edd4", "#fff", "#4d311e", "#fff", "#fff"],
     },
     "x_petestate": {
         "title": "Pet Estate", "demo": "https://demopetestate.lnwx.com/",
-        "fonts": {"heading": ["Kanit"], "text": ["Kanit"]},
+        "fonts": {"heading": ["Kanit", "sans-serif"], "text": ["Kanit", "sans-serif"]},
         "colors": ["#fcd226", "#108690", "#fff", "#1d1e4e", "#f5f6f8", "#fff"],
     },
     "x_plaza": {
         "title": "Plaza", "demo": "https://demoplaza.lnwx.com/",
-        "fonts": {"heading": ["Noto Sans Thai"], "text": []},
+        "fonts": {"heading": ["Noto Sans Thai", "sans-serif"], "text": []},
         "colors": ["#dd2c28", "#e63e3b", "#fff", "#000", "#fff", "#fff"],
     },
     "x_knowledge": {
         "title": "Knowledge", "demo": "https://demoknowledge.lnwx.com/",
-        "fonts": {"heading": ["Noto Sans Thai"], "text": ["Noto Sans Thai"]},
+        "fonts": {"heading": ["Noto Sans Thai", "sans-serif"], "text": ["Noto Sans Thai", "sans-serif"]},
         "colors": ["#2667d2", "#dd2c28", "#fff", "#000", "#f1f5f9", "#1759c6"],
     },
     "x_voice": {
         "title": "Voice", "demo": "https://demovoice.lnwx.com/",
-        "fonts": {"heading": ["Noto Sans Thai"], "text": ["Noto Sans Thai"]},
+        "fonts": {"heading": ["Noto Sans Thai", "sans-serif"], "text": ["Noto Sans Thai", "sans-serif"]},
         "colors": ["#000", "#dc2626", "#fff", "#000", "#262626", "#000"],
     },
     "x_cha": {
         "title": "Cha", "demo": "https://democha.lnwx.com/",
-        "fonts": {"heading": ["Nunito", "Kanit"], "text": ["Nunito", "Kanit"]},
+        "fonts": {"heading": ["Nunito", "Kanit", "sans-serif"], "text": ["Nunito", "Kanit", "sans-serif"]},
         "colors": ["#f59749", "#faefe2", "#fff", "#333", "#f59749", "#f08024"],
     },
     "x_wichittra": {
         "title": "Wichittra", "demo": "https://demowichittra.lnwx.com/",
-        "fonts": {"heading": ["Noto Sans Thai"], "text": ["Noto Sans Thai"]},
+        "fonts": {"heading": ["Noto Sans Thai", "sans-serif"], "text": ["Noto Sans Thai", "sans-serif"]},
         "colors": ["#cec0af", "#d2b48c", "#fff", "#444240", "#f6f3ec", "#b3a694"],
     },
     "x_writenow": {
         "title": "Write Now", "demo": "https://demowritenow.lnwx.com/",
-        "fonts": {"heading": ["Nunito", "Noto Sans Thai"], "text": ["Nunito", "Noto Sans Thai"]},
+        "fonts": {"heading": ["Nunito", "Noto Sans Thai", "sans-serif"], "text": ["Nunito", "Noto Sans Thai", "sans-serif"]},
         "colors": ["#f995b5", "#ffbbd4", "#fff", "#171717", "#fff5f9", "#ed548b"],
-    },
-    "x_soda": {
-        "title": "Soda", "demo": "https://demosoda.lnwx.com/",
-        "fonts": {"heading": ["Noto Sans Thai"], "text": ["Noto Sans Thai"]},
-        "colors": ["#cec0af", "#d2b48c", "#fff", "#444240", "#f6f3ec", "#b3a694"],
     },
     "x_void": {
         "title": "Void", "demo": "https://demovoid.lnwx.com",
-        "fonts": {"heading": ["Roboto", "Noto Sans Thai", "sans-serif"], "text": ["Noto Sans", "Noto Sans Thai", "sans-serif"]},
+        "fonts": {"heading": ["Poppins", "Noto Sans Thai", "sans-serif"], "text": ["Nunito Sans", "Noto Sans Thai", "sans-serif"]},
         "colors": ["#000000", "#3fc4c0", "#fff", "#000000", "#ddd", "#5e2bff"],
     },
 }
+
+
+# The v4 alternative color scheme `.color-scheme-main-2`, verbatim from the peapea
+# theme (v3/v4-peapea-theme.json) — the full 74-token template every theme starts
+# from. NOT present in v4 Base, so it must be emitted per theme. Semantic tokens
+# reference the shared palette (var(--color-*)), so they auto-adapt to each theme.
+_V4_SCHEME_MAIN2 = {
+    "bgColor": "var(--color-brand)",
+    "sectionBorderColor": "var(--color-black)",
+    "borderColor": "var(--color-black)",
+    "textColor": "var(--color-black)",
+    "textSubtleColor": "var(--color-black)",
+    "titleTextColor": "var(--color-black)",
+    "captionTextColor": "var(--color-brand-alt)",
+    "descriptionTextColor": "var(--color-black)",
+    "linkAccentColor": "var(--color-black)",
+    "linkAccentHoverColor": "var(--color-brand-alt)",
+    "linkDefaultColor": "var(--color-black)",
+    "linkDefaultHoverColor": "var(--color-brand-alt)",
+    "buttonPrimaryFillColor": "var(--color-white)",
+    "buttonPrimaryBorderColor": "var(--color-black)",
+    "buttonPrimaryTextColor": "var(--color-black)",
+    "buttonPrimaryBoxShadow": "0px 4px 0px 0px",
+    "buttonPrimaryBoxShadowColor": "var(--color-black)",
+    "buttonPrimaryHoverFillColor": "var(--color-neutral)",
+    "buttonPrimaryHoverBorderColor": "var(--color-black)",
+    "buttonPrimaryHoverTextColor": "var(--color-black)",
+    "buttonPrimaryHoverBoxShadow": "0px 0px 0px 0px",
+    "buttonPrimaryHoverBoxShadowColor": "transparent",
+    "buttonSecondaryBoxShadow": "none",
+    "buttonSecondaryBoxShadowColor": "transparent",
+    "buttonSecondaryHoverBoxShadow": "none",
+    "buttonSecondaryHoverBoxShadowColor": "transparent",
+    "buttonSecondaryHoverTextColor": "var(--color-black)",
+    "buttonSecondaryHoverBorderColor": "var(--color-black)",
+    "buttonSecondaryTextColor": "var(--color-black)",
+    "buttonSecondaryBorderColor": "var(--color-black)",
+    "buttonSecondaryFillColor": "var(--color-white)",
+    "buttonSecondaryHoverFillColor": "var(--color-neutral)",
+    "buttonGhostBorderColor": "transparent",
+    "buttonGhostHoverFillColor": "transparent",
+    "buttonGhostHoverBorderColor": "transparent",
+    "buttonGhostHoverTextColor": "var(--color-brand-alt)",
+    "buttonGhostTextColor": "var(--color-black)",
+    "buttonDisabledFillColor": "var(--color-neutral-subtle)",
+    "buttonDisabledTextColor": "#b7b7b7",
+    "tagDefaultBorderColor": "transparent",
+    "tagDefaultHoverBorderColor": "transparent",
+    "tagDefaultBgColor": "var(--color-brand-alt-boldest)",
+    "tagDefaultTextColor": "var(--color-white)",
+    "tagDefaultHoverBgColor": "var(--color-brand-alt)",
+    "tagDefaultHoverTextColor": "var(--color-white)",
+    "tagAccentBorderColor": "transparent",
+    "tagAccentHoverBorderColor": "transparent",
+    "tagAccentBgColor": "var(--color-brand-alt-boldest)",
+    "tagAccentTextColor": "var(--color-white)",
+    "tagAccentHoverBgColor": "var(--color-brand-alt)",
+    "tagAccentHoverTextColor": "var(--color-white)",
+    "arrowsTextColor": "var(--color-black)",
+    "arrowsBorderColor": "var(--color-black)",
+    "arrowsBgColor": "var(--color-white)",
+    "arrowsHoverBgColor": "var(--color-neutral)",
+    "arrowsHoverBorderColor": "var(--color-black)",
+    "arrowsHoverTextColor": "var(--color-black)",
+    "arrowsBoxShadow": "none",
+    "arrowsBoxShadowColor": "transparent",
+    "arrowsHoverBoxShadow": "inherit",
+    "arrowsHoverBoxShadowColor": "transparent",
+    "sliderBulletsBgColor": "var(--color-neutral)",
+    "sliderBulletsHoverBgColor": "var(--color-brand-alt-boldest)",
+    "sliderBulletsActiveBgColor": "var(--color-brand-alt-boldest)",
+    "scrollbarBgColor": "var(--color-neutral)",
+    "scrollbarTrackColor": "var(--color-brand-alt-boldest)",
+    "formTextColor": "var(--color-neutral-bold)",
+    "formErrorColor": "var(--color-status-critical)",
+    "inputIconColor": "var(--color-brand-alt)",
+    "inputTextColor": "var(--color-black)",
+    "inputFocusColor": "var(--color-neutral-subtle)",
+    "inputBorderColor": "var(--color-black)",
+    "inputBgColor": "var(--color-white)",
+    "inputPlaceholderColor": "#b3b3b3"
+}
+
+
+# Per-theme `.color-scheme-main-2` overrides derived from each v3 palette's
+# --background_darkBG_style (its darkMode "alternative background"). Generated by
+# tools/gen_theme_scheme2.py; layered over _V4_SCHEME_MAIN2 by _build_scheme2().
+_THEME_SCHEME2 = {
+    "x_adventure": {
+        "bgColor": "var(--color-brand-alt)",
+        "textColor": "var(--color-black)",
+        "titleTextColor": "var(--color-black)",
+        "descriptionTextColor": "var(--color-black)"
+    },
+    "x_bakery": {
+        "bgColor": "var(--color-brand-alt)",
+        "textColor": "var(--color-black)",
+        "titleTextColor": "var(--color-black)",
+        "descriptionTextColor": "var(--color-black)"
+    },
+    "x_bluehorizon": {
+        "bgColor": "var(--color-brand-subtle)",
+        "textColor": "var(--color-black)",
+        "titleTextColor": "var(--color-black)",
+        "descriptionTextColor": "var(--color-black)"
+    },
+    "x_cozy_fw": {
+        "bgColor": "var(--color-brand-subtle)",
+        "textColor": "var(--color-black)",
+        "titleTextColor": "var(--color-black)",
+        "descriptionTextColor": "var(--color-black)"
+    },
+    "x_denim_fw": {
+        "bgColor": "var(--color-brand-alt)",
+        "textColor": "var(--color-black)",
+        "titleTextColor": "var(--color-black)",
+        "descriptionTextColor": "var(--color-black)"
+    },
+    "x_eco": {
+        "bgColor": "var(--color-brand-subtle)",
+        "textColor": "var(--color-white)",
+        "titleTextColor": "var(--color-white)",
+        "descriptionTextColor": "var(--color-white)"
+    },
+    "x_elite": {
+        "bgColor": "var(--color-brand-alt)",
+        "textColor": "var(--color-white)",
+        "titleTextColor": "var(--color-white)",
+        "descriptionTextColor": "var(--color-white)"
+    },
+    "x_luxurygold": {
+        "bgColor": "var(--color-brand-subtle)",
+        "textColor": "var(--color-black)",
+        "titleTextColor": "var(--color-black)",
+        "descriptionTextColor": "var(--color-black)"
+    },
+    "x_mixednuts": {
+        "textColor": "var(--color-white)",
+        "titleTextColor": "var(--color-white)",
+        "descriptionTextColor": "var(--color-white)"
+    },
+    "x_oasis": {
+        "bgColor": "#f5f5f5",
+        "textColor": "var(--color-black)",
+        "titleTextColor": "var(--color-black)",
+        "descriptionTextColor": "var(--color-black)"
+    },
+    "x_orderly": {
+        "bgColor": "var(--color-neutral-boldest)",
+        "textColor": "var(--color-white)",
+        "titleTextColor": "var(--color-white)",
+        "descriptionTextColor": "var(--color-white)"
+    },
+    "x_periwinkle": {
+        "bgColor": "var(--color-neutral)",
+        "textColor": "var(--color-black)",
+        "titleTextColor": "var(--color-black)",
+        "descriptionTextColor": "var(--color-black)"
+    },
+    "x_petestate": {
+        "bgColor": "var(--color-black)",
+        "textColor": "var(--color-white)",
+        "titleTextColor": "var(--color-white)",
+        "descriptionTextColor": "var(--color-white)"
+    },
+    "x_petfriendly": {
+        "bgColor": "var(--color-brand-subtle)",
+        "textColor": "var(--color-black)",
+        "titleTextColor": "var(--color-black)",
+        "descriptionTextColor": "var(--color-black)"
+    },
+    "x_playground": {
+        "bgColor": "#fffeea",
+        "textColor": "var(--color-black)",
+        "titleTextColor": "var(--color-black)",
+        "descriptionTextColor": "var(--color-black)"
+    },
+    "x_supercar": {
+        "bgColor": "var(--color-brand-alt)",
+        "textColor": "var(--color-black)",
+        "titleTextColor": "var(--color-black)",
+        "descriptionTextColor": "var(--color-black)"
+    },
+    "x_swift": {
+        "bgColor": "var(--color-black)",
+        "textColor": "var(--color-white)",
+        "titleTextColor": "var(--color-white)",
+        "descriptionTextColor": "var(--color-white)"
+    },
+    "x_void": {
+        "bgColor": "var(--color-brand-alt)",
+        "textColor": "var(--color-black)",
+        "titleTextColor": "var(--color-black)",
+        "descriptionTextColor": "var(--color-black)"
+    }
+}
+
 
 
 def _same_as_base(key, value):
@@ -4750,6 +4942,18 @@ def convert_global(site_json: dict, warnings: list = None, *,
     return {"info": info, "style": style, "free_zone": free_zone}
 
 
+def _build_scheme2(theme_id: str) -> dict:
+    """The v4 alternative color scheme `.color-scheme-main-2` for a theme, or `{}` if
+    the theme has no v3 darkMode. Only themes with darkMode-derived overrides get the
+    block (the full peapea template `_V4_SCHEME_MAIN2` + those overrides); the rest
+    keep only `.color-scheme-main` from Base. Values are palette refs (var(--color-*)),
+    so each theme's own :root drives the actual colors."""
+    override = _THEME_SCHEME2.get(theme_id)
+    if not override:
+        return {}
+    return {**_V4_SCHEME_MAIN2, **override}
+
+
 def convert_theme(theme_id: str, warnings: list = None) -> dict:
     """Convert a v3 theme (by id, from _THEME_REGISTRY) → a v4 *theme* JSON.
 
@@ -4777,6 +4981,12 @@ def convert_theme(theme_id: str, warnings: list = None) -> dict:
     for k in root:
         if k.startswith("color"):
             root[k] = _norm_hex(root[k])
+    style: dict = {}
+    if root:
+        style[":root"] = root
+    scheme2 = _build_scheme2(theme_id)
+    if scheme2:
+        style[".color-scheme-main-2"] = scheme2
     return {
         "id": None,                 # assigned by the target system on import
         "theme_key": theme_id,
@@ -4785,7 +4995,7 @@ def convert_theme(theme_id: str, warnings: list = None) -> dict:
         "images": None,
         "thumbnail": None,
         "status": "public",
-        "style": {":root": root} if root else {},
+        "style": style,
         # Only fontManifest (Google fonts to load); else {} — no overrides on Base.
         "info": {"fontManifest": manifest} if manifest else {},
         "preset": None,
@@ -4819,6 +5029,7 @@ def generate_all_themes(outdir: str) -> list:
         rows.append({"id": t["id"], "name": res["name"],
                      "demo": _THEME_REGISTRY[t["id"]].get("demo", ""),
                      "root": len(res["style"].get(":root", {})),
+                     "alt": ".color-scheme-main-2" in res["style"],
                      "google": google})
     _write_theme_checklist(outdir, rows)
     return rows
@@ -4830,11 +5041,17 @@ def _write_theme_checklist(outdir: str, rows: list) -> None:
     lines = [
         "# v4 Theme Conversion — Checklist",
         "",
-        f"{len(rows)} selectable v3 themes → v4 theme JSON "
+        f"{len(rows)} **published** v3 themes → v4 theme JSON "
         "(`python3 converter.py theme all <dir>`).",
+        "Scope = themes that are **live/in real use** on v3: both `isActive` **and** "
+        "`isSelectable` true in `themes.js`. Excluded: `isSelectable:false` (private "
+        "designs) and `isActive:false` (unfinished — e.g. `x_futuristic`, `x_soda`).",
         "Each output is a **sparse `:root` override** on top of Base "
         "(colors + fonts + typography). Google fonts are kept in the stack and listed "
         "in `info.fontManifest` — **verify each exists in v4**.",
+        "Themes with a v3 darkMode also emit an **alternative color scheme** "
+        "(`.color-scheme-main-2`, marked `alt` below) — check its bg/text in "
+        "REVIEW-GUIDE's alt-scheme table too.",
         "See **REVIEW-GUIDE.md** for what to spot-check per theme (font/color conflicts).",
         "Tick a theme (`- [ ]` → `- [x]`) after eyeballing its JSON against the live v3 demo.",
         "",
@@ -4842,8 +5059,9 @@ def _write_theme_checklist(outdir: str, rows: list) -> None:
     for r in rows:
         demo = f"[demo]({r['demo']})" if r.get("demo") else "demo??"
         google = f" · google: {', '.join(r['google'])}" if r["google"] else ""
+        alt = " · **alt**" if r.get("alt") else ""
         lines.append(
-            f"- [ ] **{r['name']}** `{r['id']}` — {demo} · `:root` {r['root']}{google}"
+            f"- [ ] **{r['name']}** `{r['id']}` — {demo} · `:root` {r['root']}{alt}{google}"
         )
     lines.append("")
     with open(os.path.join(outdir, "CHECKLIST.md"), "w", encoding="utf-8") as f:
