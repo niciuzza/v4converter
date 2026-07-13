@@ -20,8 +20,9 @@ modify `converter.py`; it has its own version/changelog and its own web page
 (`mergecode.html`). No `__version__` bump, no reuse of the designer converter.
 
 Merge model (v4 = skeleton, v3 = content):
-  - Top-level envelope: kept verbatim from v4 (slot `id`, `last_revision_id`,
-    `theme_key`, `nickname`, `info`, `style`, `css`, `unuse_configs`, …).
+  - Top-level envelope: kept from v4 (slot `id`, `last_revision_id`, `theme_key`,
+    `nickname`, `css`, `unuse_configs`, …), EXCEPT `info` + `style` which are
+    deep-merged with v3's (v3 wins on conflicting keys, with a warning).
   - Pages matched by top-level `path`:
       * match in v4  → append v3 page's `component.children` after v4's; keep
         v4 page id/ukey/metadata + v4 component id/ukey.
@@ -40,10 +41,13 @@ import json
 import copy
 import re
 
-MERGE_VERSION = "1.1"
+MERGE_VERSION = "1.2"
 MERGE_LAST_UPDATED = "2026-07-13"
 
 MERGE_CHANGELOG = [
+    {"version": "1.2", "date": "2026-07-13", "items": [
+        "รวม top-level <code>info</code> + <code>style</code> ของ v3 เข้ากับ v4 ด้วย (deep merge — <code>:root</code> รวมทีละ key) · key ที่ซ้ำใช้ค่าของ v3 ทับ + ขึ้น warning",
+    ]},
     {"version": "1.1", "date": "2026-07-13", "items": [
         "ไม่ append section/block ที่เนื้อหาซ้ำกับ v4 base แล้ว (เทียบเนื้อหาโดยตัด id/ukey ออก) — กัน section ซ้ำตอนรวม",
     ]},
@@ -83,6 +87,24 @@ def _content_key(node) -> str:
     return json.dumps(_strip_ids(node), sort_keys=True, ensure_ascii=False)
 
 
+def _merge_info_style(v4_obj: dict, v3_obj: dict, warnings: list, path: str):
+    """Deep-merge `v3_obj` into `v4_obj` IN PLACE (used for the top-level `info`
+    and `style`). Keys only in v3 are added; nested dicts on both sides recurse;
+    a leaf that differs is OVERRIDDEN by v3 (with a warning). Keys only in v4 are
+    kept. Identical values are left as-is (no warning)."""
+    for k, v3v in v3_obj.items():
+        sub = "%s.%s" % (path, k)
+        if k not in v4_obj:
+            v4_obj[k] = copy.deepcopy(v3v)
+            continue
+        v4v = v4_obj[k]
+        if isinstance(v4v, dict) and isinstance(v3v, dict):
+            _merge_info_style(v4v, v3v, warnings, sub)
+        elif v4v != v3v:
+            v4_obj[k] = copy.deepcopy(v3v)
+            warnings.append("⚠ %s: ใช้ค่าจาก v3 ทับของ v4 base" % sub)
+
+
 def _append_deduped(kids: list, new_children: list):
     """Append `new_children` onto `kids`, skipping any whose content already
     exists in `kids` (compared ids-stripped). Returns (added, skipped)."""
@@ -107,6 +129,17 @@ def merge_v3_into_v4(v3: dict, v4: dict):
     """
     warnings = []
     result = copy.deepcopy(v4)
+
+    # ---- Top-level info + style: merge v3's parent settings in (v3 wins) ----
+    for key in ("info", "style"):
+        v3_obj = v3.get(key)
+        if not isinstance(v3_obj, dict) or not v3_obj:
+            continue
+        v4_obj = result.get(key)
+        if isinstance(v4_obj, dict):
+            _merge_info_style(v4_obj, v3_obj, warnings, key)
+        else:
+            result[key] = copy.deepcopy(v3_obj)
 
     # ---- Pages: index v4 by path, then graft/append per v3 page -------------
     v4_pages = result.get("pages")
