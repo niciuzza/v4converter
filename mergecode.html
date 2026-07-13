@@ -1,0 +1,770 @@
+<!doctype html>
+<html lang="th">
+<!--
+  mergecode.html — "Merge Code" (standalone).
+  Merges two v4 JSONs into one: (1) converter output (v3→v4 content, no ids) +
+  (2) a v4 base (real id/ukey) → v4 base with v3 content grafted in, keeping the
+  ids v4 needs to save. Runs merge_v3_into_v4() from merge_code.py via Pyodide.
+  Same UI family as htmlfix/converter2v4, distinct teal accent + two input panes.
+  NOT part of the production converter — does not touch converter.py.
+-->
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>merge code — รวม v3 content ลง v4 base</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+<!-- CodeMirror 5 -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/fold/foldgutter.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/dialog/dialog.min.css">
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/javascript/javascript.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/fold/foldcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/fold/foldgutter.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/fold/brace-fold.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/selection/active-line.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/dialog/dialog.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/search/searchcursor.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/search/search.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/search/jump-to-line.min.js"></script>
+
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  /* Light default. Distinct TEAL accent (htmlfix=gold, so these two never blur). */
+  :root{
+    --bg:#eef3f2;--panel:#ffffff;--panel-head:#f2f7f6;--elev:#fbfdfc;
+    --border:#dce7e4;--border-strong:#c4d6d1;--fg:#2f3d3a;--fg-strong:#12211d;
+    --muted:#5f7570;--muted-2:#9db4ae;--accent:#0f766e;--accent-soft:rgba(15,118,110,.13);
+    --hover:rgba(0,0,0,.04);--good:#1a7f37;--good-soft:rgba(26,127,55,.10);
+    --bad:#cf222e;--bad-soft:rgba(207,34,46,.08);--warn:#9a6700;
+    --c-key:#0550ae;--c-str:#0a7d3e;--c-num:#b3540a;--c-bool:#6f42c1;--c-null:#cf222e;--c-punct:#9aa1b0;
+  }
+  [data-theme="dark"]{
+    --bg:#0a1210;--panel:#12201c;--panel-head:#0d1815;--elev:#172823;
+    --border:#294a41;--border-strong:#3d6b5d;--fg:#d8f0e9;--fg-strong:#ffffff;
+    --muted:#9bc4b9;--muted-2:#5a7e73;--accent:#2dd4bf;--accent-soft:rgba(45,212,191,.18);
+    --hover:rgba(255,255,255,.08);--good:#82e0a0;--good-soft:rgba(130,224,160,.18);
+    --bad:#ff8aa0;--bad-soft:rgba(255,138,160,.18);--warn:#ffc278;
+    --c-key:#9be0ff;--c-str:#b8e082;--c-num:#ffb37a;--c-bool:#d4b3ff;--c-null:#ff8aa0;--c-punct:#7e88b8;
+  }
+  body{background:var(--bg);color:var(--fg);font-family:'IBM Plex Sans Thai',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  textarea::placeholder{color:var(--muted-2)}
+  ::-webkit-scrollbar{width:11px;height:11px}
+  ::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:6px;border:3px solid transparent;background-clip:padding-box}
+  ::-webkit-scrollbar-track{background:transparent}
+
+  .root{height:100vh;display:flex;flex-direction:column}
+  .topbar{height:54px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 18px;border-bottom:1px solid var(--border);background:var(--panel)}
+  .brand{display:flex;align-items:center;gap:11px}
+  .logo{width:29px;height:29px;border-radius:8px;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-family:'JetBrains Mono',monospace;font-size:13px}
+  .brand-text{display:flex;flex-direction:column;line-height:1.15}
+  .brand-row{display:flex;align-items:center;gap:8px}
+  .brand-title{font-weight:600;font-size:14.5px;color:var(--fg-strong)}
+  .brand-version{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent-soft);padding:1px 6px;border-radius:5px}
+  .brand-sub{font-size:10.5px;color:var(--muted);font-family:'JetBrains Mono',monospace;letter-spacing:.02em}
+  .topbar-right{display:flex;align-items:center;gap:10px}
+  .status-pill{font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--muted);padding:4px 10px;border-radius:6px;border:1px solid var(--border)}
+  .status-pill[data-state="loading"]{color:var(--warn);border-color:var(--warn)}
+  .status-pill[data-state="ready"]{color:var(--good);border-color:var(--good);background:var(--good-soft)}
+  .status-pill[data-state="error"]{color:var(--bad);border-color:var(--bad);background:var(--bad-soft)}
+  .theme-btn{display:flex;align-items:center;gap:7px;height:32px;padding:0 13px;border:1px solid var(--border-strong);background:transparent;color:var(--fg);border-radius:8px;cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:500}
+  .theme-btn:hover{background:var(--hover)}
+  .theme-icon{font-family:'JetBrains Mono',monospace;font-size:13px}
+
+  main.layout{flex:1;display:flex;gap:1px;background:var(--border);min-height:0}
+  .panel{flex:1;display:flex;flex-direction:column;background:var(--panel);min-width:0}
+
+  /* ── INPUTS (two stacked editors) ──────────────────────────────────── */
+  .inputs-col{flex:2;display:flex;flex-direction:column;gap:1px;background:var(--border);min-width:0}
+  .input-pane{flex:1;display:flex;flex-direction:column;background:var(--panel);min-height:0}
+  .panel-head{height:40px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 13px;border-bottom:1px solid var(--border);background:var(--panel-head)}
+  .panel-head-right{display:flex;gap:5px;align-items:center}
+  .out-head-left{display:flex;align-items:center;gap:9px;flex:none}
+  .label{font-size:11px;font-weight:700;letter-spacing:.09em;color:var(--muted)}
+  .badge{font-size:10.5px;font-family:'JetBrains Mono',monospace;color:var(--muted-2);border:1px solid var(--border);padding:2px 7px;border-radius:5px}
+  .badge-accent{color:var(--accent);border-color:var(--accent-soft);background:var(--accent-soft)}
+  .ghost-btn{height:26px;padding:0 9px;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:6px;cursor:pointer;font-family:inherit;font-size:11.5px}
+  .ghost-btn:hover{background:var(--hover);color:var(--fg)}
+
+  .input-body{flex:1;min-height:0;display:flex;background:var(--elev);position:relative}
+  .cm-host{flex:1;min-width:0;height:100%;display:flex}
+  .CodeMirror{flex:1;background:var(--elev) !important;color:var(--fg) !important;font-family:'JetBrains Mono','IBM Plex Sans Thai',monospace;font-size:12.5px;line-height:20px;height:100%}
+  .CodeMirror-gutters{background:var(--panel-head) !important;border-right:1px solid var(--border) !important}
+  .CodeMirror-linenumber{color:var(--muted-2);font-size:11px;padding:0 8px}
+  .CodeMirror-cursor{border-left-color:var(--accent) !important}
+  .CodeMirror-selected,.CodeMirror-focused .CodeMirror-selected{background:var(--accent-soft) !important}
+  .CodeMirror .cm-string{color:var(--c-str)}
+  .CodeMirror .cm-number{color:var(--c-num)}
+  .CodeMirror .cm-atom{color:var(--c-bool)}
+  .CodeMirror .cm-property{color:var(--c-key)}
+  .CodeMirror .cm-keyword{color:var(--c-bool)}
+  .CodeMirror .cm-punctuation,.CodeMirror .cm-bracket{color:var(--c-punct)}
+  .CodeMirror-foldgutter{width:13px}
+  .CodeMirror-foldgutter-open:after{content:"▾";color:var(--muted-2);font-size:9px}
+  .CodeMirror-foldgutter-folded:after{content:"▸";color:var(--accent);font-size:9px}
+  .CodeMirror-foldmarker{color:var(--warn);background:var(--accent-soft);padding:0 5px;border-radius:3px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:600}
+  .CodeMirror-dialog{position:absolute;left:0;right:0;top:0;z-index:20;margin:0;padding:6px 12px;background:var(--panel-head);border-bottom:1px solid var(--border-strong);color:var(--fg);font-family:'IBM Plex Sans Thai',sans-serif;font-size:11.5px;box-shadow:0 2px 6px rgba(0,0,0,.12)}
+  .CodeMirror-dialog input{font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--elev);color:var(--fg);border:1px solid var(--border-strong);border-radius:5px;padding:3px 8px;outline:none;min-width:220px}
+  .CodeMirror-dialog input:focus{border-color:var(--accent)}
+
+  .input-foot{flex:none;border-top:1px solid var(--border);background:var(--panel-head)}
+  .err-row{display:flex;align-items:flex-start;gap:9px;margin:9px 13px 0;padding:8px 11px;background:var(--bad-soft);border:1px solid var(--bad);border-radius:8px}
+  .err-icon{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--bad);line-height:1.3;flex:none}
+  .err-body{display:flex;flex-direction:column;gap:2px;min-width:0}
+  .err-title{font-size:12px;font-weight:600;color:var(--bad)}
+  .err-loc{font-weight:500;color:var(--warn)}
+  .err-msg{font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--muted);line-height:1.5;word-break:break-word}
+  .foot-row{display:flex;align-items:center;gap:12px;padding:10px 13px}
+  .foot-meta{font-size:11px;color:var(--muted-2);font-family:'JetBrains Mono',monospace;white-space:nowrap}
+  .convert-btn{flex:1;height:40px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-weight:700;font-size:13.5px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:9px;letter-spacing:.01em}
+  .convert-btn:disabled{opacity:.55;cursor:not-allowed}
+  .convert-btn:not(:disabled):hover{filter:brightness(1.08)}
+  .convert-btn:not(:disabled):active{transform:translateY(1px)}
+  .arrow{font-family:'JetBrains Mono',monospace;font-size:15px}
+
+  /* ── OUTPUT ────────────────────────────────────────────────────────── */
+  .panel.output{flex:3}
+  .out-head{height:46px;flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 13px;border-bottom:1px solid var(--border);background:var(--panel-head)}
+  .out-head-right{display:flex;align-items:center;gap:8px;min-width:0}
+  .pill{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:6px;flex:none}
+  .pill-good{color:var(--good);background:var(--good-soft)}
+  .pill-bad{color:var(--bad);background:var(--bad-soft)}
+  .download-btn{display:flex;align-items:center;gap:6px;height:30px;padding:0 12px;border:1px solid var(--accent-soft);background:var(--accent-soft);color:var(--accent);border-radius:7px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;flex:none}
+  .download-btn:hover{filter:brightness(1.08)}
+
+  .out-body{flex:1;display:flex;min-height:0}
+  .sidebar{width:222px;flex:none;border-right:1px solid var(--border);overflow:auto;padding:8px 7px;background:var(--panel-head)}
+  .nav-heading{display:flex;align-items:center;justify-content:space-between;font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--muted-2);padding:11px 9px 6px}
+  .nav-heading .count{font-family:'JetBrains Mono',monospace;font-weight:500}
+  .nav-item{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;text-align:left;padding:7px 9px;margin-bottom:2px;border:none;border-radius:6px;cursor:pointer;font-size:12.5px;background:transparent;color:var(--muted);font-weight:500;box-shadow:none;font-family:inherit}
+  .nav-item:hover{background:var(--hover)}
+  .nav-item.active{background:var(--accent-soft);color:var(--fg-strong);font-weight:600;box-shadow:inset 2px 0 0 var(--accent)}
+  .nav-left{display:flex;align-items:center;gap:8px;min-width:0}
+  .nav-icon{font-family:'JetBrains Mono',monospace;font-size:10px;flex:none}
+  .nav-label{font-family:'JetBrains Mono','IBM Plex Sans Thai',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .nav-meta{font-size:10px;color:var(--muted-2);font-family:'JetBrains Mono',monospace;flex:none}
+
+  .viewer{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--elev)}
+  .viewer-head{flex:none;display:flex;align-items:center;justify-content:space-between;padding:7px 8px 7px 14px;border-bottom:1px solid var(--border);gap:8px}
+  .viewer-head-left{display:flex;flex-direction:column;gap:2px;min-width:0}
+  .path{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .slice-meta{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .copy-btn{display:flex;align-items:center;justify-content:center;gap:6px;height:28px;padding:0 11px;min-width:120px;white-space:nowrap;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:7px;cursor:pointer;font-family:inherit;font-size:11.5px;font-weight:500}
+  .copy-btn:hover{background:var(--hover)}
+  .copy-btn.copied{color:var(--good);border-color:var(--good)}
+  .copy-btn .icon{font-family:'JetBrains Mono',monospace;font-size:12px}
+  .viewer-tools{display:flex;align-items:center;gap:6px;flex:none}
+  .tool-btn{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:7px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:14px;line-height:1}
+  .tool-btn:hover{background:var(--hover);color:var(--fg)}
+  .edit-hint{font-size:10.5px;color:var(--accent);font-weight:600;white-space:nowrap}
+  .code-scroll{flex:1;min-height:0;position:relative;display:flex}
+  .code-foot{flex:none;height:28px;display:flex;align-items:center;gap:14px;padding:0 14px;border-top:1px solid var(--border);background:var(--panel-head)}
+  .code-meta{font-size:10.5px;font-family:'JetBrains Mono',monospace;color:var(--muted-2)}
+
+  .err-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:30px;text-align:center;background:var(--elev)}
+  .err-state-icon{font-family:'JetBrains Mono',monospace;font-size:30px;color:var(--bad)}
+  .err-state-title{font-size:14px;color:var(--fg-strong);font-weight:600}
+  .err-state-msg{font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--muted);max-width:420px;line-height:1.6;word-break:break-word}
+  .err-state-hint{font-size:11.5px;color:var(--muted-2);margin-top:4px}
+
+  .placeholder{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:30px;text-align:center;background:var(--elev);color:var(--muted-2)}
+  .placeholder-icon{font-family:'JetBrains Mono',monospace;font-size:28px;color:var(--muted-2)}
+  .placeholder-text{font-size:12.5px;line-height:1.7}
+
+  /* ── Merge-log banner ──────────────────────────────────────────────── */
+  .warn-banner{flex:none;background:var(--panel-head);border-bottom:1px solid var(--border)}
+  .warn-banner summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:9px 13px;font-size:12px;color:var(--accent);font-weight:600}
+  .warn-banner summary::-webkit-details-marker{display:none}
+  .warn-banner summary::before{content:"▸";font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted-2);transition:transform .15s}
+  .warn-banner[open] summary::before{transform:rotate(90deg)}
+  .warn-banner .warn-count{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);font-weight:500}
+  .warn-list{max-height:220px;overflow:auto;padding:0 13px 11px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.6}
+  .warn-list .row{display:flex;gap:8px;padding:3px 5px;color:var(--muted);border-radius:4px;align-items:baseline}
+  .warn-list .row .tag{flex:none;width:34px;font-weight:700;font-size:9.5px;letter-spacing:.05em;text-transform:uppercase}
+  .warn-list .row.info .tag{color:var(--good)}
+  .warn-list .row.warn .tag{color:var(--warn)}
+  .warn-list .row .msg{color:var(--fg);flex:1;white-space:normal;word-break:break-word}
+
+  /* ── Version popup ─────────────────────────────────────────────────── */
+  .brand-version{cursor:pointer;transition:background .15s,border-color .15s}
+  .brand-version:hover{border-color:var(--accent);background:var(--accent-soft)}
+  .modal-overlay{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.45);display:flex;align-items:flex-start;justify-content:center;padding:64px 18px 18px;overflow-y:auto}
+  .modal{width:100%;max-width:560px;background:var(--panel);border:1px solid var(--border-strong);border-radius:14px;box-shadow:0 18px 60px rgba(0,0,0,.35);overflow:hidden;animation:modalIn .16s ease-out}
+  @keyframes modalIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+  .modal-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:15px 18px;border-bottom:1px solid var(--border);background:var(--panel-head)}
+  .modal-title{display:flex;align-items:center;gap:9px;font-size:15px;font-weight:600;color:var(--fg-strong)}
+  .modal-title .mver{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent-soft);padding:1px 6px;border-radius:5px}
+  .modal-close{border:none;background:transparent;color:var(--muted);font-size:20px;line-height:1;cursor:pointer;padding:2px 6px;border-radius:6px}
+  .modal-close:hover{background:var(--hover);color:var(--fg)}
+  .modal-body{padding:16px 18px 20px;max-height:70vh;overflow-y:auto}
+  .modal-section + .modal-section{margin-top:18px}
+  .modal-section h4{margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--muted);text-transform:uppercase}
+  .modal-readme{margin:0;padding-left:18px;font-size:13px;line-height:1.6;color:var(--fg)}
+  .modal-readme li{margin:2px 0}
+  .modal-readme code{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--accent);background:var(--accent-soft);padding:1px 5px;border-radius:4px}
+  .changelog{display:flex;flex-direction:column;gap:14px}
+  .changelog-entry{border-left:2px solid var(--border-strong);padding-left:13px}
+  .changelog-entry .cl-ver{display:flex;align-items:baseline;gap:8px;margin-bottom:5px}
+  .changelog-entry .cl-tag{font-size:11px;font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--fg-strong)}
+  .changelog-entry .cl-date{font-size:10.5px;font-family:'JetBrains Mono',monospace;color:var(--muted-2)}
+  .changelog-entry ul{margin:0;padding-left:16px;font-size:12.5px;line-height:1.55;color:var(--fg)}
+  .changelog-entry li{margin:1px 0}
+
+  .hidden{display:none !important}
+</style>
+</head>
+<body>
+
+<div class="root">
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">⇄</div>
+      <div class="brand-text">
+        <div class="brand-row">
+          <span class="brand-title">merge code</span>
+          <span class="brand-version" id="versionTag"></span>
+        </div>
+        <span class="brand-sub" id="brandSub">รวม v3 content ลง v4 base</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <span class="status-pill" id="status" data-state="loading">Loading Python runtime…</span>
+      <button class="theme-btn" id="themeBtn" type="button">
+        <span class="theme-icon" id="themeIcon">☀</span><span id="themeLabel">Light</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="layout">
+
+    <!-- INPUTS (two stacked) -->
+    <section class="inputs-col">
+      <div class="input-pane">
+        <div class="panel-head">
+          <div class="out-head-left">
+            <span class="label">INPUT 1</span>
+            <span class="badge">v3 · จาก converter (มีเนื้อหา, ไม่มี id)</span>
+          </div>
+          <div class="panel-head-right">
+            <button class="ghost-btn" id="pasteV3" type="button">วาง</button>
+            <button class="ghost-btn" id="clearV3" type="button">ล้าง</button>
+          </div>
+        </div>
+        <div class="input-body">
+          <div class="cm-host" id="v3Host"></div>
+        </div>
+      </div>
+
+      <div class="input-pane">
+        <div class="panel-head">
+          <div class="out-head-left">
+            <span class="label">INPUT 2</span>
+            <span class="badge">v4 · base (มี id/ukey)</span>
+          </div>
+          <div class="panel-head-right">
+            <button class="ghost-btn" id="pasteV4" type="button">วาง</button>
+            <button class="ghost-btn" id="clearV4" type="button">ล้าง</button>
+          </div>
+        </div>
+        <div class="input-body">
+          <div class="cm-host" id="v4Host"></div>
+        </div>
+      </div>
+
+      <div class="input-foot">
+        <div class="err-row hidden" id="errRow">
+          <span class="err-icon">⚠</span>
+          <div class="err-body">
+            <span class="err-title">JSON ไม่ถูกต้อง <span class="err-loc" id="errLoc"></span></span>
+            <span class="err-msg" id="errMsg"></span>
+          </div>
+        </div>
+        <div class="foot-row">
+          <span class="foot-meta" id="inputMeta">v3: 0 · v4: 0 บรรทัด</span>
+          <button class="convert-btn" id="mergeBtn" type="button" disabled>
+            รวมโค้ด<span class="arrow">→</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- OUTPUT -->
+    <section class="panel output">
+      <div class="out-head">
+        <div class="out-head-left">
+          <span class="label">OUTPUT</span>
+          <span class="badge badge-accent">v4 · รวมแล้ว</span>
+        </div>
+        <div class="out-head-right">
+          <span class="pill pill-good hidden" id="okPill">✓ รวมแล้ว</span>
+          <span class="pill pill-bad hidden" id="badPill">✕ JSON ไม่ถูกต้อง</span>
+          <button class="download-btn hidden" id="downloadBtn" type="button">
+            <span class="icon">↓</span>ดาวน์โหลด JSON
+          </button>
+        </div>
+      </div>
+
+      <details class="warn-banner hidden" id="warnBanner">
+        <summary>
+          <span id="warnTitle">บันทึกการรวม</span>
+          <span class="warn-count" id="warnCount"></span>
+        </summary>
+        <div class="warn-list" id="warnList"></div>
+      </details>
+
+      <div class="out-body hidden" id="outBody">
+        <aside class="sidebar" id="sidebar"></aside>
+        <div class="viewer">
+          <div class="viewer-head">
+            <div class="viewer-head-left">
+              <span class="path" id="path">$</span>
+              <span class="slice-meta" id="sliceMeta"></span>
+              <span class="edit-hint hidden" id="editHint">✎ แก้ไขได้</span>
+            </div>
+            <div class="viewer-tools">
+              <button class="tool-btn" id="findBtn" type="button" title="ค้นหาในกล่อง (Ctrl/Cmd-F)">⌕</button>
+              <button class="tool-btn" id="findPrevBtn" type="button" title="ผลก่อนหน้า">▴</button>
+              <button class="tool-btn" id="findNextBtn" type="button" title="ผลถัดไป">▾</button>
+              <button class="tool-btn" id="foldAllBtn" type="button" title="ย่อระดับบนสุด">⊟</button>
+              <button class="tool-btn" id="unfoldAllBtn" type="button" title="ขยายทั้งหมด">⊞</button>
+              <button class="copy-btn" id="copyBtn" type="button">
+                <span class="icon" id="copyIcon">⧉</span><span id="copyLabel">คัดลอก</span>
+              </button>
+            </div>
+          </div>
+          <div class="code-scroll" id="codeScroll">
+            <div class="cm-host" id="outputHost"></div>
+          </div>
+          <div class="code-foot">
+            <span class="code-meta" id="codeMeta"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="err-state hidden" id="errState">
+        <div class="err-state-icon">{ ! }</div>
+        <div class="err-state-title">รวมไม่สำเร็จ</div>
+        <div class="err-state-msg" id="errStateMsg"></div>
+        <div class="err-state-hint">ตรวจสอบว่า JSON ทั้งสองช่องถูกต้องแล้วกด "รวมโค้ด" อีกครั้ง</div>
+      </div>
+
+      <div class="placeholder" id="idleState">
+        <div class="placeholder-icon">{ ⇄ }</div>
+        <div class="placeholder-text">วาง <strong>v3 (converter output)</strong> ที่ช่องบน และ <strong>v4 base</strong> ที่ช่องล่าง<br>แล้วกด <strong>รวมโค้ด</strong></div>
+      </div>
+
+    </section>
+  </main>
+</div>
+
+<!-- VERSION / WHAT'S-NEW POPUP -->
+<div class="modal-overlay hidden" id="infoOverlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="infoTitle">
+    <div class="modal-head">
+      <div class="modal-title" id="infoTitle">
+        merge code <span class="mver" id="infoVersion"></span>
+      </div>
+      <button class="modal-close" id="infoClose" type="button" aria-label="ปิด">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-section">
+        <h4>เครื่องมือนี้ทำอะไรได้</h4>
+        <ul class="modal-readme" id="infoReadme"></ul>
+      </div>
+      <div class="modal-section">
+        <h4>อัพเดทล่าสุด</h4>
+        <div class="changelog" id="infoChangelog"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+(async function(){
+  const $ = (id) => document.getElementById(id);
+
+  document.getElementById("versionTag").textContent = "…";
+  document.getElementById("versionTag").title = "ดูว่ามีอะไรใหม่";
+
+  function renderInfo(meta) {
+    const v = "v" + meta.version;
+    document.title = `merge code ${v} — รวม v3 content ลง v4 base`;
+    $("versionTag").textContent = v;
+    $("infoVersion").textContent = v;
+    if (meta.updated) {
+      $("brandSub").innerHTML = `รวม v3 content ลง v4 base · เอนจิน ${meta.updated}`;
+    }
+    const README = [
+      "รวม JSON สองอันเป็นอันเดียว: <b>ช่องบน = โค้ดจาก converter</b> (v3→v4 มีเนื้อหา แต่ยังไม่มี id/ukey), <b>ช่องล่าง = โค้ด v4 เดิม</b> (มี id/ukey ที่ v4 ต้องใช้ตอนบันทึก)",
+      "ผลลัพธ์ = โค้ด v4 เดิม + เนื้อหา v3 ที่ยัดลงไป โดย<b>คง id/ukey เดิมของ v4</b> ไว้ทุกจุด (แก้ปัญหา v4 ไม่ยอมบันทึกเมื่อ page id หาย)",
+      "จับคู่หน้าด้วย <code>path</code>: หน้าที่มีอยู่แล้วใน v4 → เอาเนื้อหา v3 <b>ต่อท้าย</b> (ไม่ทับ) · หน้าที่มีเฉพาะใน v3 → <b>เพิ่มเป็นหน้าใหม่</b> (id/ukey = null)",
+      "section/block ที่เนื้อหา<b>ซ้ำกับ v4 อยู่แล้ว จะไม่ append ซ้ำ</b> (เทียบเนื้อหาโดยไม่สน id/ukey)",
+      "รวมเนื้อหา zone (header/footer/free) จาก v3 ต่อท้าย v4 ด้วย",
+      "ดู <b>บันทึกการรวม</b> ที่แถบบนกล่องผลลัพธ์ว่าแต่ละหน้าถูกทำอะไร · คัดลอก/ดาวน์โหลดผลลัพธ์ไปวางใน v4 ได้เลย",
+      "แยกจาก converter/htmlfix — ใช้ <code>merge_code.py</code> ต่างหาก ไม่กระทบตัวแปลงจริง",
+    ];
+    $("infoReadme").innerHTML = README.map(t => `<li>${t}</li>`).join("");
+    $("infoChangelog").innerHTML = (meta.changelog || []).map(e => `
+      <div class="changelog-entry">
+        <div class="cl-ver"><span class="cl-tag">v${e.version}</span><span class="cl-date">${e.date}</span></div>
+        <ul>${(e.items || []).map(i => `<li>${i}</li>`).join("")}</ul>
+      </div>`).join("");
+  }
+
+  (function setupInfoPopup(){
+    const overlay = $("infoOverlay");
+    const open = () => overlay.classList.remove("hidden");
+    const close = () => overlay.classList.add("hidden");
+    $("versionTag").addEventListener("click", open);
+    $("infoClose").addEventListener("click", close);
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !overlay.classList.contains("hidden")) close();
+    });
+  })();
+
+  // ── Theme persistence ──────────────────────────────────────────────
+  const THEME_KEY = "mergecode_theme";
+  function loadTheme() {
+    try { const v = localStorage.getItem(THEME_KEY); if (v === "dark" || v === "light") return v; } catch (_) {}
+    return "light";
+  }
+  function saveTheme(t) { try { localStorage.setItem(THEME_KEY, t); } catch (_) {} }
+
+  const state = {
+    theme: loadTheme(),
+    result: null,       // merged output object
+    resultMode: null,
+    runError: null,
+    selected: "all",
+    mergeLog: [],       // [{kind:"info"|"warn", msg}]
+  };
+
+  function applyTheme(t) {
+    document.querySelector(".root").dataset.theme = t;
+    $("themeIcon").textContent = t === "dark" ? "☾" : "☀";
+    $("themeLabel").textContent = t === "dark" ? "Dark" : "Light";
+  }
+  applyTheme(state.theme);
+
+  // ── CodeMirror init (two inputs + one output) ──────────────────────
+  const cmOpts = (extra) => Object.assign({
+    value: "", mode: { name: "javascript", json: true },
+    lineNumbers: true, lineWrapping: true, foldGutter: true,
+    gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
+    indentUnit: 2, tabSize: 2,
+  }, extra || {});
+  const v3Cm = CodeMirror($("v3Host"), cmOpts());
+  const v4Cm = CodeMirror($("v4Host"), cmOpts());
+  const outputCm = CodeMirror($("outputHost"), cmOpts({ readOnly: false }));
+
+  const updateInputMeta = () => {
+    const l3 = v3Cm.getValue() ? v3Cm.getValue().split("\n").length : 0;
+    const l4 = v4Cm.getValue() ? v4Cm.getValue().split("\n").length : 0;
+    $("inputMeta").textContent = `v3: ${l3} · v4: ${l4} บรรทัด`;
+  };
+  v3Cm.on("change", () => { $("errRow").classList.add("hidden"); updateInputMeta(); });
+  v4Cm.on("change", () => { $("errRow").classList.add("hidden"); updateInputMeta(); });
+
+  function foldLevel1(cm) {
+    const unit = cm.getOption("indentUnit") || 2;
+    cm.operation(() => {
+      for (let l = cm.firstLine(); l <= cm.lastLine(); l++) cm.foldCode(CodeMirror.Pos(l, 0), null, "unfold");
+      for (let l = cm.firstLine(); l <= cm.lastLine(); l++) {
+        if (cm.getLine(l).match(/^ */)[0].length === unit) cm.foldCode(CodeMirror.Pos(l, 0), null, "fold");
+      }
+    });
+  }
+  function unfoldAll(cm) {
+    cm.operation(() => { for (let l = cm.firstLine(); l <= cm.lastLine(); l++) cm.foldCode(CodeMirror.Pos(l, 0), null, "unfold"); });
+  }
+  $("foldAllBtn").addEventListener("click", () => foldLevel1(outputCm));
+  $("unfoldAllBtn").addEventListener("click", () => unfoldAll(outputCm));
+  $("findBtn").addEventListener("click", () => { outputCm.focus(); outputCm.execCommand("findPersistent"); });
+  $("findNextBtn").addEventListener("click", () => { outputCm.focus(); outputCm.execCommand("findNext"); });
+  $("findPrevBtn").addEventListener("click", () => { outputCm.focus(); outputCm.execCommand("findPrev"); });
+
+  let pyodide = null;
+  let pyodideReady = false;
+
+  function setStatus(text, st) { const el = $("status"); el.textContent = text; el.dataset.state = st || ""; }
+  function escapeHTML(s){ return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+
+  // ── Pyodide boot ───────────────────────────────────────────────────
+  try {
+    setStatus("Loading Python runtime…", "loading");
+    pyodide = await loadPyodide();
+    setStatus("Fetching merge_code.py…", "loading");
+    const resp = await fetch("merge_code.py", { cache: "no-cache" });
+    if (!resp.ok) throw new Error("Could not fetch merge_code.py (HTTP " + resp.status + ")");
+    const code = await resp.text();
+    pyodide.runPython('__name__ = "merge_code_module"\n' + code);
+    pyodideReady = true;
+    setStatus("Ready", "ready");
+    $("mergeBtn").disabled = false;
+    try {
+      pyodide.runPython(
+        "import json as _json\n" +
+        "_meta = _json.dumps({\n" +
+        "  'version': globals().get('MERGE_VERSION', '?'),\n" +
+        "  'updated': globals().get('MERGE_LAST_UPDATED', ''),\n" +
+        "  'changelog': globals().get('MERGE_CHANGELOG', []),\n" +
+        "}, ensure_ascii=False)\n"
+      );
+      renderInfo(JSON.parse(pyodide.globals.get("_meta")));
+    } catch (e) { console.warn("Could not read merge version metadata:", e); }
+  } catch (e) {
+    setStatus("Failed to load", "error");
+    showErrState("Init failed: " + e.message + "\n\nTip: serve over http(s). Local: `python3 -m http.server 8000`.");
+    console.error(e);
+    return;
+  }
+
+  // ── Lenient JSON parse (mirrors merge_code._lenient_loads) ──────────
+  function parseInput(raw, whichLabel) {
+    raw = raw.trim().replace(/\[\s*\.\.\s*\]/g, "[]");
+    if (!raw) throw mkParseErr(`${whichLabel} ว่างเปล่า`, null);
+    try { return JSON.parse(raw); }
+    catch (e1) {
+      try { return JSON.parse("[" + raw + "]"); }
+      catch (_e2) { throw mkParseErr(`${whichLabel}: ` + e1.message, positionOf(e1.message, raw)); }
+    }
+  }
+  function positionOf(msg, src) {
+    const m = /position (\d+)/i.exec(msg);
+    if (!m) return null;
+    const pos = Math.min(parseInt(m[1], 10), src.length);
+    const before = src.slice(0, pos);
+    return { line: before.split("\n").length, col: pos - before.lastIndexOf("\n") };
+  }
+  function mkParseErr(msg, pos) {
+    const cleanMsg = msg.replace(/\s*in JSON at position \d+.*/i, "");
+    const err = new Error(cleanMsg);
+    err.parse = { msg: cleanMsg, loc: pos ? `บรรทัด ${pos.line} คอลัมน์ ${pos.col}` : "" };
+    return err;
+  }
+
+  // ── Merge (the only Python call) ───────────────────────────────────
+  function runMergePython(v3data, v4data) {
+    // JSON round-trip (not toPy/toJs) so null-valued keys survive intact.
+    pyodide.globals.set("_v3_json", JSON.stringify(v3data));
+    pyodide.globals.set("_v4_json", JSON.stringify(v4data));
+    pyodide.runPython(
+      "import json\n" +
+      "_m, _w = merge_v3_into_v4(json.loads(_v3_json), json.loads(_v4_json))\n" +
+      "_out_json = json.dumps({'merged': _m, 'warns': _w}, ensure_ascii=False)"
+    );
+    return JSON.parse(pyodide.globals.get("_out_json"));  // { merged, warns:[str] }
+  }
+
+  // ── Output nav (reused shape logic, output is always a v4 site) ────
+  function detectResultMode(data) {
+    if (Array.isArray(data)) return "pages";
+    if (data && typeof data === "object" && Array.isArray(data.pages)) return "site";
+    return "fixed";
+  }
+
+  function buildNav() {
+    const items = [];
+    const r = state.result;
+    if (!r) return items;
+    items.push({ key: "all", label: "ทั้งหมด (v4)", meta: "root", icon: "{}", iconColor: "var(--accent)" });
+    if (state.resultMode === "site") {
+      const sectionKeys = ["info", "style", "header_zone", "footer_zone", "free_zone"];
+      items.push({ heading: true, label: "SECTIONS", count: sectionKeys.length });
+      sectionKeys.forEach(k => items.push({ key: k, label: k, meta: sectionMetaFor(k, r[k]), icon: "{}", iconColor: "var(--c-key)" }));
+      const pages = Array.isArray(r.pages) ? r.pages : [];
+      items.push({ heading: true, label: "PAGES", count: pages.length });
+      items.push({ key: "pages", label: "ทั้งหมด (pages)", meta: `${pages.length} pages`, icon: "[]", iconColor: "var(--c-key)" });
+      pages.forEach((pg, i) => {
+        const label = pg && pg.nickname ? pg.nickname : (pg && pg.path) || `Page ${i + 1}`;
+        const path  = pg && pg.path ? pg.path : "";
+        const nSec  = (pg && pg.component && Array.isArray(pg.component.children)) ? pg.component.children.length : 0;
+        const idTag = (pg && (pg.id === null || pg.id === undefined)) ? "new" : String(pg.id);
+        const meta  = `${path} · ${nSec}§ · #${idTag}`;
+        items.push({ key: `page:${i}`, label, meta, icon: String(i + 1).padStart(2, "0"), iconColor: "var(--c-num)" });
+      });
+      return items;
+    }
+    const keys = Object.keys(r || {});
+    items.push({ heading: true, label: "KEYS", count: keys.length });
+    keys.forEach(k => items.push({ key: k, label: k, meta: sectionMetaFor(k, r[k]), icon: "{}", iconColor: "var(--c-key)" }));
+    return items;
+  }
+  function sectionMetaFor(key, v) {
+    if (v == null) return "null";
+    if (typeof v !== "object") return String(v).slice(0, 24);
+    if (Array.isArray(v)) return `${v.length} items`;
+    if (Array.isArray(v.children)) return `${v.children.length} children`;
+    return `${Object.keys(v).length} keys`;
+  }
+  function renderSidebar() {
+    const items = buildNav();
+    $("sidebar").innerHTML = items.map(it => {
+      if (it.heading) return `<div class="nav-heading"><span>${it.label}</span><span class="count">${it.count}</span></div>`;
+      const active = state.selected === it.key ? " active" : "";
+      return `<button class="nav-item${active}" data-key="${it.key}">
+        <span class="nav-left"><span class="nav-icon" style="color:${it.iconColor}">${escapeHTML(String(it.icon))}</span>
+        <span class="nav-label">${escapeHTML(it.label)}</span></span>
+        <span class="nav-meta">${escapeHTML(it.meta || "")}</span></button>`;
+    }).join("");
+    $("sidebar").querySelectorAll(".nav-item").forEach(btn => {
+      btn.addEventListener("click", () => { state.selected = btn.dataset.key; renderSidebar(); renderViewer(); });
+    });
+  }
+  function getSlice() {
+    const r = state.result, sel = state.selected;
+    if (sel === "all") return { slice: r, path: "$" };
+    if (sel === "pages") return { slice: r.pages, path: "$.pages" };
+    if (sel.startsWith("page:")) { const i = parseInt(sel.slice(5), 10); return { slice: r.pages[i], path: `$.pages[${i}]` }; }
+    return { slice: { [sel]: r[sel] }, path: `$.${sel}` };
+  }
+  function sliceMetaText() {
+    const r = state.result, sel = state.selected;
+    if (sel === "all" && state.resultMode === "site") {
+      const pages = (r.pages || []).length;
+      const totalSections = (r.pages || []).reduce((a, p) => a + ((p && p.component && p.component.children) ? p.component.children.length : 0), 0);
+      return `5 sections · ${pages} pages · ${totalSections} widgets`;
+    }
+    if (sel === "pages") { const arr = r.pages || []; return `${arr.length} pages`; }
+    if (sel.startsWith("page:")) {
+      const pg = r.pages[parseInt(sel.slice(5), 10)];
+      const w = pg && pg.component && Array.isArray(pg.component.children) ? pg.component.children.length : 0;
+      return `1 page · ${w} sections`;
+    }
+    const v = r[sel];
+    if (v == null) return "null";
+    if (Array.isArray(v)) return `${v.length} items`;
+    if (typeof v === "object") return `${Object.keys(v).length} keys`;
+    return "1 value";
+  }
+  let outputProgrammatic = false;
+  function renderViewer() {
+    const { slice, path } = getSlice();
+    $("path").textContent = path;
+    $("sliceMeta").textContent = sliceMetaText();
+    const text = JSON.stringify(slice, null, 2) || "";
+    const editable = state.selected === "all";
+    outputCm.setOption("readOnly", !editable);
+    $("editHint").classList.toggle("hidden", !editable);
+    if (outputCm.getValue() !== text) { outputProgrammatic = true; outputCm.setValue(text); outputProgrammatic = false; }
+    const lines = text.split("\n");
+    $("codeMeta").textContent = `JSON · ${lines.length} บรรทัด · ${text.length} ตัวอักษร`;
+    $("downloadBtn").classList.toggle("hidden", state.selected !== "all");
+  }
+  function renderMergeLog() {
+    const banner = $("warnBanner");
+    const log = state.mergeLog || [];
+    if (!log.length || !state.result) { banner.classList.add("hidden"); banner.open = false; return; }
+    banner.classList.remove("hidden");
+    const warns = log.filter(w => w.kind === "warn").length;
+    const infos = log.length - warns;
+    const parts = [];
+    if (infos) parts.push(`${infos} รายการ`);
+    if (warns) parts.push(`${warns} ต้องตรวจ`);
+    $("warnCount").textContent = parts.join(" · ");
+    $("warnTitle").textContent = warns ? "⚠ บันทึกการรวม (มีจุดต้องตรวจ)" : "✓ บันทึกการรวม";
+    banner.querySelector("summary").style.color = warns ? "var(--warn)" : "var(--accent)";
+    $("warnList").innerHTML = log.map(w => `<div class="row ${w.kind}">
+      <span class="tag">${w.kind === "warn" ? "⚠" : "รวม"}</span>
+      <span class="msg">${escapeHTML(w.msg)}</span></div>`).join("");
+  }
+  function renderOutputArea() {
+    const r = state.result, runErr = state.runError;
+    const idle = $("idleState"), errSt = $("errState"), body = $("outBody");
+    if (runErr) {
+      idle.classList.add("hidden"); body.classList.add("hidden"); errSt.classList.remove("hidden");
+      $("errStateMsg").textContent = runErr;
+      $("okPill").classList.add("hidden"); $("badPill").classList.remove("hidden");
+      $("downloadBtn").classList.add("hidden"); $("warnBanner").classList.add("hidden");
+      return;
+    }
+    if (r == null) {
+      idle.classList.remove("hidden"); errSt.classList.add("hidden"); body.classList.add("hidden");
+      $("okPill").classList.add("hidden"); $("badPill").classList.add("hidden");
+      $("downloadBtn").classList.add("hidden"); $("warnBanner").classList.add("hidden");
+      return;
+    }
+    idle.classList.add("hidden"); errSt.classList.add("hidden"); body.classList.remove("hidden");
+    $("okPill").classList.remove("hidden"); $("badPill").classList.add("hidden");
+    renderSidebar(); renderViewer(); renderMergeLog();
+  }
+
+  // ── Handlers ───────────────────────────────────────────────────────
+  const pasteInto = async (cm) => {
+    try { const t = await navigator.clipboard.readText(); if (t) { cm.setValue(t); cm.setCursor({ line: 0, ch: 0 }); cm.focus(); } } catch (_) {}
+  };
+  $("pasteV3").addEventListener("click", () => pasteInto(v3Cm));
+  $("pasteV4").addEventListener("click", () => pasteInto(v4Cm));
+  $("clearV3").addEventListener("click", () => { v3Cm.setValue(""); v3Cm.focus(); });
+  $("clearV4").addEventListener("click", () => { v4Cm.setValue(""); v4Cm.focus(); });
+
+  $("themeBtn").addEventListener("click", () => {
+    state.theme = state.theme === "dark" ? "light" : "dark";
+    applyTheme(state.theme); saveTheme(state.theme);
+  });
+
+  $("mergeBtn").addEventListener("click", () => {
+    if (!pyodideReady) return;
+    state.runError = null; state.result = null; state.selected = "all"; state.mergeLog = [];
+    $("errRow").classList.add("hidden");
+    let v3data, v4data;
+    try {
+      v3data = parseInput(v3Cm.getValue(), "INPUT 1 (v3)");
+      v4data = parseInput(v4Cm.getValue(), "INPUT 2 (v4 base)");
+    } catch (e) {
+      $("errRow").classList.remove("hidden");
+      $("errLoc").textContent = (e.parse && e.parse.loc) || "";
+      $("errMsg").textContent = (e.parse && e.parse.msg) || e.message;
+      renderOutputArea();
+      return;
+    }
+    setStatus("Merging…", "loading");
+    try {
+      const { merged, warns } = runMergePython(v3data, v4data);
+      state.result = merged;
+      state.resultMode = detectResultMode(merged);
+      state.mergeLog = (warns || []).map(msg => ({ kind: /^\s*⚠/.test(msg) ? "warn" : "info", msg }));
+      setStatus("Ready", "ready");
+    } catch (e) {
+      state.runError = e.message || String(e);
+      setStatus("Merge failed", "error");
+    }
+    renderOutputArea();
+  });
+
+  $("copyBtn").addEventListener("click", async () => {
+    const text = outputCm.getValue();
+    try { JSON.parse(text); } catch (e) { alert("คัดลอกไม่ได้ — JSON ในกล่องยังไม่ถูกต้อง"); return; }
+    try {
+      await navigator.clipboard.writeText(text);
+      $("copyBtn").classList.add("copied"); $("copyIcon").textContent = "✓"; $("copyLabel").textContent = "คัดลอกแล้ว";
+      setTimeout(() => { $("copyBtn").classList.remove("copied"); $("copyIcon").textContent = "⧉"; $("copyLabel").textContent = "คัดลอก"; }, 1500);
+    } catch (_) {}
+  });
+
+  $("downloadBtn").addEventListener("click", () => {
+    const text = (state.selected === "all") ? outputCm.getValue() : JSON.stringify(getSlice().slice, null, 2);
+    const blob = new Blob([text], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "merged-v4.json";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+
+  function showErrState(msg) { state.runError = msg; renderOutputArea(); }
+
+  updateInputMeta();
+  renderOutputArea();
+})();
+</script>
+
+</body>
+</html>

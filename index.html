@@ -869,7 +869,7 @@
     if (mode === "site") {
       snippet =
         "_twarns = []\n" +
-        `_pages = convert_site(_input) if ${py(cfg.content)} else []\n` +
+        `_pages = convert_site(_input, _twarns) if ${py(cfg.content)} else []\n` +
         "_zones = convert_zones(_input)\n" +
         `_globals = convert_global(_input, _twarns, ${gkw})\n` +
         "_result = {\n" +
@@ -890,21 +890,23 @@
       snippet = `_twarns = []\n_result = convert_global(_input, _twarns, ${gkw})\n_errors = []\n`;
     } else if (mode === "pages") {
       snippet =
-        "_result = [convert_page(p) for p in _input if isinstance(p, dict) and 'layouts' in p]\n" +
+        "_twarns = []\n" +
+        "_result = [convert_page(p, warnings=_twarns) for p in _input if isinstance(p, dict) and 'layouts' in p]\n" +
         "_errors = []\n";
     } else if (mode === "page") {
-      snippet = "_result = convert_page(_input)\n_errors = []\n";
+      snippet = "_twarns = []\n_result = convert_page(_input, warnings=_twarns)\n_errors = []\n";
     } else {
       snippet =
+        "_twarns = []\n" +
         "if isinstance(_input, list):\n" +
         "    _result = []\n    _errors = []\n" +
         "    for i, section in enumerate(_input):\n" +
         "        try:\n" +
-        "            _result.append(convert_section(section))\n" +
+        "            _result.append(convert_section(section, _twarns))\n" +
         "        except ValueError as e:\n" +
         "            _errors.append((i, section.get('name', '?'), str(e)))\n" +
         "else:\n" +
-        "    _result = convert_section(_input)\n    _errors = []\n";
+        "    _result = convert_section(_input, _twarns)\n    _errors = []\n";
     }
     pyodide.runPython(snippet + "\ntry:\n    _twarns\nexcept NameError:\n    _twarns = []\n");
     const resultProxy = pyodide.globals.get("_result");

@@ -22,21 +22,25 @@ import sys
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.11"
-LAST_UPDATED = "2026-07-09"
+__version__ = "1.12"
+LAST_UPDATED = "2026-07-13"
 
 # Short summary of what the converter handles — shown in the browser popup.
 # Plain strings; inline HTML (e.g. <code>) is allowed for rendering there.
 CAPABILITIES = [
     "แปลงโค้ด JSON หน้าร้าน LNW Shop จาก <code>v3</code> เป็น <code>v4</code>",
     "ตรวจชนิดข้อมูลอัตโนมัติ: section เดี่ยว, ทั้งเว็บ (<code>site</code>), zone, หรือ global component",
-    "รองรับครบ 16 content section + Header/Footer zone + Global component",
+    "รองรับครบ 17 content section + Header/Footer zone + Global component",
     "จัดระเบียบ HTML ในเนื้อหาอัตโนมัติ (ปิด tag เช่น <code>&lt;br&gt;</code>) และเตือนเมื่อพบ tag ที่ไม่ได้ปิด",
 ]
 
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.12", "date": "2026-07-13", "items": [
+        "รองรับ <code>CustomHtmlSection</code> แล้ว (เดิมข้าม) — สร้าง section ที่มี <code>WidgetCustomHtml</code> ว่าง (<code>renderMode: inline</code>) + ตั้ง nickname จาก title",
+        "เตือนทุกครั้งที่พบ Custom HTML ว่า <b>ต้องนำโค้ด HTML เดิมไปวางเองใน manage ของร้าน</b> (v4 เก็บ custom HTML แยกจากโครงหน้า — converter ไม่ฝัง HTML ให้)",
+    ]},
     {"version": "1.11", "date": "2026-07-09", "items": [
         "FeatureSection: เมื่อ <code>isCropImage: false</code> จะตั้ง <code>mediaRatio: \"auto\"</code> (ให้รูปคงอัตราส่วนเดิม) แทนการปล่อยว่าง; <code>true</code> ยังครอปเป็น <code>1 / 1</code> เหมือนเดิม",
     ]},
@@ -5094,6 +5098,25 @@ def convert_zones(site_json: dict) -> dict:
 # Dispatcher — register new section types here
 # ---------------------------------------------------------------------------
 
+def _customhtml_nickname(props: dict) -> str:
+    """Nickname for a CustomHtml section/widget: the v3 `title` if set, else a
+    generic label so the block is identifiable in the v4 editor."""
+    title = (props.get("title") or "").strip()
+    return title or "Custom HTML"
+
+
+def build_customhtml_section(props: dict) -> dict:
+    """CustomHtmlSection → a section holding an EMPTY WidgetCustomHtml
+    (renderMode "inline"). The v3 `customHtml` string is intentionally NOT
+    embedded — v4 stores custom HTML in the shop's manage area, so the designer
+    must paste it there (convert_section emits a warning saying so)."""
+    nickname = _customhtml_nickname(props)
+    widget = make_node("widget", "WidgetCustomHtml", nickname, {"renderMode": "inline"})
+    section = _simple_section([widget])
+    section["nickname"] = nickname
+    return section
+
+
 SECTION_BUILDERS = {
     "ParagraphSection": build_paragraph_section,
     "Headline":         build_headline_section,
@@ -5111,10 +5134,11 @@ SECTION_BUILDERS = {
     "CouponSlick":         build_couponslick_section,
     "ContactusSection":    build_contactussection_section,
     "FaqsSection":         build_faqssection_section,
+    "CustomHtmlSection":   build_customhtml_section,
 }
 
 
-def convert_section(old_json: dict) -> dict:
+def convert_section(old_json: dict, warnings: list = None) -> dict:
     name    = old_json.get("name", "")
     props   = old_json.get("props", {})
     builder = SECTION_BUILDERS.get(name)
@@ -5124,6 +5148,19 @@ def convert_section(old_json: dict) -> dict:
             "Add a builder function and register it in SECTION_BUILDERS."
         )
     result = builder(props)
+    # CustomHtml: the widget is empty by design — the v3 HTML is not embedded
+    # (v4 keeps custom HTML in the shop's manage area). Warn so the designer
+    # knows to paste it there.
+    if name == "CustomHtmlSection" and warnings is not None:
+        nickname = (result or {}).get("nickname") or "Custom HTML"
+        cls  = (props.get("className") or "").strip()
+        hint = f" (class: {cls})" if cls else ""
+        warnings.append({
+            "path": None, "kind": "warn",
+            "msg": f"Custom HTML “{nickname}”{hint}: สร้าง widget ว่างให้แล้ว — "
+                   "ต้องนำโค้ด HTML เดิมไปวางเองใน manage ของร้าน "
+                   "(v4 เก็บ custom HTML แยกจากโครงหน้า)",
+        })
     # --- Global section-level props (apply to most section types) ---
     # BannerSlick handles its own dark mode (no colorScheme mapping)
     if result is not None and props.get("isDarkMode") and name != "BannerSlick":
@@ -5404,6 +5441,7 @@ def convert_page(
     modules: list = None,
     component_kind: str = None,
     default_key: str = None,
+    warnings: list = None,
 ) -> dict:
     """Convert a page object to the v4 page envelope format.
 
@@ -5425,7 +5463,7 @@ def convert_page(
 
     for i, section in enumerate(layouts):
         try:
-            converted = convert_section(section)
+            converted = convert_section(section, warnings)
             if converted is not None:
                 children.append(converted)
         except ValueError as e:
@@ -5504,7 +5542,7 @@ def _path_from_title(title: str) -> str:
     return f"/{slug}" if slug else "/page"
 
 
-def convert_site(site_json: dict) -> list:
+def convert_site(site_json: dict, warnings: list = None) -> list:
     """Convert a full site JSON containing multiple pages.
 
     Returns an ordered list of v4 page objects:
@@ -5530,6 +5568,7 @@ def convert_site(site_json: dict) -> list:
             modules=entry.get("modules"),
             component_kind=entry.get("component_kind"),
             default_key=v3_key,
+            warnings=warnings,
         ))
 
     # ── 2. v3 keys treated as custom (e.g. "help") ───────────────────────
@@ -5545,6 +5584,7 @@ def convert_site(site_json: dict) -> list:
             layouts=layouts,
             path=f"/{key}",
             nickname=key.capitalize(),
+            warnings=warnings,
         ))
 
     # ── 3. customRoutes ──────────────────────────────────────────────────
@@ -5562,7 +5602,7 @@ def convert_site(site_json: dict) -> list:
             title = page.get("title") or ""
             path = _make_unique_path(_path_from_title(title), used_paths)
         used_paths.add(path)
-        results.append(convert_page(page, path=path))
+        results.append(convert_page(page, path=path, warnings=warnings))
 
     # ── unknown v3 keys with layouts → custom page (skip if layouts empty) ─
     skip = _V4_CLAIMED_KEYS | SYSTEM_PAGES_AS_CUSTOM | {"customRoutes"}
@@ -5579,6 +5619,7 @@ def convert_site(site_json: dict) -> list:
             layouts=layouts,
             path=path,
             nickname=key.capitalize(),
+            warnings=warnings,
         ))
 
     return results
@@ -5736,9 +5777,9 @@ def main():
         if not isinstance(data, dict):
             print("❌  site mode expects a JSON object at the top level.")
             sys.exit(1)
-        pages  = convert_site(data)
-        zones  = convert_zones(data)
         theme_warnings: list = []
+        pages  = convert_site(data, theme_warnings)
+        zones  = convert_zones(data)
         globals_ = convert_global(data, theme_warnings)
         result = {
             "nickname":    "Imported",
@@ -5827,24 +5868,28 @@ def main():
         if not (isinstance(data, dict) and "layouts" in data):
             print("❌  page mode expects a JSON object with a 'layouts' key.")
             sys.exit(1)
-        result = convert_page(data)
+        sec_warnings: list = []
+        result = convert_page(data, warnings=sec_warnings)
         if output_path:
             _write(result, output_path)
             print(f"✅  Converted page with {_section_count(result)} section(s) → {output_path}")
         else:
             print(json.dumps(result, indent=2, ensure_ascii=False))
+        for w in sec_warnings:
+            print(f"⚠️   {w['msg']}", file=sys.stderr)
         return
 
     # ── sections ───────────────────────────────────────────────────────────
+    sec_warnings = []
     if isinstance(data, list):
         result = []
         for i, section in enumerate(data):
             try:
-                result.append(convert_section(section))
+                result.append(convert_section(section, sec_warnings))
             except ValueError as e:
                 print(f"⚠️  Skipping section {i} ({section.get('name', '?')}): {e}")
     else:
-        result = convert_section(data)
+        result = convert_section(data, sec_warnings)
 
     if output_path:
         _write(result, output_path)
@@ -5852,6 +5897,8 @@ def main():
         print(f"✅  Converted {count} section(s) → {output_path}")
     else:
         print(json.dumps(result, indent=2, ensure_ascii=False))
+    for w in sec_warnings:
+        print(f"⚠️   {w['msg']}", file=sys.stderr)
 
 
 if __name__ == "__main__":
