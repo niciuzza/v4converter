@@ -126,6 +126,16 @@
   .convert-btn:not(:disabled):active{transform:translateY(1px)}
   .arrow{font-family:'JetBrains Mono',monospace;font-size:15px}
 
+  /* ── Merge-mode selector ──────────────────────────────────────────── */
+  .mode-row{display:flex;align-items:center;gap:10px;padding:0 13px 10px}
+  .mode-label{font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--muted);flex:none}
+  .mode-toggle{display:flex;border:1px solid var(--border-strong);border-radius:8px;overflow:hidden;flex:none}
+  .mode-btn{border:none;background:transparent;color:var(--muted);font-family:inherit;font-size:12px;font-weight:600;padding:6px 12px;cursor:pointer;display:flex;align-items:center;gap:6px}
+  .mode-btn + .mode-btn{border-left:1px solid var(--border-strong)}
+  .mode-btn:hover{background:var(--hover)}
+  .mode-btn.active{background:var(--accent);color:#fff}
+  .mode-hint{font-size:11px;color:var(--muted-2);line-height:1.4}
+
   /* ── OUTPUT ────────────────────────────────────────────────────────── */
   .panel.output{flex:3}
   .out-head{height:46px;flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 13px;border-bottom:1px solid var(--border);background:var(--panel-head)}
@@ -284,6 +294,14 @@
             <span class="err-msg" id="errMsg"></span>
           </div>
         </div>
+        <div class="mode-row">
+          <span class="mode-label">โหมดการรวม</span>
+          <div class="mode-toggle" id="modeToggle">
+            <button class="mode-btn active" id="modeAppendBtn" type="button" data-mode="append">ต่อท้าย</button>
+            <button class="mode-btn" id="modeReplaceBtn" type="button" data-mode="replace">แทนที่</button>
+          </div>
+          <span class="mode-hint" id="modeHint">หน้า/zone ที่มีทั้งคู่: เอาเนื้อหา v3 ต่อท้าย v4 เดิม (ไม่ทับ)</span>
+        </div>
         <div class="foot-row">
           <span class="foot-meta" id="inputMeta">v3: 0 · v4: 0 บรรทัด</span>
           <button class="convert-btn" id="mergeBtn" type="button" disabled>
@@ -403,8 +421,8 @@
     const README = [
       "รวม JSON สองอันเป็นอันเดียว: <b>ช่องบน = โค้ดจาก converter</b> (v3→v4 มีเนื้อหา แต่ยังไม่มี id/ukey), <b>ช่องล่าง = โค้ด v4 เดิม</b> (มี id/ukey ที่ v4 ต้องใช้ตอนบันทึก)",
       "ผลลัพธ์ = โค้ด v4 เดิม + เนื้อหา v3 ที่ยัดลงไป โดย<b>คง id/ukey เดิมของ v4</b> ไว้ทุกจุด (แก้ปัญหา v4 ไม่ยอมบันทึกเมื่อ page id หาย)",
-      "จับคู่หน้าด้วย <code>path</code>: หน้าที่มีอยู่แล้วใน v4 → เอาเนื้อหา v3 <b>ต่อท้าย</b> (ไม่ทับ) · หน้าที่มีเฉพาะใน v3 → <b>เพิ่มเป็นหน้าใหม่</b> (id/ukey = null)",
-      "section/block ที่เนื้อหา<b>ซ้ำกับ v4 อยู่แล้ว จะไม่ append ซ้ำ</b> (เทียบเนื้อหาโดยไม่สน id/ukey)",
+      "จับคู่หน้าด้วย <code>path</code> · เลือก<b>โหมดการรวม</b>ได้ที่ปุ่มเหนือ \"รวมโค้ด\": <b>ต่อท้าย</b> (ค่าเริ่มต้น) = เอาเนื้อหา v3 ต่อท้าย v4 เดิม (ไม่ทับ) หรือ <b>แทนที่</b> = ใช้เนื้อหา v3 แทน v4 ทั้งหมดสำหรับหน้า/zone ที่มีทั้งคู่ (ยังคง id เดิมไว้ให้บันทึกได้) · ทั้งสองโหมด หน้าที่มีเฉพาะใน v3 → <b>เพิ่มเป็นหน้าใหม่</b> (id/ukey = null) และหน้าที่มีเฉพาะใน v4 → ไม่ถูกแตะต้อง",
+      "โหมดต่อท้าย: section/block ที่เนื้อหา<b>ซ้ำกับ v4 อยู่แล้ว จะไม่ append ซ้ำ</b> (เทียบเนื้อหาโดยไม่สน id/ukey)",
       "รวม <code>info</code> + <code>style</code> (เช่น <code>:root</code> ฟอนต์/สีธีม) ของ v3 เข้ากับ v4 ด้วย · key ที่ซ้ำใช้ค่าของ v3 ทับ + ขึ้น warning",
       "รวมเนื้อหา zone (header/footer/free) จาก v3 ต่อท้าย v4 ด้วย",
       "ดู <b>บันทึกการรวม</b> ที่แถบบนกล่องผลลัพธ์ว่าแต่ละหน้าถูกทำอะไร · คัดลอก/ดาวน์โหลดผลลัพธ์ไปวางใน v4 ได้เลย",
@@ -438,14 +456,40 @@
   }
   function saveTheme(t) { try { localStorage.setItem(THEME_KEY, t); } catch (_) {} }
 
+  const MODE_KEY = "mergecode_mode";
+  function loadMergeMode() {
+    try { const v = localStorage.getItem(MODE_KEY); if (v === "append" || v === "replace") return v; } catch (_) {}
+    return "append";
+  }
+  function saveMergeMode(m) { try { localStorage.setItem(MODE_KEY, m); } catch (_) {} }
+
   const state = {
     theme: loadTheme(),
+    mergeMode: loadMergeMode(),  // "append" | "replace"
     result: null,       // merged output object
     resultMode: null,
     runError: null,
     selected: "all",
     mergeLog: [],       // [{kind:"info"|"warn", msg}]
   };
+
+  const MODE_HINTS = {
+    append: "หน้า/zone ที่มีทั้งคู่: เอาเนื้อหา v3 ต่อท้าย v4 เดิม (ไม่ทับ)",
+    replace: "หน้า/zone ที่มีทั้งคู่: ใช้เนื้อหาจาก v3 เท่านั้น ตัดของ v4 ทิ้ง (หน้าที่มีแค่ใน v4 ไม่โดนแตะ)",
+  };
+  function applyMergeMode(m) {
+    state.mergeMode = m;
+    $("modeAppendBtn").classList.toggle("active", m === "append");
+    $("modeReplaceBtn").classList.toggle("active", m === "replace");
+    $("modeHint").textContent = MODE_HINTS[m];
+  }
+  $("modeToggle").addEventListener("click", (e) => {
+    const btn = e.target.closest(".mode-btn");
+    if (!btn) return;
+    applyMergeMode(btn.dataset.mode);
+    saveMergeMode(btn.dataset.mode);
+  });
+  applyMergeMode(state.mergeMode);
 
   function applyTheme(t) {
     document.querySelector(".root").dataset.theme = t;
@@ -552,13 +596,14 @@
   }
 
   // ── Merge (the only Python call) ───────────────────────────────────
-  function runMergePython(v3data, v4data) {
+  function runMergePython(v3data, v4data, mode) {
     // JSON round-trip (not toPy/toJs) so null-valued keys survive intact.
     pyodide.globals.set("_v3_json", JSON.stringify(v3data));
     pyodide.globals.set("_v4_json", JSON.stringify(v4data));
+    pyodide.globals.set("_mode", mode);
     pyodide.runPython(
       "import json\n" +
-      "_m, _w = merge_v3_into_v4(json.loads(_v3_json), json.loads(_v4_json))\n" +
+      "_m, _w = merge_v3_into_v4(json.loads(_v3_json), json.loads(_v4_json), mode=_mode)\n" +
       "_out_json = json.dumps({'merged': _m, 'warns': _w}, ensure_ascii=False)"
     );
     return JSON.parse(pyodide.globals.get("_out_json"));  // { merged, warns:[str] }
@@ -728,7 +773,7 @@
     }
     setStatus("Merging…", "loading");
     try {
-      const { merged, warns } = runMergePython(v3data, v4data);
+      const { merged, warns } = runMergePython(v3data, v4data, state.mergeMode);
       state.result = merged;
       state.resultMode = detectResultMode(merged);
       state.mergeLog = (warns || []).map(msg => ({ kind: /^\s*⚠/.test(msg) ? "warn" : "info", msg }));

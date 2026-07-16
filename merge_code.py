@@ -11,40 +11,53 @@ This stopgap merges two JSONs into one:
   2. a v4 base JSON copied from v4 (a blank slot OR a real shop export) — has the
      real id/ukey v4 needs to accept the save.
 
-Result = the v4 base with v3 content grafted in (always APPENDED, never
-overwritten — the designer prunes duplicates in the v4 editor), so it saves and
-renders.
+Result = the v4 base with v3 content grafted in — either APPENDED (default —
+the designer prunes duplicates in the v4 editor) or, for pages/zones that
+exist in both, REPLACING the v4 side's content outright — so it saves and
+renders either way.
 
 **Separate from the production converter on purpose** — this does NOT import or
 modify `converter.py`; it has its own version/changelog and its own web page
 (`mergecode.html`). No `__version__` bump, no reuse of the designer converter.
 
-Merge model (v4 = skeleton, v3 = content):
+Merge model (v4 = skeleton, v3 = content), controlled by `mode`:
   - Top-level envelope: kept from v4 (slot `id`, `last_revision_id`, `theme_key`,
     `nickname`, `css`, `unuse_configs`, …), EXCEPT `info` + `style` which are
-    deep-merged with v3's (v3 wins on conflicting keys, with a warning).
+    deep-merged with v3's (v3 wins on conflicting keys, with a warning) —
+    unaffected by `mode`.
   - Pages matched by top-level `path`:
-      * match in v4  → append v3 page's `component.children` after v4's; keep
-        v4 page id/ukey/metadata + v4 component id/ukey.
-      * v3-only path → append whole v3 page as a NEW page (id/ukey = null).
-      * v4-only path → untouched.
-  - Zones (header/footer/free) hold content at `children` directly → append v3
-    zone `children` after v4's; keep v4 zone id/ukey/metadata.
+      * match in v4, mode="append" (default) → append v3 page's
+        `component.children` after v4's (content-deduped); keep v4 page
+        id/ukey/metadata + v4 component id/ukey.
+      * match in v4, mode="replace" → v4's `component.children` are REPLACED
+        wholesale by v3's; v4 page id/ukey/metadata + v4 component id/ukey are
+        still kept (that's the whole point — v4 needs them to save).
+      * v3-only path → append whole v3 page as a NEW page (id/ukey = null),
+        same in both modes (nothing in v4 to replace).
+      * v4-only path → untouched, same in both modes (nothing in v3 to graft).
+  - Zones (header/footer/free) hold content at `children` directly → same
+    append-vs-replace choice as pages, keyed on whether v3 supplies content for
+    that zone; v4 zone id/ukey/metadata always kept.
   - Deep child nodes stay null-id (only page/zone ids are the blocker).
 
 Usage:
-    python3 merge_code.py <v3_out.json> <v4_base.json> <merged.json>
-    python3 merge_code.py <v3_out.json> <v4_base.json>          # → stdout
+    python3 merge_code.py <v3_out.json> <v4_base.json> <merged.json> [--mode=append|replace]
+    python3 merge_code.py <v3_out.json> <v4_base.json> [--mode=append|replace]   # → stdout
 """
 import sys
 import json
 import copy
 import re
 
-MERGE_VERSION = "1.2"
-MERGE_LAST_UPDATED = "2026-07-13"
+MERGE_VERSION = "1.3"
+MERGE_LAST_UPDATED = "2026-07-16"
 
 MERGE_CHANGELOG = [
+    {"version": "1.3", "date": "2026-07-16", "items": [
+        "เพิ่มโหมด <b>แทนที่ (replace)</b> — หน้า/zone ที่มีทั้งใน v3 และ v4 จะใช้เนื้อหาจาก v3 "
+        "เท่านั้น (ตัดของ v4 ทิ้ง) แทนการต่อท้าย · หน้าที่มีเฉพาะใน v4 (ไม่มีใน v3) ยังคงอยู่ครบ "
+        "ไม่ว่าโหมดไหน · ค่าเริ่มต้นยังเป็น <b>ต่อท้าย (append)</b> เหมือนเดิม",
+    ]},
     {"version": "1.2", "date": "2026-07-13", "items": [
         "รวม top-level <code>info</code> + <code>style</code> ของ v3 เข้ากับ v4 ด้วย (deep merge — <code>:root</code> รวมทีละ key) · key ที่ซ้ำใช้ค่าของ v3 ทับ + ขึ้น warning",
     ]},
@@ -121,12 +134,21 @@ def _append_deduped(kids: list, new_children: list):
     return added, skipped
 
 
-def merge_v3_into_v4(v3: dict, v4: dict):
+def merge_v3_into_v4(v3: dict, v4: dict, mode: str = "append"):
     """Graft v3 content onto a deep copy of the v4 base. Returns (merged, warnings).
 
-    v4 is the skeleton (all ids/envelope kept); v3 supplies content, always
-    appended. Never mutates the inputs.
+    v4 is the skeleton (all ids/envelope kept); v3 supplies content.
+    `mode`:
+      - "append" (default) — v3 content is appended after v4's existing
+        content, content-deduped (matches historical behavior).
+      - "replace" — for any page/zone that exists in BOTH v3 and v4, v4's
+        existing children are discarded and replaced with v3's. Pages/zones
+        that only exist in v4 (not in v3) are left untouched either way —
+        there's nothing in v3 to replace them with.
+    Never mutates the inputs.
     """
+    if mode not in ("append", "replace"):
+        raise ValueError("mode must be 'append' or 'replace', got %r" % (mode,))
     warnings = []
     result = copy.deepcopy(v4)
 
@@ -171,7 +193,7 @@ def merge_v3_into_v4(v3: dict, v4: dict):
         v3_children = ((pg.get("component") or {}).get("children")) or []
 
         if path in index:
-            # matched → append v3 sections after v4's, keep v4 ids/component
+            # matched → keep v4 page ids/component, graft v3 content in per `mode`
             if not v3_children:
                 warnings.append("หน้า %r: v3 ไม่มีเนื้อหาให้เพิ่ม (ข้าม)" % path)
                 continue
@@ -181,6 +203,11 @@ def merge_v3_into_v4(v3: dict, v4: dict):
                 # v4 page has no component wrapper — take v3's whole component
                 v4pg["component"] = copy.deepcopy(pg.get("component") or {"children": []})
                 warnings.append("⚠ หน้า %r ใน v4 ไม่มี component — ใช้ของ v3 แทน" % path)
+            elif mode == "replace":
+                old_n = len(v4comp.get("children") or [])
+                v4comp["children"] = copy.deepcopy(v3_children)
+                warnings.append("หน้า %r: แทนที่เนื้อหาเดิม %d section ด้วย %d section จาก v3 (คง id หน้าเดิม)"
+                                % (path, old_n, len(v3_children)))
             else:
                 kids = v4comp.get("children")
                 if not isinstance(kids, list):
@@ -211,15 +238,22 @@ def merge_v3_into_v4(v3: dict, v4: dict):
             continue
         v4zone = result.get(zk)
         if isinstance(v4zone, dict):
-            kids = v4zone.get("children")
-            if not isinstance(kids, list):
-                kids = []
-                v4zone["children"] = kids
-            added, skipped = _append_deduped(kids, v3_zchildren)
-            msg = "%s: เพิ่ม %d block ต่อท้าย (คง id เดิม)" % (zk, added)
-            if skipped:
-                msg += " · ข้าม %d block ที่เนื้อหาซ้ำกับ v4" % skipped
-            warnings.append(msg)
+            if mode == "replace":
+                old_kids = v4zone.get("children")
+                old_n = len(old_kids) if isinstance(old_kids, list) else 0
+                v4zone["children"] = copy.deepcopy(v3_zchildren)
+                warnings.append("%s: แทนที่เนื้อหาเดิม %d block ด้วย %d block จาก v3 (คง id zone เดิม)"
+                                % (zk, old_n, len(v3_zchildren)))
+            else:
+                kids = v4zone.get("children")
+                if not isinstance(kids, list):
+                    kids = []
+                    v4zone["children"] = kids
+                added, skipped = _append_deduped(kids, v3_zchildren)
+                msg = "%s: เพิ่ม %d block ต่อท้าย (คง id เดิม)" % (zk, added)
+                if skipped:
+                    msg += " · ข้าม %d block ที่เนื้อหาซ้ำกับ v4" % skipped
+                warnings.append(msg)
         else:
             result[zk] = copy.deepcopy(v3zone)
             warnings.append("⚠ v4 ไม่มี %s — คัดลอกจาก v3 (id/ukey = null)" % zk)
@@ -241,11 +275,11 @@ def _lenient_loads(text: str):
         return json.loads("[%s]" % raw)
 
 
-def merge_text(v3_text: str, v4_text: str):
+def merge_text(v3_text: str, v4_text: str, mode: str = "append"):
     """String → string wrapper for the web page. Returns (out_text, warnings)."""
     v3 = _lenient_loads(v3_text)
     v4 = _lenient_loads(v4_text)
-    merged, warnings = merge_v3_into_v4(v3, v4)
+    merged, warnings = merge_v3_into_v4(v3, v4, mode=mode)
     out_text = json.dumps(merged, indent=2, ensure_ascii=False)
     return out_text, warnings
 
@@ -254,20 +288,30 @@ def main(argv) -> int:
     if not argv or argv[0] in ("-h", "--help") or len(argv) < 2:
         print(__doc__)
         return 0 if argv[:1] in (["-h"], ["--help"]) else 1
-    v3 = _lenient_loads(open(argv[0], encoding="utf-8").read())
-    v4 = _lenient_loads(open(argv[1], encoding="utf-8").read())
-    merged, warnings = merge_v3_into_v4(v3, v4)
+    mode = "append"
+    positional = []
+    for a in argv:
+        if a.startswith("--mode="):
+            mode = a.split("=", 1)[1]
+        else:
+            positional.append(a)
+    if len(positional) < 2:
+        print(__doc__)
+        return 1
+    v3 = _lenient_loads(open(positional[0], encoding="utf-8").read())
+    v4 = _lenient_loads(open(positional[1], encoding="utf-8").read())
+    merged, warnings = merge_v3_into_v4(v3, v4, mode=mode)
     out_text = json.dumps(merged, indent=2, ensure_ascii=False)
-    if len(argv) > 2:
-        with open(argv[2], "w", encoding="utf-8") as f:
+    if len(positional) > 2:
+        with open(positional[2], "w", encoding="utf-8") as f:
             f.write(out_text)
-        dest = argv[2]
+        dest = positional[2]
     else:
         sys.stdout.write(out_text)
         dest = "(stdout)"
     for w in warnings:
         print(w, file=sys.stderr)
-    print("✅  Merged %s + %s → %s  (%d ข้อความ)" % (argv[0], argv[1], dest, len(warnings)),
+    print("✅  Merged %s + %s → %s  [mode=%s]  (%d ข้อความ)" % (positional[0], positional[1], dest, mode, len(warnings)),
           file=sys.stderr)
     return 0
 
