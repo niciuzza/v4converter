@@ -32,27 +32,46 @@ Merge model (v4 = skeleton, v3 = content), controlled by `mode`:
       * match in v4, mode="replace" → v4's `component.children` are REPLACED
         wholesale by v3's; v4 page id/ukey/metadata + v4 component id/ukey are
         still kept (that's the whole point — v4 needs them to save).
+      * match in v4, mode="migrate" → same as "replace", but first the ENTIRE
+        source (`v3`) has every `id`/`ukey` stripped, recursively, at every
+        level (page/zone/section/row/col/widget) — see below.
       * v3-only path → append whole v3 page as a NEW page (id/ukey = null),
-        same in both modes (nothing in v4 to replace).
-      * v4-only path → untouched, same in both modes (nothing in v3 to graft).
+        same in all modes (nothing in v4 to replace).
+      * v4-only path → untouched, same in all modes (nothing in v3 to graft).
   - Zones (header/footer/free) hold content at `children` directly → same
-    append-vs-replace choice as pages, keyed on whether v3 supplies content for
-    that zone; v4 zone id/ukey/metadata always kept.
-  - Deep child nodes stay null-id (only page/zone ids are the blocker).
+    append/replace/migrate choice as pages, keyed on whether v3 supplies
+    content for that zone; v4 zone id/ukey/metadata always kept.
+  - Deep child nodes stay null-id in append/replace (only page/zone ids are the
+    blocker — the source is assumed to be plain converter output, which never
+    has ids to begin with).
+  - `mode="migrate"` exists for a DIFFERENT scenario: `v3` isn't converter
+    output — it's a real v4 export from ANOTHER shop (e.g. moving content shop
+    A → shop B), so every node already carries shop A's real ids. Those ids
+    are foreign to shop B and must not leak in, so this mode deep-strips
+    `id`/`ukey` from the whole source first (turning it back into id-less
+    content, same shape as converter output), then runs "replace": the target
+    keeps its own page/zone/component ids wherever paths match, and every bit
+    of grafted-in content — matched-page replacements, brand-new pages, zone
+    content — ends up null-id, ready for the target to assign on import.
 
 Usage:
-    python3 merge_code.py <v3_out.json> <v4_base.json> <merged.json> [--mode=append|replace]
-    python3 merge_code.py <v3_out.json> <v4_base.json> [--mode=append|replace]   # → stdout
+    python3 merge_code.py <v3_out.json> <v4_base.json> <merged.json> [--mode=append|replace|migrate]
+    python3 merge_code.py <v3_out.json> <v4_base.json> [--mode=append|replace|migrate]   # → stdout
 """
 import sys
 import json
 import copy
 import re
 
-MERGE_VERSION = "1.3"
+MERGE_VERSION = "1.4"
 MERGE_LAST_UPDATED = "2026-07-16"
 
 MERGE_CHANGELOG = [
+    {"version": "1.4", "date": "2026-07-16", "items": [
+        "เพิ่มโหมด <b>ย้ายร้าน (migrate)</b> — ใช้ตอนย้ายเนื้อหาจาก v4 ร้านหนึ่งไปอีกร้านหนึ่ง (ไม่ใช่โค้ดจาก converter) "
+        "เพราะโค้ดต้นทางแบบนี้จะติด id/ukey ของร้านเดิมมาทุกระดับ (page/zone/section/แถว/คอลัมน์/widget) — "
+        "โหมดนี้ตัด id/ukey เดิมออกทั้งหมดก่อน แล้วใช้เนื้อหานั้นแทนที่ของร้านปลายทาง โดยยังคง id ของร้านปลายทางไว้ (หน้า/zone ที่จับคู่ path ได้)",
+    ]},
     {"version": "1.3", "date": "2026-07-16", "items": [
         "เพิ่มโหมด <b>แทนที่ (replace)</b> — หน้า/zone ที่มีทั้งใน v3 และ v4 จะใช้เนื้อหาจาก v3 "
         "เท่านั้น (ตัดของ v4 ทิ้ง) แทนการต่อท้าย · หน้าที่มีเฉพาะใน v4 (ไม่มีใน v3) ยังคงอยู่ครบ "
@@ -145,11 +164,21 @@ def merge_v3_into_v4(v3: dict, v4: dict, mode: str = "append"):
         existing children are discarded and replaced with v3's. Pages/zones
         that only exist in v4 (not in v3) are left untouched either way —
         there's nothing in v3 to replace them with.
+      - "migrate" — for shop-to-shop content migration, where `v3` is itself a
+        real v4 export (another shop's site JSON) and therefore carries THAT
+        shop's real id/ukey on every node. Those ids are foreign to the target
+        and must not leak in, so this strips id/ukey from the entire source
+        first (recursively, every level), then behaves exactly like "replace".
     Never mutates the inputs.
     """
-    if mode not in ("append", "replace"):
-        raise ValueError("mode must be 'append' or 'replace', got %r" % (mode,))
+    if mode not in ("append", "replace", "migrate"):
+        raise ValueError("mode must be 'append', 'replace', or 'migrate', got %r" % (mode,))
     warnings = []
+    if mode == "migrate":
+        v3 = _strip_ids(v3)
+        mode = "replace"
+        warnings.append("โหมดย้ายร้าน: ตัด id/ukey เดิมของโค้ดต้นทางออกทั้งหมดก่อนรวม "
+                        "(ทุกระดับ — page/zone/section/แถว/คอลัมน์/widget)")
     result = copy.deepcopy(v4)
 
     # ---- Top-level info + style: merge v3's parent settings in (v3 wins) ----

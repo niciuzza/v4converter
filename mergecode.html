@@ -258,7 +258,7 @@
         <div class="panel-head">
           <div class="out-head-left">
             <span class="label">INPUT 1</span>
-            <span class="badge">v3 · จาก converter (มีเนื้อหา, ไม่มี id)</span>
+            <span class="badge" id="input1Badge">v3 · จาก converter (มีเนื้อหา, ไม่มี id)</span>
           </div>
           <div class="panel-head-right">
             <button class="ghost-btn" id="pasteV3" type="button">วาง</button>
@@ -299,6 +299,7 @@
           <div class="mode-toggle" id="modeToggle">
             <button class="mode-btn active" id="modeAppendBtn" type="button" data-mode="append">ต่อท้าย</button>
             <button class="mode-btn" id="modeReplaceBtn" type="button" data-mode="replace">แทนที่</button>
+            <button class="mode-btn" id="modeMigrateBtn" type="button" data-mode="migrate">ย้ายร้าน</button>
           </div>
           <span class="mode-hint" id="modeHint">หน้า/zone ที่มีทั้งคู่: เอาเนื้อหา v3 ต่อท้าย v4 เดิม (ไม่ทับ)</span>
         </div>
@@ -421,7 +422,8 @@
     const README = [
       "รวม JSON สองอันเป็นอันเดียว: <b>ช่องบน = โค้ดจาก converter</b> (v3→v4 มีเนื้อหา แต่ยังไม่มี id/ukey), <b>ช่องล่าง = โค้ด v4 เดิม</b> (มี id/ukey ที่ v4 ต้องใช้ตอนบันทึก)",
       "ผลลัพธ์ = โค้ด v4 เดิม + เนื้อหา v3 ที่ยัดลงไป โดย<b>คง id/ukey เดิมของ v4</b> ไว้ทุกจุด (แก้ปัญหา v4 ไม่ยอมบันทึกเมื่อ page id หาย)",
-      "จับคู่หน้าด้วย <code>path</code> · เลือก<b>โหมดการรวม</b>ได้ที่ปุ่มเหนือ \"รวมโค้ด\": <b>ต่อท้าย</b> (ค่าเริ่มต้น) = เอาเนื้อหา v3 ต่อท้าย v4 เดิม (ไม่ทับ) หรือ <b>แทนที่</b> = ใช้เนื้อหา v3 แทน v4 ทั้งหมดสำหรับหน้า/zone ที่มีทั้งคู่ (ยังคง id เดิมไว้ให้บันทึกได้) · ทั้งสองโหมด หน้าที่มีเฉพาะใน v3 → <b>เพิ่มเป็นหน้าใหม่</b> (id/ukey = null) และหน้าที่มีเฉพาะใน v4 → ไม่ถูกแตะต้อง",
+      "จับคู่หน้าด้วย <code>path</code> · เลือก<b>โหมดการรวม</b>ได้ที่ปุ่มเหนือ \"รวมโค้ด\": <b>ต่อท้าย</b> (ค่าเริ่มต้น) = เอาเนื้อหา v3 ต่อท้าย v4 เดิม (ไม่ทับ) · <b>แทนที่</b> = ใช้เนื้อหา v3 แทน v4 ทั้งหมดสำหรับหน้า/zone ที่มีทั้งคู่ (ยังคง id เดิมไว้ให้บันทึกได้) · ทุกโหมด หน้าที่มีเฉพาะใน v3 → <b>เพิ่มเป็นหน้าใหม่</b> (id/ukey = null) และหน้าที่มีเฉพาะใน v4 → ไม่ถูกแตะต้อง",
+      "<b>ย้ายร้าน</b> = สำหรับย้ายเนื้อหาข้าม v4 สองร้าน (ช่อง INPUT 1 เป็น v4 export จริงของร้านเดิม ไม่ใช่โค้ดจาก converter) — โหมดนี้จะ<b>ตัด id/ukey ของร้านเดิมออกทั้งหมดทุกระดับ</b> (page/zone/section/แถว/คอลัมน์/widget) ก่อน แล้วทำงานแบบ \"แทนที่\"",
       "โหมดต่อท้าย: section/block ที่เนื้อหา<b>ซ้ำกับ v4 อยู่แล้ว จะไม่ append ซ้ำ</b> (เทียบเนื้อหาโดยไม่สน id/ukey)",
       "รวม <code>info</code> + <code>style</code> (เช่น <code>:root</code> ฟอนต์/สีธีม) ของ v3 เข้ากับ v4 ด้วย · key ที่ซ้ำใช้ค่าของ v3 ทับ + ขึ้น warning",
       "รวมเนื้อหา zone (header/footer/free) จาก v3 ต่อท้าย v4 ด้วย",
@@ -457,8 +459,9 @@
   function saveTheme(t) { try { localStorage.setItem(THEME_KEY, t); } catch (_) {} }
 
   const MODE_KEY = "mergecode_mode";
+  const MODES = ["append", "replace", "migrate"];
   function loadMergeMode() {
-    try { const v = localStorage.getItem(MODE_KEY); if (v === "append" || v === "replace") return v; } catch (_) {}
+    try { const v = localStorage.getItem(MODE_KEY); if (MODES.includes(v)) return v; } catch (_) {}
     return "append";
   }
   function saveMergeMode(m) { try { localStorage.setItem(MODE_KEY, m); } catch (_) {} }
@@ -476,12 +479,20 @@
   const MODE_HINTS = {
     append: "หน้า/zone ที่มีทั้งคู่: เอาเนื้อหา v3 ต่อท้าย v4 เดิม (ไม่ทับ)",
     replace: "หน้า/zone ที่มีทั้งคู่: ใช้เนื้อหาจาก v3 เท่านั้น ตัดของ v4 ทิ้ง (หน้าที่มีแค่ใน v4 ไม่โดนแตะ)",
+    migrate: "ย้ายเนื้อหาข้ามร้าน: ช่อง INPUT 1 เป็น v4 export ของร้านเดิม (มี id ร้านเดิมติดมา) — ตัด id นั้นออกทั้งหมดก่อน แล้วใช้แทนเนื้อหาของร้านปลายทาง โดยคง id ของร้านปลายทางไว้",
+  };
+  const INPUT1_BADGE = {
+    append: "v3 · จาก converter (มีเนื้อหา, ไม่มี id)",
+    replace: "v3 · จาก converter (มีเนื้อหา, ไม่มี id)",
+    migrate: "ร้านเดิม · v4 export (มี id ร้านเดิม — จะถูกตัดออก)",
   };
   function applyMergeMode(m) {
     state.mergeMode = m;
     $("modeAppendBtn").classList.toggle("active", m === "append");
     $("modeReplaceBtn").classList.toggle("active", m === "replace");
+    $("modeMigrateBtn").classList.toggle("active", m === "migrate");
     $("modeHint").textContent = MODE_HINTS[m];
+    $("input1Badge").textContent = INPUT1_BADGE[m];
   }
   $("modeToggle").addEventListener("click", (e) => {
     const btn = e.target.closest(".mode-btn");
