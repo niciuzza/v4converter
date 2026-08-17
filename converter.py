@@ -23,7 +23,7 @@ import sys
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.17"
+__version__ = "1.18"
 LAST_UPDATED = "2026-08-10"
 
 # Short summary of what the converter handles — shown in the browser popup.
@@ -38,6 +38,12 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.18", "date": "2026-08-17", "items": [
+        "Header: header ที่ตั้งพื้นหลังสีเข้มไว้ใน <code>headerPane.sectionStyle.bgColor</code> ตอนนี้ได้ <code>colorScheme: \"color-scheme-inverse\"</code> แล้ว — เดิมดู <code>isDarkMode</code> อย่างเดียว ร้านที่เลือกสีพื้นเข้มเองในหน้า admin (ไม่ได้มาจาก preset ของธีม) เลยได้ <code>color-scheme-main</code> ซึ่งเป็นตัวอักษรสีเข้มบนพื้นเข้ม อ่านไม่ออก",
+        "ParagraphSection layout <code>imageAlignBg</code> + 2 คอลัมน์: ย้าย padding ไปไว้ที่คอลัมน์เนื้อหาแทน section (section เป็น 0 ทั้งหมด + <code>paddingX: 0</code> + <code>isFullwidth</code>) — กฎเดียวกับที่ Headline ใช้มาตั้งแต่ 2026-08-06 แต่ ParagraphSection ยังไม่ได้ทำตาม ทำให้รูปครึ่งจอไม่ชนขอบ",
+        "ParagraphSection layout <code>imageAlignBg</code> ที่ไม่มี <code>image</code>: <code>backgroundImage</code> กลายเป็น <code>WidgetMedia</code> ในคอลัมน์แทนที่จะเป็นพื้นหลังของคอลัมน์ — คอลัมน์ที่มีแต่พื้นหลังไม่มีลูกเลยไม่มีความสูง รูปจึงไม่ขึ้น",
+        "Footer: เพิ่มสัญญาณอีก 2 อย่างนอกจาก <code>isDarkMode</code> — พื้นหลังสีเข้มใน <code>sectionStyle.bgColor</code> (ให้ตรงกับ header) และ <code>siteTitleStyle.fontColor</code> ที่เป็นสีอ่อน (ไม่มีใครใส่อักษรขาวบนพื้นสว่าง) ทั้งคู่ให้ <code>color-scheme-inverse</code>",
+    ]},
     {"version": "1.17", "date": "2026-08-11", "items": [
         "ProductTab: <code>button</code>/<code>buttonLink</code> ของ v3 ตอนนี้แปลงเป็น <code>isViewAllThisTab: true</code> บนตัว <code>WidgetProductTab</code> เอง และไม่สร้าง <code>WidgetButtonGroup</code> เพิ่มอีกแล้ว — เดิมได้ปุ่ม \"ดูสินค้าทั้งหมด\" ซ้ำ 2 ปุ่มในหน้าจริง เพราะ widget วาดปุ่มของตัวเองอยู่แล้ว",
     ]},
@@ -1027,10 +1033,20 @@ def build_content_widgets(props: dict) -> list:
 # --- imageAlignBg layout columns ---
 
 def build_content_col_imagealignbg(props: dict, image_align: str) -> dict:
-    """Content col for imageAlignBg layout: span + optional mobile order."""
+    """Content col for imageAlignBg layout: span, optional mobile order, and the
+    section's padding.
+
+    The padding is NOT the section's to keep in this layout -- the image column
+    is a full-bleed image, and section padding would inset it too. So
+    `build_paragraph_section` zeroes the section and the value lands here
+    instead. Same rule Headline has had since 2026-08-06; ParagraphSection was
+    simply never brought in line."""
     col_info = {"span": {"xs": 12, "lg": 6}}
     if image_align != "imageRight":
         col_info["order"] = {"xs": 2}
+    pt, pb = _paragraph_padding(props)
+    if pt: col_info["paddingTop"]    = pt
+    if pb: col_info["paddingBottom"] = pb
     return make_node("col", None, None, col_info, build_content_widgets(props))
 
 
@@ -1038,12 +1054,21 @@ def build_image_col_imagealignbg(props: dict, image_align: str) -> dict:
     """Image col for imageAlignBg layout: bg from imageAlignConfig + optional mobile order."""
     image_align_config = props.get("imageAlignConfig") or {}
 
-    col_info = {
-        "span": {"xs": 12, "lg": 6},
-        "bgColor": image_align_config.get("color", ""),
-        "bgType": "image",
-        "bgImage": {"src": props.get("backgroundImage", "")},
-    }
+    # `image` present -> `backgroundImage` is the column's backdrop and `image`
+    # sits on top of it as a widget. `image` absent -> `backgroundImage` IS the
+    # picture, and putting it in the column background makes it invisible: the
+    # column then has no children, so it has no height to paint (user, on a real
+    # shop, 2026-08-17 -- "เดิมฉันแก้ไว้เป็น BG ของ col จริง แต่ดูไม่เวิร์ค").
+    # In that case it becomes a WidgetMedia instead, and the column keeps no
+    # background so the image is not drawn twice.
+    bg_src = props.get("backgroundImage", "")
+    as_widget = bool(bg_src) and not props.get("image")
+
+    col_info = {"span": {"xs": 12, "lg": 6}}
+    if not as_widget:
+        col_info["bgColor"] = image_align_config.get("color", "")
+        col_info["bgType"] = "image"
+        col_info["bgImage"] = {"src": bg_src}
     # Only write bg display props when explicitly set in imageAlignConfig
     if image_align_config.get("position"):
         pos = convert_bg_position(image_align_config["position"])
@@ -1059,6 +1084,13 @@ def build_image_col_imagealignbg(props: dict, image_align: str) -> dict:
     widgets = []
     if props.get("image"):
         widgets.append(build_widget_media_for_imagealignbg_col(props))
+    elif as_widget:
+        media = {"mediaType": "image", "image": {"src": bg_src}}
+        # `imageAlignConfig.size` was describing how the backdrop should fill its
+        # box; as a widget that is the same intent, spelled `mediaObjectFit`.
+        if image_align_config.get("size"):
+            media["mediaObjectFit"] = image_align_config["size"]
+        widgets.append(make_node("widget", "WidgetMedia", None, media, None))
     return make_node("col", None, None, col_info, widgets)
 
 
@@ -1088,6 +1120,25 @@ def build_single_col(props: dict) -> dict:
 # ---------------------------------------------------------------------------
 # Row builder
 # ---------------------------------------------------------------------------
+
+def _paragraph_padding(props: dict):
+    """`(paddingTop, paddingBottom)` for a ParagraphSection, from
+    `sectionStyle.padding` merged with `className2`.
+
+    Factored out so `build_content_col_imagealignbg` can compute the same values
+    the section builder does -- that layout moves them onto the content column
+    rather than leaving them on the section."""
+    section_style = props.get("sectionStyle") or {}
+    padding = section_style.get("padding") or {}
+    sm_pad  = padding.get("sm") or {}
+    xl_pad  = padding.get("xl") or {}
+    pt, pb = {}, {}
+    if sm_pad.get("top")    is not None: pt["xs"] = parse_size(sm_pad["top"])
+    if xl_pad.get("top")    is not None: pt["lg"] = parse_size(xl_pad["top"])
+    if sm_pad.get("bottom") is not None: pb["xs"] = parse_size(sm_pad["bottom"])
+    if xl_pad.get("bottom") is not None: pb["lg"] = parse_size(xl_pad["bottom"])
+    return merge_classname2_padding(pt, pb, props.get("className2"))
+
 
 def build_row(props: dict) -> dict:
     num_columns   = props.get("column", 1)
@@ -1154,16 +1205,31 @@ def build_paragraph_section(props: dict) -> dict:
     if props.get("isFullScreen"):
         section_info["isFullwidth"] = True
 
-    # --- Padding (always from sectionStyle.padding, no special-casing) ---
-    # Null values are skipped entirely — only set breakpoints that have a real value.
-    pt, pb = {}, {}
-    if sm_pad.get("top")    is not None: pt["xs"] = parse_size(sm_pad["top"])
-    if xl_pad.get("top")    is not None: pt["lg"] = parse_size(xl_pad["top"])
-    if sm_pad.get("bottom") is not None: pb["xs"] = parse_size(sm_pad["bottom"])
-    if xl_pad.get("bottom") is not None: pb["lg"] = parse_size(xl_pad["bottom"])
-    pt, pb = merge_classname2_padding(pt, pb, props.get("className2"))
-    if pt: section_info["paddingTop"]    = pt
-    if pb: section_info["paddingBottom"] = pb
+    # --- Padding ---
+    pt, pb = _paragraph_padding(props)
+    if (props.get("bgMediaType") == "imageAlignBg" and props.get("column") == 2
+            and (pt or pb)):
+        # Same rule Headline has had since 2026-08-06: this layout puts a
+        # full-bleed image in one column, so section padding would inset the
+        # image too and break the bleed. The padding moves to the content col
+        # (see `build_content_col_imagealignbg`) and the section is zeroed.
+        # `md` is deliberately omitted -- not a cascading breakpoint in v4, so a
+        # synthetic reset-to-0 has no business being written there.
+        zero = {"xs": {"value": 0, "unit": "px"}, "lg": {"value": 0, "unit": "px"}}
+        section_info["paddingTop"]    = dict(zero)
+        section_info["paddingBottom"] = dict(zero)
+        # The layout is edge-to-edge by nature (user, 2026-08-17), so it also
+        # drops the container inset -- otherwise the image stops short of the
+        # viewport edge even with the vertical padding moved. An explicit
+        # `isFullScreen: false` is still respected; no v3 input in this repo has
+        # one (19 say true, 8 say nothing), but overriding a stated value would
+        # be a different kind of change from filling in an unstated one.
+        if props.get("isFullScreen") is not False:
+            section_info["isFullwidth"] = True
+        section_info["paddingX"] = dict(zero)
+    else:
+        if pt: section_info["paddingTop"]    = pt
+        if pb: section_info["paddingBottom"] = pb
 
     return make_node(
         "section", "TextStack",
@@ -3731,6 +3797,36 @@ def _footer_fixed_cols(props: dict, social_span: dict, account_span: dict,
     return cols
 
 
+def _footer_color_scheme(props: dict) -> str | None:
+    """`"color-scheme-inverse"` when v3's footer sits on a dark ground, else None.
+
+    Three signals, in order of how directly they say it:
+
+    1. `isDarkMode` -- the flag a theme preset sets. Used by 17 of the 23 v3
+       inputs in this repo, so it is the normal path.
+    2. A dark `sectionStyle.bgColor` -- the merchant picked the colour by hand
+       instead. Mirrors the same fix made to the header in v1.18. Changes
+       nothing on any current input (every dark-bg footer also sets the flag),
+       and exists so the two zones cannot drift apart again.
+    3. A LIGHT `siteTitleStyle.fontColor` -- weaker, and the only signal
+       `pordeehealthshop` gives: white title text with no flag and no bg. Sound
+       in both readings -- nobody puts white text on a light footer, and if the
+       white is there because the *theme's* footer is dark by default, inverse
+       is still the right v4 answer. Verified against all 23 inputs: it fires on
+       that one shop, agrees with `monman` (light title AND the flag), and
+       correctly stays quiet for `ilhongbookstore`, whose `#7A7A7A` title is
+       dark. **This is the one to revisit first if a footer comes out wrong.**"""
+    if props.get("isDarkMode"):
+        return "color-scheme-inverse"
+    bg = ((props.get("sectionStyle") or {}).get("bgColor") or "").strip()
+    if bg and _is_dark_hex(bg):
+        return "color-scheme-inverse"
+    font = ((props.get("siteTitleStyle") or {}).get("fontColor") or "").strip()
+    if font and not _is_dark_hex(font):
+        return "color-scheme-inverse"
+    return None
+
+
 def _footer_preset1(props: dict) -> dict:
     h_align   = _footer_h_align(props)
     brand_col = _footer_col(
@@ -3745,8 +3841,9 @@ def _footer_preset1(props: dict) -> dict:
             + _footer_fixed_cols(props, nav_span, account_span, contact_span,
                                   True, 1))
     section_info: dict = {}
-    if props.get("isDarkMode"):
-        section_info["colorScheme"] = "color-scheme-inverse"
+    scheme = _footer_color_scheme(props)
+    if scheme:
+        section_info["colorScheme"] = scheme
     row = make_node("row", None, None, {}, cols)
     return make_node("section", "footer", "[preset1]", section_info,
                      [row, _footer_copyright_row(props)])
@@ -3763,8 +3860,9 @@ def _footer_preset2(props: dict) -> dict:
             + _footer_fixed_cols(props, nav_span, account_span, contact_span,
                                   True, 2))
     section_info: dict = {}
-    if props.get("isDarkMode"):
-        section_info["colorScheme"] = "color-scheme-inverse"
+    scheme = _footer_color_scheme(props)
+    if scheme:
+        section_info["colorScheme"] = scheme
     row = make_node("row", None, None, {}, cols)
     return make_node("section", "footer", "[preset2]", section_info,
                      [row, _footer_copyright_row(props)])
@@ -3789,8 +3887,9 @@ def _footer_preset3(props: dict) -> dict:
     row2 = make_node("row", None, None, {}, row2_cols)
 
     section_info: dict = {}
-    if props.get("isDarkMode"):
-        section_info["colorScheme"] = "color-scheme-inverse"
+    scheme = _footer_color_scheme(props)
+    if scheme:
+        section_info["colorScheme"] = scheme
     return make_node("section", "footer", "[preset3]", section_info,
                      [row1, row2, _footer_copyright_row(props)])
 
@@ -3987,8 +4086,14 @@ def _header_extra_section_info(props: dict) -> dict:
     if props.get("isShowSubMenuPane"):
         info["headerZIndex"] = 11
     pane = props.get("headerPane") or {}
-    is_dark = pane.get("isDarkMode")
     bg_color = ((pane.get("sectionStyle") or {}).get("bgColor") or "").strip()
+    # v3 signals a dark header two ways and only one of them is a flag: a theme
+    # preset sets `isDarkMode`, but a merchant who just picks a dark background
+    # in the admin sets `sectionStyle.bgColor` and nothing else. Reading only
+    # the flag put such headers on `color-scheme-main`, i.e. dark-on-dark text
+    # (found 2026-08-17 on a real shop with a `#4a7956` header). The background
+    # is the thing actually being rendered, so it decides.
+    is_dark = bool(pane.get("isDarkMode")) or _is_dark_hex(bg_color)
     height_preset = pane.get("heightPresetId")
     _HEIGHTS = {1: 60, 2: 70, 3: 80, 4: 90}
 
@@ -5059,6 +5164,42 @@ def _scheme2_tag_tokens(prefix, style, scal):
     return out
 
 
+def _scheme2_tag_tokens_from_button(tag_prefix, button_prefix, button_tokens):
+    """Fall back to a BUTTON's resolved tokens for a tag that v3 never styled.
+
+    Rule from the user, 2026-08-14: a v3 theme often has no tag style at all
+    (no `--buttontag_*` mixin), and v4 still needs the two tag roles filled --
+    so `tagDefault` copies the SECONDARY button and `tagAccent` copies the
+    PRIMARY. That reads correctly in v4's own language: accent is the emphatic
+    role and primary is the emphatic button, while default/secondary are the
+    quieter pair. It is a **convention, not a derivation** -- there is no v3
+    source behind it, so it can be overruled per theme on sight.
+
+    The two token families are the same shape apart from the fill key's name
+    (`FillColor` on buttons, `BgColor` on tags), so this is a pure rename."""
+    out = {}
+    for suffix in ("BorderColor", "TextColor", "HoverBorderColor", "HoverTextColor"):
+        if button_prefix + suffix in button_tokens:
+            out[tag_prefix + suffix] = button_tokens[button_prefix + suffix]
+    for btn_suffix, tag_suffix in (("FillColor", "BgColor"),
+                                   ("HoverFillColor", "HoverBgColor")):
+        if button_prefix + btn_suffix in button_tokens:
+            out[tag_prefix + tag_suffix] = button_tokens[button_prefix + btn_suffix]
+
+    # An OUTLINE button (transparent fill) is only visible because of its border,
+    # and v3 often states that border as `currentcolor` -- which resolves through
+    # the v4 template rather than the theme's own override, so it never reaches
+    # `button_tokens` and would leave the tag transparent-on-transparent, i.e.
+    # invisible (x_void, found 2026-08-14). Restate it so the borrowed outline
+    # survives the copy; `currentcolor` = the tag's own text colour, which is
+    # exactly what makes an outline read as an outline.
+    for bg, border in (("BgColor", "BorderColor"),
+                       ("HoverBgColor", "HoverBorderColor")):
+        if out.get(tag_prefix + bg) == "transparent" and tag_prefix + border not in out:
+            out[tag_prefix + border] = "currentcolor"
+    return out
+
+
 def _scheme2_component_tokens(tid, t, scal):
     """Link/Button(Primary/Secondary/Ghost)/Tag tokens for one theme, via the default
     p/s/t-button convention (or _SCHEME2_TOKEN_SOURCES exceptions)."""
@@ -5075,6 +5216,7 @@ def _scheme2_component_tokens(tid, t, scal):
     out.update(prim)
 
     secondary_style = _scheme2_component_style(t, sources["buttonSecondary"] + "_darkBG_style")
+    sec = {}
     if secondary_style:
         sec = _scheme2_button_solid_tokens("buttonSecondary", secondary_style, scal)
         # v4 convention: primary & secondary must be visually distinct (one solid, one
@@ -5093,6 +5235,11 @@ def _scheme2_component_tokens(tid, t, scal):
     if tag_style:
         out.update(_scheme2_tag_tokens("tagDefault", tag_style, scal))
         out.update(_scheme2_tag_tokens("tagAccent", tag_style, scal))
+    else:
+        # No `--buttontag_*` mixin at all -- borrow the buttons, see
+        # `_scheme2_tag_tokens_from_button()`.
+        out.update(_scheme2_tag_tokens_from_button("tagDefault", "buttonSecondary", sec))
+        out.update(_scheme2_tag_tokens_from_button("tagAccent", "buttonPrimary", prim))
 
     return out
 
@@ -5570,6 +5717,11 @@ _THEME_TAG_BORDER_WIDTH = {
     # x_adventure (2026-08-11): its new inverse/inverse-2 both give the Accent
     # tag a real white outline -- same standing rule as the rest of this set.
     "x_adventure",
+    # x_cha (2026-08-14): its new inverse gives both tags a white border.
+    "x_cha",
+    # x_ceramicstore (2026-08-17): `.btnTag { border: 1px solid schemeA }` --
+    # a real border in v3, and both of its schemes carry one.
+    "x_ceramicstore",
     # x_mixednuts (2026-08-06, user-confirmed): STANDING RULE going forward --
     # whenever a theme's `.color-scheme-*` sets a real (non-transparent) Tag
     # border color anywhere, add it here too. v4-base's tagBorderWidth/
@@ -5621,15 +5773,158 @@ _THEME_TAG_BORDER_WIDTH = {
 #               every theme except x_petfriendly, see its note)
 #   "tag"    -> tagRadius       (v4-base default 4px, so an explicit 0 is a
 #                                real change and IS listed)
-#   "input"  -> inputRadius     (v4-base default 0px)
+#   "input"  -> inputRadius     (v4-base default 0px). Sourced from v3's
+#               DROPDOWN (`.selectBox`/`select`), never its header search box.
+#               Decided 2026-08-11: v4 has ONE inputRadius for every input
+#               while v3 styles the two separately and they genuinely disagree
+#               on 5 themes (cha/mixednuts/petestate/seat 20px search vs 4px
+#               dropdown; petfriendly 30 vs 15). Following the search box also
+#               made the value arbitrary -- x_optic came out at 4px purely
+#               because it happens to lack a `.searchInput` rule, not because
+#               the theme differs. The dropdown is the form field the token
+#               really means, so the search box now renders less rounded than
+#               v3 on those themes; that's the accepted cost.
+#               A theme whose ONLY radius rules are search-related (x_bluehorizon,
+#               x_playground) therefore gets no value at :root -- it goes to
+#               "search" below instead.
+#   "search" -> GONE (2026-08-17). It briefly carried `.widget-search-form`'s own
+#               `inputRadius` so the search box could keep v3's value while :root
+#               carried the form field; the search box now just inherits :root
+#               instead, because v3 rounds it on every theme as a house style
+#               rather than a design choice. See `_THEME_SEARCH_FORM`'s comment.
+#               The `input` note above is therefore no longer a trade-off at all:
+#               there is one input radius per theme and the dropdown defines it.
 #   "arrows" -> arrowsBorderRadius (v4-base default 0px)
+#   "listTab" -> listTabBorderRadius (v4-base default 0px), from v3's `.viewTab`
+#               -- the grid/list view toggle on a product listing. Added
+#               2026-08-11 after the user spotted playground's tabs rendering
+#               square: the original Phase 5 scan matched `.tab`/`.listTab`/
+#               `.navTab` and so missed BOTH real selectors, `.viewTab` and
+#               `.productNavList ul`, leaving this token underived on the whole
+#               batch. `.viewTab` is the source because it is unconditional;
+#               every `.productNavList ul` radius sits inside a `@media` block
+#               and disagrees with itself across breakpoints (playground has
+#               30px twice and 20px once), which a flat token cannot carry.
 #
 # Not covered here: cardBorderRadius/cardInfoBorderRadius -- deliberately left
 # to the separate Card Style initiative (user, 2026-08-11).
+# Per-theme `.widget-search-form` — v4 scopes input styling per widget, so the
+# header search box can keep v3's own look while `:root`'s `input*` tokens carry
+# the general form field. Added 2026-08-11 on the user's prompt; before it, the
+# two had to share one value and the search box lost (see `_THEME_RADIUS`).
+#
+# `radius`      <- REMOVED 2026-08-17. v3's search input is a pill on essentially
+#                  every theme, which is a v3 house style rather than a per-theme
+#                  design choice, and the user's call is that it should simply not
+#                  be carried into v4: *"v3 search input จะเป็น pill เสมอ ซึ่งจริงๆ
+#                  ไม่ต้องดึงอันนี้มาใน v4 ก็ได้"*. With no `radius` key the widget
+#                  inherits `:root`'s `inputRadius`, so the search box now matches
+#                  whatever the rest of the theme's form fields do -- pill if they
+#                  are pills, square if they are square.
+#
+#                  This retires a whole strand of work rather than adjusting it:
+#                  the 11 explicit `radius: 0` entries added on 2026-08-14 existed
+#                  only to cancel `_V3_DEFAULT_INPUT_RADIUS` for search boxes, and
+#                  x_bakery's and x_cha's `9999` came from live-demo QA. All gone.
+#                  `:root`'s `inputRadius` is unaffected -- that is about general
+#                  form fields and still stands.
+# `borderColor` <- v3 `.searchInput { border-color }`, but ONLY where it is a real
+#                  per-theme value. The literal `#ddd` was dropped from all 15
+#                  themes that had it (2026-08-17, user) for exactly the reason
+#                  the original note already spotted and then talked itself past:
+#                  **identical in 15 themes means it is a shared v3 default, not
+#                  a design choice.** That observation was written down as a
+#                  caveat and the value kept anyway; the same reasoning that
+#                  retired `radius` a day earlier applies to it unchanged.
+#
+#                  Only x_void keeps a border colour, because its `--color_light`
+#                  is a genuine palette reference rather than the shared literal.
+#                  Everything else now falls through to the scheme's own
+#                  `inputBorderColor`, so the search box matches the theme's
+#                  ordinary inputs -- the same principle as the radius change.
+# `bgColor`     <- background on the search container (`.searchBar` /
+#                  `.searchContentArea` / `.searchInput`). Only 4 themes set one.
+# `borderWidth` <- explicit width from a `border:` shorthand. Only 2 themes.
+#
+# NOT derivable, deliberately absent (checked 2026-08-11, don't re-derive):
+#  - `searchTextSubmitOrder` -- **zero** v3 source. No `order:` property on any
+#    search element in any of the 29 themes; v3 expresses button placement in
+#    markup, not CSS.
+#  - `searchTextInputPaddingLeft` -- cha/mixednuts/petestate/seat all say
+#    `padding-left: 1em`, but none of them sets a font-size on the input, so the
+#    em resolves against an inherited size this repo doesn't contain. Converting
+#    it to px would be inventing a number.
+_THEME_SEARCH_FORM = {
+    # NO `radius` and NO `borderColor: "#ddd"` on any theme -- both were v3
+    # house style rather than per-theme design. See the notes above.
+    # x_elite: `.searchBar { background: transparent!important }` -- the
+    # `!important` says this is deliberate, overriding something.
+    "x_elite": {"bgColor": "transparent"},
+    # x_periwinkle: `.searchContentArea` fill, `--color_schemeB` = brand-alt.
+    "x_periwinkle": {"bgColor": "var(--color-brand-alt)"},
+    # x_pottery: `.searchBar` gets a white fill of its own.
+    "x_pottery": {"bgColor": "var(--color-neutral-subtlest)"},
+    # x_denim_fw: `.searchBar`/`.btnSearch` both `border: 2px solid`.
+    "x_denim_fw": {"borderWidth": 2},
+    # x_void: the only theme left setting more than one field -- `--color_light`
+    # border (neutral-subtlest, a real palette ref rather than the shared `#ddd`
+    # literal, which is why it survives), `--color_schemeB` fill (brand-alt),
+    # 1px border.
+    "x_void": {"borderColor": "var(--color-neutral-subtlest)",
+               "bgColor": "var(--color-brand-alt)", "borderWidth": 1},
+}
+
+
+# v3's PLATFORM default for form inputs (user, 2026-08-14: "ใน v3 input radius
+# ตั้ง 5px เป็น default"). It lives in v3's base stylesheet, which is NOT in this
+# repo -- Global.css and the theme partials both carry no such rule, so it can't
+# be corroborated from `v3/` and is taken on the user's authority.
+#
+# It matters because v4-base's `inputRadius` is **0**, so the two platforms
+# disagree on the do-nothing case: a theme that never mentions an input radius
+# renders 5px in v3 and square in v4. Emitting 5px is therefore the faithful
+# output, not an invention -- the inverse of the usual "restates the base
+# default, skip it" rule, which only holds where the two bases agree.
+#
+# NOT the same shape as [[feedback-v4-default-is-a-floor]]: that one says a v3
+# *dimension* below v4's default needs no override because v4's value is
+# considered better. Here v4's default is simply a different platform's default,
+# with no design claim behind it, and 5px is what the theme actually looked like.
+_V3_DEFAULT_INPUT_RADIUS = 5
+
+# Themes that DO declare a general (non-search) input radius resolving to 0 --
+# explicitly square, so the platform default above must not overwrite it.
+# Verified 2026-08-14 with a nesting-aware scan of all 29 published themes
+# (an earlier flat-regex scan mis-read these files, which nest heavily):
+#   x_plaza    `.productBuyArea > .pro-select > .selectBox: 0` -- the dropdown,
+#              i.e. the exact element `inputRadius` is sourced from elsewhere.
+#   x_borsa }  `.contactusBox > input,textarea: 0` -- the contact form rather
+#   x_downtown} than the dropdown, but it is still the only statement either
+#              theme makes about input shape, and it says square.
+# Every other theme's only 0 is on a SEARCH selector, which is now carried
+# separately by `_THEME_SEARCH_FORM`'s `radius` and must not be read as a
+# statement about the general form field.
+_THEME_INPUT_RADIUS_ZERO = {"x_plaza", "x_borsa", "x_downtown"}
+
+
 _THEME_RADIUS = {
     # tag 0 vs v4-base's 4px default -- square tags, from `.proTag`/`.btnTag`.
     "x_adventure": {"tag": 0},
-    "x_bakery": {"tag": 0},
+    # x_bakery (live demo, 2026-08-14): tag is a PILL, and the ONLY pill input
+    # is the header search box -- every other form field is square. So the pill
+    # lives in `_THEME_SEARCH_FORM` and `:root` carries the square.
+    #
+    # `input: 0` is written out even though it restates v4-base's own default,
+    # which the rest of this registry deliberately omits. It has to be: without
+    # it `_V3_DEFAULT_INPUT_RADIUS` would fill in 5px. An explicit 0 is now a
+    # meaningful value, not a no-op.
+    #
+    # Neither shape is in the CSS -- the tag mixin carries no radius and no
+    # general input radius is declared, so a scan could only ever produce
+    # "states nothing", and that silence was read wrongly twice (square tag,
+    # then a 5px input). The real values are in v3's base stylesheet, which
+    # isn't in this repo. See [[feedback-rounded-radius-is-9999]].
+    "x_bakery": {"tag": 9999, "input": 0},
     "x_borsa": {"tag": 0},
     "x_ceramicstore": {"tag": 0},
     "x_downtown": {"tag": 0},
@@ -5637,6 +5932,13 @@ _THEME_RADIUS = {
     "x_knowledge": {"tag": 0},
     "x_modernmerce": {"tag": 0},
     "x_pottery": {"tag": 0},
+    # x_plaza: `.btnTag` at top level = the general tag. Its `.proTag` 4px is a
+    # DIFFERENT element -- the product-card badge, scoped to
+    # `.productBox .product_tag` -- so the two never conflicted; that one
+    # belongs to the Card Style initiative. Its button has no theme-wide value
+    # either: `--button_lightBG_style` sets no radius at all and the `.button`
+    # 2px is scoped to `.detailArea .moreButtonRow`, one button on one page.
+    "x_plaza": {"tag": 2},
     "x_voice": {"tag": 0},
     "x_void": {"tag": 0, "arrows": 9999},
     "x_wichittra": {"tag": 0},
@@ -5645,47 +5947,97 @@ _THEME_RADIUS = {
     "x_swift": {"arrows": 9999},
     # x_bluehorizon: one `var(--border-radius)` = 2px used for button, input
     # and arrows alike.
-    "x_bluehorizon": {"button": 2, "input": 2, "arrows": 2},
+    "x_bluehorizon": {"button": 2, "arrows": 2},
     # The `25px button / 15px tag / 20px search` family (cha, mixednuts, optic,
     # petestate, seat, writenow) all match, almost certainly a shared ancestor
     # template -- but each was read independently and none is derived from
     # another, per [[feedback-no-cross-theme-css-pattern]].
-    "x_cha": {"button": 25, "tag": 15, "input": 20},
-    "x_mixednuts": {"button": 25, "tag": 15, "input": 20},
-    "x_petestate": {"button": 25, "tag": 15, "input": 20},
-    "x_seat": {"button": 25, "tag": 15, "input": 20},
+    # x_cha: button is a PILL on the live demo (2026-08-14), not the literal
+    # 25px its CSS states -- the same "a 25px radius on a ~50px-tall button is
+    # fully round" case the Phase 5 notes warn about. Tag keeps its literal 15
+    # (a shorter element, still visibly a rounded rectangle) and `input` keeps
+    # the dropdown's 4; only the SEARCH box is a pill, via _THEME_SEARCH_FORM.
+    "x_cha": {"button": 9999, "tag": 15, "input": 4},
+    "x_mixednuts": {"button": 25, "tag": 15, "input": 4},
+    "x_petestate": {"button": 25, "tag": 15, "input": 4},
+    "x_seat": {"button": 25, "tag": 15, "input": 4},
     # x_optic: same family, but its search box uses `.selectBox` 4px rather
     # than a `.searchInput` value.
     "x_optic": {"button": 25, "tag": 15, "input": 4},
     # x_writenow: same family; tag has two conflicting rules (17px and 15px) so
     # tag is left unset pending QA, and its `input` shorthand is multi-corner
     # (`18px 0 0 18px`) so `.selectBox`'s 15px is used instead.
-    "x_writenow": {"button": 25, "input": 15, "arrows": 9999},
+    "x_writenow": {"button": 25, "tag": 15, "input": 15, "arrows": 9999, "listTab": 18},
     # x_denim_fw: only the tag mixin is live (16px); its button/input CSS is 0
     # = v4-base default, and its arrow radius sits in a dead mixin.
-    "x_denim_fw": {"tag": 16},
+    "x_denim_fw": {"tag": 16, "listTab": 30},
     # x_eco: `var(--border_radius_10)` = 10px across button and input; tag is
     # its own 8px; arrows `var(--border_radius_rounded)` = 50% -> pill.
     "x_eco": {"button": 10, "tag": 8, "input": 10, "arrows": 9999},
     # x_oasis: `var(--border-radius-sm)` = 2px button; tag mixin is live at
     # 16px (its `.proTag` 2px is the more specific of two, mixin wins as the
     # theme-wide value). Arrow radius is in a dead mixin -- not set.
-    "x_oasis": {"button": 2, "tag": 16},
+    "x_oasis": {"button": 2, "tag": 16, "input": 2, "listTab": 30},
     # x_periwinkle: one `var(--border_radius)` = 4px everywhere. tag is
     # deliberately absent -- 4px IS v4-base's tagRadius default, nothing to say.
     "x_periwinkle": {"button": 4, "input": 4, "arrows": 9999},
-    # x_petfriendly: THE per-family exception. Both `--button_lightBG_style`
-    # (50px) and `--sbutton_lightBG_style` (20px) are genuinely @apply'd, and
-    # v4 has no per-family radius token -- only per-SIZE. 50px (the generic/
-    # primary button) is used for all three size tokens; Secondary buttons will
-    # render rounder than v3 until this is resolved, so it needs a design call
-    # (accept, or push Secondary to custom CSS). Its arrow radius is in a dead
-    # mixin -- not set.
-    "x_petfriendly": {"button": 50, "tag": 16, "input": 30},
+    # x_petfriendly: looked like THE per-family exception -- `--button_lightBG_style`
+    # 50px, `--sbutton_lightBG_style` 20px, `--tbutton_lightBG_style` 30px, all
+    # genuinely @apply'd, against a v4 that buckets radius by SIZE not family.
+    # **It dissolved once the user checked the demo (2026-08-11): every one of
+    # them is a pill.** The three literals were never a design distinction --
+    # they're three different button HEIGHTS each needing its own half-height
+    # number to round fully. v4's semantic preset says that directly, so 9999
+    # is not an approximation here, it's more faithful than any literal.
+    # Its arrow radius is in a dead mixin -- not set.
+    "x_petfriendly": {"button": 9999, "tag": 16, "input": 15},
     # x_playground: `var(--border-radius)` = 30px for button and search input.
-    # Arrows are 36px from `--button_allBG_style` -- kept literal pending a
-    # live-demo call on whether it reads as a pill (see the 9999 note above).
-    "x_playground": {"button": 30, "tag": 24, "input": 30, "arrows": 36},
+    # Arrows: v3 says a literal `36px` (`--slick_allBG_style`), which the
+    # standing rule kept as-is rather than auto-promoting -- 36px only reads as
+    # a pill if the arrow is <=72px tall, and that height isn't CSS-grounded.
+    # **User confirmed on the demo 2026-08-11 that it IS a pill**, so it's 9999
+    # now. Exactly the case the "never automate the promotion" rule exists for:
+    # the answer was right but only a human could supply it.
+    "x_playground": {"button": 30, "tag": 24, "arrows": 9999, "listTab": 30},
+}
+
+
+# Per-theme BUTTON border width. Third registry in the same family as
+# `_THEME_TAG_BORDER_WIDTH` and `_THEME_ARROWS_BORDER_WIDTH`, and it exists for
+# the same reason: v4-base's `:root` defaults `buttonPrimaryBorderWidth` and
+# `buttonGhostBorderWidth` to **0px**, so a theme that sets only a border
+# COLOUR gets an outline that can never render.
+#
+# Found 2026-08-12 by an exhaustive audit of all 525 `border*` declarations
+# across the batch -- the standing rule was written for Tag and Arrows and had
+# simply never been applied to buttons. 11 theme/family pairs turned out to
+# carry an unrenderable rest-state border colour; only these three have v3
+# actually asking for a border. The other eight say `border: 0` in v3 (or have
+# no border rule at all), so their colour is dead data and the 0px width is
+# correct -- do NOT "fix" those.
+#
+# `buttonSecondary*BorderWidth` is not handled here: v4-base already defaults
+# it to 1px, the opposite problem. See x_bluehorizon, which zeroes it
+# deliberately for a solid-fill Secondary.
+#
+# Shape: {theme_id: {family: width_px}} -- family is v4's own name.
+_THEME_BUTTON_BORDER_WIDTH = {
+    # `--pbutton_lightBG_style { border: 1px solid var(--color_schemeA) }`.
+    # Its Primary border colour is set in main, main-2 AND inverse, none of
+    # which could render.
+    "x_elite": {"Primary": 1},
+    # `--tbutton_lightBG_style { border: 1px solid var(--color_schemeA) }`,
+    # and this theme's own CSS genuinely `@apply`s that mixin.
+    "x_oasis": {"Ghost": 1},
+    # `--tbutton_lightBG_style { border: 1px solid var(--color_schemeA) }`.
+    # The mixin isn't `@apply`'d here, but the Ghost border colour set by hand
+    # during the theme work matches it exactly, so the two corroborate.
+    "x_petfriendly": {"Ghost": 1},
+    # ⏳ NOT SET, pending QA: x_bluehorizon's Ghost. Its `1px solid` comes from
+    # the GENERIC `--button_lightBG_style`, not a `--tbutton`, and the Ghost
+    # border colour exists only in `.color-scheme-inverse` -- hand-authored
+    # during the Header/Footer thread rather than derived. Weaker evidence than
+    # the three above; revisit when x_bluehorizon is checked on its demo.
 }
 
 
@@ -5718,9 +6070,161 @@ _THEME_ARROWS_BORDER_WIDTH = {
 # convert_theme() as its own `style` key, layered over Base's
 # `.widget-heading{gap:...}` (v4 merges sparse overrides, doesn't replace the
 # whole block).
+# Per-theme `info.Element.<Kind>` overrides. Parallel to `_THEME_WIDGET_INFO`,
+# but a DIFFERENT top-level key: widgets live under `info.Widget`, cards and the
+# like under `info.Element` (confirmed by
+# `reference/v4-admin-samples/CardProductSetting.json`, whose whole payload is
+# `info.Element.CardProduct.cardConfig`). Merged one level deeper than the
+# widget registry because `cardConfig` is itself a nested dict.
+_THEME_ELEMENT_INFO = {
+    # x_ceramicstore Card Style (2026-08-17) -- see the long note on this
+    # theme's `.element-card-product` block below for sources and caveats.
+    "x_ceramicstore": {
+        "CardProduct": {
+            "cardConfig": {
+                # `.productDescription { text-align: center }`
+                "infoAlignment": "center",
+                # `.product_tag`/`.product_status` are both `top/left: 12px`
+                "badgeOnThumbnailPosition": "topleft",
+                # `.add_cart_button { background: schemeA }` with white text and
+                # icon = this theme's Primary button exactly.
+                "button": {"variant": "primary"},
+                "buttonOption": {"variant": "primary"},
+            },
+        },
+    },
+}
+
+
 _THEME_WIDGET_STYLE_OVERRIDES = {
     "x_elite": {
         ".widget-heading": {"alignment": {"xs": "center", "lg": "center"}},
+    },
+    # x_ceramicstore (2026-08-17): `.quantityBox button` is a fully specified
+    # control in this theme -- `border: 1px solid schemeA; border-radius: 4px;
+    # color: schemeA; background: light`, hovering to a brand fill with white
+    # text -- and its `input` is `background: none; color: schemeA`.
+    #
+    # That button IS this theme's Secondary (see `_THEME_MAIN_OVERRIDES`, where
+    # the same shape was independently arrived at), so `quantityButtonVariant:
+    # "secondary"` reproduces the colours exactly. This is the one theme so far
+    # where the variant choice is corroborated by CSS rather than picked off a
+    # demo.
+    #
+    # `quantityButtonBorderRadius: 4` was briefly dropped as redundant against
+    # this theme's 5px `inputRadius`, then restored: **dropping it does not fall
+    # back to `inputRadius`.** v4-base has no `.widget-product-summary` block
+    # and no `quantityButtonBorderRadius` at `:root`, so an omitted value
+    # resolves to v4's own component default -- a number that does not exist
+    # anywhere in this repo and cannot be checked from here. Stating the CSS's
+    # 4px keeps the outcome knowable; omitting it trades a known value for an
+    # unknown one to save one token. Applies to every theme, not just this one.
+    "x_ceramicstore": {
+        ".widget-product-summary": {
+            "quantityButtonBorderRadius": {"value": 4, "unit": "px"},
+            "quantityInputBgColor": "transparent",
+            "quantityInputTextColor": "var(--color-brand)",
+        },
+        ".element-card-product": {
+            # Info panel + text
+            "cardProductInfoBgColor": "var(--color-neutral-subtlest)",
+            "cardProductNameColor": "var(--color-neutral-boldest)",
+            "cardProductPriceColor": "var(--color-brand)",
+            "cardProductDiscountPriceColor": "var(--color-brand-alt)",
+            "cardProductRegularPriceColor": "#999999",
+            # Thumbnail badges -- `.proTag`, a square pink chip at 12px inset
+            "cardProductThumbnailBadgeOffset": {"value": 12, "unit": "px"},
+            "cardProductThumbnailBadgePreorderBgColor": "var(--color-brand-alt-subtle)",
+            "cardProductThumbnailBadgePreorderTextColor": "var(--color-neutral-subtlest)",
+            "cardProductThumbnailBadgeHotBgColor": "var(--color-brand-alt-subtle)",
+            "cardProductThumbnailBadgeHotTextColor": "var(--color-neutral-subtlest)",
+            "cardProductThumbnailBadgeNewBgColor": "var(--color-brand-alt-subtle)",
+            "cardProductThumbnailBadgeNewTextColor": "var(--color-neutral-subtlest)",
+            "cardProductThumbnailBadgeSuggestBgColor": "var(--color-brand-alt-subtle)",
+            "cardProductThumbnailBadgeSuggestTextColor": "var(--color-neutral-subtlest)",
+            "cardProductThumbnailBadgeWholesaleBgColor": "var(--color-brand-alt-subtle)",
+            "cardProductThumbnailBadgeWholesaleTextColor": "var(--color-neutral-subtlest)",
+            # ...except the discount badge, which v3 styles separately
+            "cardProductThumbnailBadgeDiscountPercentBgColor": "var(--color-brand-alt)",
+            "cardProductThumbnailBadgeDiscountPercentTextColor": "var(--color-neutral-subtlest)",
+            "cardProductInfoBadgeDiscountPercentBgColor": "var(--color-brand-alt)",
+            "cardProductInfoBadgeDiscountPercentTextColor": "var(--color-neutral-subtlest)",
+            # Thumbnail status -- translucent white plate, dark text
+            # Add-to-cart bar spans the full card width
+            "cardProductThumbnailButtonWidth": {"value": 100, "unit": "%"},
+            "cardProductThumbnailButtonOffset": {"value": 0, "unit": "px"},
+        },
+    },
+    # ── x_ceramicstore Card Style (2026-08-17) ────────────────────────────────
+    # Phase 7 work, pulled forward for THIS THEME ONLY at the user's request --
+    # a real customer shop is launching on it. Nothing here generalises to the
+    # other 28 themes; the systematic Card Style pass is still unstarted.
+    #
+    # Sources, all from `.productItem, .productBox { ... }` unless noted:
+    #   `.pro-title      { color: var(--color_dark) }`      -> Name
+    #   `.pro-price      { color: var(--color_schemeA) }`   -> Price
+    #   `.hasDiscount .realprice { color: schemeB }`        -> Discount price
+    #   `.hasDiscount .fullprice { color: #999 }`           -> Regular price
+    #   `.productDescription { background: var(--color_light) }`  -> Info bg
+    #   `.proTag { background: schemeA_d; color: light }`   -> thumbnail badges
+    #   `.product_tag { top: 12px; left: 12px }`            -> badge offset
+    #   `.add_cart_button { left: 0; right: 0; background: schemeA }` -> button
+    #
+    # Judgement calls, worth checking on the shop:
+    #  - **Info background.** v3 only sets it inside `.darkMode`. v4's card
+    #    tokens are NOT per-scheme (one `.element-card-product` for the whole
+    #    theme), so it cannot be scoped that way. Setting it globally is still
+    #    right in both: white-on-white is invisible on the light scheme, and it
+    #    is exactly what v3 draws on the dark one.
+    #  - **Badge colours.** The Card Style plan says to skip these, because v3
+    #    has one uniform `.proTag` colour where v4 has six per-type slots. That
+    #    holds for most themes but not here: this theme styles the discount
+    #    badge SEPARATELY (`.salepercent`, white on `schemeB`), so there are two
+    #    real v3 values, not one. Discount-percent takes the brown; the other
+    #    five take `.proTag`'s pink. Better than v4's defaults, which are
+    #    unrelated to this palette.
+    #  - **`#999`** is kept literal. Nearest anchors are `neutral` (#b2b2b2) and
+    #    `neutral-bold` (#474747), and it sits between them -- same call as
+    #    x_playground's `arrowsBgColor`.
+    #  - **`#ffffffbf`** is `--color_light_a75`, which is defined nowhere in
+    #    this repo (not the palette, not Global.css) -- read as white at 75%
+    #    alpha. 8-digit hex is valid here; the reference sample uses one.
+    #
+    # Deliberately NOT covered:
+    #  - **The whole `.product_status` element** (out-of-stock / coming-soon /
+    #    discontinued -- a translucent white circle on the thumbnail). Parked by
+    #    the user, 2026-08-17. Its 50% radius is unexpressible anyway: v4 has
+    #    four card radius tokens (`cardProductBorderRadius`,
+    #    `...ThumbnailBorderRadius`, `...ThumbnailBadgeBorderRadius`,
+    #    `...InfoBadgeBorderRadius`) and none belongs to status, which only has
+    #    Bg/Text/Offset/WrapperBg plus its three per-type pairs.
+    #  - `cardProductThumbnailBadgeBorderRadius`. Was set to 0 from `.proTag`
+    #    declaring no radius, then removed: the user reports it changes nothing
+    #    on the rendered card. Note the derivation was shaky regardless -- it
+    #    read ABSENCE as zero, the same reasoning that got bakery's tag radius
+    #    wrong (v3's base stylesheet, not in this repo, is what actually sets it).
+    #  - The `@media (min-width: 1200px)` badge bump to a 24px offset and 56px
+    #    box: the offset token is a single value, not a breakpoint pair, so 12px
+    #    (the base value) is used.
+    # x_cha (2026-08-17, live demo): pill quantity buttons.
+    #
+    # ⚠️ The rest of the user's spec for this control -- "transparent, black
+    # text, hover fills `neutral-subtle`" -- is NOT expressible. v4 has no
+    # `quantityButton*Color` token of any kind (the full quantity vocabulary is
+    # `quantityPicker*`, `quantityInput*`, and Button Width/Height/BorderRadius/
+    # Variant/Size); the button's colours come entirely from whichever scheme
+    # button `quantityButtonVariant` names. cha's is `ghost`, and its Ghost is
+    # brand-coloured text by the same spec -- so "black text" cannot be had
+    # without repainting every Ghost button on the theme.
+    #
+    # DECIDED 2026-08-17: leave it. The quantity buttons show brand text,
+    # matching Ghost. Don't re-derive this -- it is a v4 schema limit, not an
+    # oversight, and it applies to EVERY theme, so the same request on another
+    # theme has the same answer.
+    "x_cha": {
+        ".widget-product-summary": {
+            "quantityButtonBorderRadius": {"value": 9999, "unit": "px"},
+        },
     },
     # x_adventure (2026-08-11, user-supplied). This theme DOES define a
     # `--quantitybox_lightBG_style` (`border: 1px solid #e5e5e5`, transparent
@@ -5891,6 +6395,13 @@ _THEME_WIDGET_INFO_ALL = {
 
 
 _THEME_WIDGET_INFO = {
+    # x_ceramicstore (2026-08-17): see `_THEME_WIDGET_STYLE_OVERRIDES` -- the
+    # variant is CSS-corroborated here, not a demo pick.
+    "x_ceramicstore": {"ProductSummary": {"quantityButtonVariant": "secondary"}},
+    # x_cha (2026-08-14, live demo): quantity picker's +/- are ghost buttons.
+    # Not derivable -- this theme never `@apply`s a `--quantitybox` mixin (the
+    # dead-mixin pattern), so there is no v3 declaration to read either way.
+    "x_cha": {"ProductSummary": {"quantityButtonVariant": "ghost"}},
     # x_adventure (2026-08-11, user-supplied): slider arrow icons. v3 draws its
     # arrows with icon-font glyphs set in CSS `content:` ('\e90a'/'\e90c' in
     # `--slick_lightBG_style`), which carries no name v4 could map onto its own
@@ -5934,7 +6445,73 @@ _THEME_WIDGET_INFO = {
 # _THEME_INVERSE/_THEME_INVERSE2 below). Link is explicitly excluded — not
 # part of this rule. Supersedes the earlier narrower "Ghost hover text was
 # blending" fix (folded into this broader uniform rule).
+# x_bakery's light-scheme component colours (user-specified from the live demo,
+# 2026-08-14). Held as ONE dict spread into both `_THEME_MAIN_OVERRIDES` and
+# `_THEME_MAIN2_OVERRIDES` below, because the user gave a single spec for
+# "Main / main-2" and the two must not drift. Every other theme that wants the
+# same thing repeats the keys in both registries with a "kept in sync" comment;
+# that comment is a maintenance promise, and this is the same promise enforced
+# by the language instead.
+#
+# It only covers COMPONENTS. The two schemes keep their own backgrounds --
+# main-2's `bgColor` is CSS-derived (`--color_schemeB`, the cream `#fdf0d5`)
+# and is exactly why the theme has a main-2 at all.
+#
+# NOT CSS-derived, in either direction: bakery's own CSS is the batch's outlier
+# (see [[feedback-no-cross-theme-css-pattern]]) and states almost none of this.
+_BAKERY_LIGHT_COMPONENTS = {
+    # Dots: cream when idle, brand red once hovered or active.
+    "sliderBulletsBgColor": "var(--color-brand-alt)",
+    "sliderBulletsHoverBgColor": "var(--color-brand)",
+    "sliderBulletsActiveBgColor": "var(--color-brand)",
+    # Primary: brand red, darkening to brand-bold on hover. Border tracks the
+    # fill -- the user specified the fill alone, but leaving the border at
+    # `brand` would ring the darker hover fill with the lighter base colour.
+    "buttonPrimaryFillColor": "var(--color-brand)",
+    "buttonPrimaryBorderColor": "var(--color-brand)",
+    "buttonPrimaryHoverFillColor": "var(--color-brand-bold)",
+    "buttonPrimaryHoverBorderColor": "var(--color-brand-bold)",
+    # Ghost: text-only, same red -> darker red.
+    "buttonGhostTextColor": "var(--color-brand)",
+    "buttonGhostHoverTextColor": "var(--color-brand-bold)",
+    # Links: Default reads as body text until hovered; Accent is red from rest.
+    "linkDefaultColor": "var(--color-neutral-boldest)",
+    "linkDefaultHoverColor": "var(--color-brand-bold)",
+    "linkAccentColor": "var(--color-brand)",
+    "linkAccentHoverColor": "var(--color-brand-bold)",
+    # Tag Default: black outline chip that turns red on hover (fill stays out).
+    "tagDefaultBgColor": "transparent",
+    "tagDefaultBorderColor": "var(--color-neutral-boldest)",
+    "tagDefaultTextColor": "var(--color-neutral-boldest)",
+    "tagDefaultHoverBgColor": "transparent",
+    "tagDefaultHoverBorderColor": "var(--color-brand)",
+    "tagDefaultHoverTextColor": "var(--color-brand)",
+    # Tag Accent: the solid counterpart -- red chip, white text, darker on hover.
+    "tagAccentBgColor": "var(--color-brand)",
+    "tagAccentBorderColor": "var(--color-brand)",
+    "tagAccentTextColor": "var(--color-neutral-subtlest)",
+    "tagAccentHoverBgColor": "var(--color-brand-bold)",
+    "tagAccentHoverBorderColor": "var(--color-brand-bold)",
+    "tagAccentHoverTextColor": "var(--color-neutral-subtlest)",
+    # Scrollbar: cream thumb on a red track.
+    "scrollbarBgColor": "var(--color-brand-alt)",
+    "scrollbarTrackColor": "var(--color-brand)",
+    # Arrows: no box at all, just the glyph, darkening on hover. Hover bg is
+    # restated as transparent because v4-base sets it to `neutral-subtle` --
+    # without this the box the user asked to remove reappears on hover.
+    "arrowsBgColor": "transparent",
+    "arrowsHoverBgColor": "transparent",
+    "arrowsHoverTextColor": "var(--color-neutral-boldest)",
+    # Inputs: a visible hairline instead of v4-base's `currentcolor` (= body text).
+    "inputBorderColor": "var(--color-neutral-subtle)",
+}
+
+
 _THEME_MAIN2_OVERRIDES = {
+    # x_bakery (2026-08-14): the shared light-scheme spec, see
+    # `_BAKERY_LIGHT_COMPONENTS`. main-2 keeps its own CSS-derived cream
+    # `bgColor`; only the components are overridden.
+    "x_bakery": dict(_BAKERY_LIGHT_COMPONENTS),
     # x_adventure Tag colours (2026-08-11, user-specified) -- identical to
     # `_THEME_MAIN_OVERRIDES["x_adventure"]` except the Default chip's fill,
     # which goes white here rather than neutral-subtle. main-2's own background
@@ -6012,17 +6589,26 @@ _THEME_MAIN2_OVERRIDES = {
         # DEFAULT stays brand-subtle border+text (visible outline) as the one
         # necessary exception; HOVER (which does have a fill slot) follows the
         # instruction exactly: brand-alt fill + white text.
+        # Ghost (2026-08-11, user-corrected) -- same fix as main, but the hover
+        # fill is main-2's own literal bg (#fffeea), not main's white.
         "buttonGhostBorderColor": "var(--color-brand-subtle)",
         "buttonGhostTextColor": "var(--color-brand-subtle)",
-        "buttonGhostHoverFillColor": "var(--color-brand-alt)",
+        "buttonGhostHoverFillColor": "#fffeea",
         "buttonGhostHoverBorderColor": "transparent",
-        "buttonGhostHoverTextColor": "var(--color-neutral-subtlest)",
+        "buttonGhostHoverTextColor": "var(--color-brand-boldest)",
         "tagDefaultBgColor": "var(--color-brand-subtle)",
         "tagDefaultBorderColor": "transparent",
         "tagDefaultTextColor": "var(--color-neutral-subtlest)",
         "tagDefaultHoverBgColor": "var(--color-brand-alt)",
         "tagDefaultHoverBorderColor": "transparent",
         "tagDefaultHoverTextColor": "var(--color-neutral-subtlest)",
+        # Accent's text is `brand-alt-bold`, not `brand-bold` (user, 2026-08-17).
+        # The two render almost identically on this theme -- both are a dark
+        # shade -- but they behave differently on a shop that overrides the
+        # palette: `pordeehealthshop` sets Brand green and BrandBold red, so a
+        # `brand-bold` reference here would have picked up whatever the merchant
+        # happened to put in that slot. `brand-alt-bold` at least names the role
+        # it wants, the second brand colour darkened.
         "tagAccentBgColor": "var(--color-brand-subtle)",
         "tagAccentBorderColor": "transparent",
         "tagAccentTextColor": "var(--color-neutral-subtlest)",
@@ -6210,6 +6796,165 @@ _THEME_MAIN2_OVERRIDES = {
 # _theme_scheme2_overrides()[theme_id] (post `_THEME_MAIN2_OVERRIDES`, i.e. the
 # corrected values, kept in sync).
 _THEME_MAIN_OVERRIDES = {
+    # x_ceramicstore (2026-08-17). Built ahead of a real shop going live on this
+    # theme, so it is DERIVED from CSS rather than dictated from a demo -- every
+    # value below cites an unconditional rule, and the few that don't are called
+    # out. Not yet live-demo QA'd.
+    #
+    # The Ghost and Link Accent overrides below were originally defensive: this
+    # theme's `brand-bold` used to be a stray PINK, so v4-base's own main --
+    # which reaches for `brand-bold` in both places -- rendered pink text on a
+    # blue-grey theme. The ramp itself was repointed later the same day (see
+    # `convert_theme()`'s per-theme block), so `brand-bold` is now a proper dark
+    # blue and the danger is gone. The overrides stay because they are
+    # CSS-derived in their own right (`--link_lightBG_style`), not because of
+    # the pink -- but that is why they exist.
+    "x_ceramicstore": {
+        # `--title_lightBG_style { color: var(--color_schemeA) }`
+        "titleTextColor": "var(--color-brand)",
+        # `--link_lightBG_style` and `--linkArticle_lightBG_style` are the same
+        # pair of colours (brand, hover black); Article adds only an underline,
+        # which is a Phase 6 `linkTextDecoration` concern, not a colour.
+        #
+        # The CSS's black hover is deliberately NOT carried (user, 2026-08-17):
+        # links keep their resting colour on hover in every scheme here. v3's
+        # own hover affordance for links is the underline, not a colour change,
+        # so recolouring them was adding a signal v3 never had.
+        "linkDefaultColor": "var(--color-brand)",
+        "linkDefaultHoverColor": "var(--color-brand)",
+        "linkAccentColor": "var(--color-brand)",
+        "linkAccentHoverColor": "var(--color-brand)",
+        # `--button_lightBG_style`: solid brand, white text, hover fills
+        # `--color_schemeB` (= brand-alt, the brown). Note the hover does NOT
+        # use schemeA_d, so the broken bold step never enters the button.
+        "buttonPrimaryFillColor": "var(--color-brand)",
+        "buttonPrimaryBorderColor": "var(--color-brand)",
+        "buttonPrimaryTextColor": "var(--color-neutral-subtlest)",
+        "buttonPrimaryHoverFillColor": "var(--color-brand-alt)",
+        "buttonPrimaryHoverBorderColor": "var(--color-brand-alt)",
+        "buttonPrimaryHoverTextColor": "var(--color-neutral-subtlest)",
+        # Secondary: v3 has no `--sbutton` at all (this palette defines ONE
+        # `--button_*` family). Built as the outline of Primary per v4's
+        # convention -- and corroborated, because two real controls in this
+        # theme already draw exactly that shape: `.btnTag` and `.quantityBox
+        # button` are both "1px brand border, brand text, fills brand with white
+        # text on hover".
+        "buttonSecondaryFillColor": "transparent",
+        "buttonSecondaryBorderColor": "var(--color-brand)",
+        "buttonSecondaryTextColor": "var(--color-brand)",
+        # Hover matches Primary's exactly (user, 2026-08-17): brand-alt, not the
+        # brand the CSS's `.btnTag`/`.quantityBox` fill with. Rest state still
+        # differs -- outline vs solid -- so the pair converges only on hover,
+        # the same pattern settled on x_cha.
+        "buttonSecondaryHoverFillColor": "var(--color-brand-alt)",
+        "buttonSecondaryHoverBorderColor": "var(--color-brand-alt)",
+        "buttonSecondaryHoverTextColor": "var(--color-neutral-subtlest)",
+        # Ghost: no v3 source either. Text follows the link colour (brand) and
+        # hovers to the button's hover (brand-alt). Inferred -- but leaving it
+        # alone was not an option, see the pink warning above.
+        "buttonGhostTextColor": "var(--color-brand)",
+        "buttonGhostHoverTextColor": "var(--color-brand-alt)",
+        # Tag Default = `.btnTag` verbatim (1px brand border, brand text, fills
+        # brand with white text on hover). Tag Accent has no v3 source -- the
+        # theme's only other tag is `.proTag`, the product-card badge, which
+        # belongs to Card Style -- so it takes the Primary button per
+        # [[feedback-tag-falls-back-to-buttons]].
+        "tagDefaultBgColor": "transparent",
+        "tagDefaultBorderColor": "var(--color-brand)",
+        "tagDefaultTextColor": "var(--color-brand)",
+        "tagDefaultHoverBgColor": "var(--color-brand-alt)",
+        "tagDefaultHoverBorderColor": "var(--color-brand-alt)",
+        "tagDefaultHoverTextColor": "var(--color-neutral-subtlest)",
+        "tagAccentBgColor": "var(--color-brand)",
+        "tagAccentBorderColor": "var(--color-brand)",
+        "tagAccentTextColor": "var(--color-neutral-subtlest)",
+        "tagAccentHoverBgColor": "var(--color-brand-alt)",
+        "tagAccentHoverBorderColor": "var(--color-brand-alt)",
+        "tagAccentHoverTextColor": "var(--color-neutral-subtlest)",
+        # Neutral greys, no box -- the same treatment as x_bakery (user).
+        #
+        # 📉 This slot is a small case study in a section-scoped rule not
+        # generalising. The only arrow CSS carrying colour is
+        # `.f_productSlick_section .slick-arrow { border: 1px solid schemeA }`
+        # with a `schemeA` glyph (`.heroSlick`'s rule sets glyphs only), so the
+        # first pass promoted that one section's styling to the theme-wide token
+        # and flagged it for QA. **Both halves were then contradicted by the
+        # demo**: the glyph colour became neutral rather than brand, and the
+        # border turned out not to be visible at all, so `arrowsBorderWidth` was
+        # dropped from `_THEME_ARROWS_BORDER_WIDTH` too. Nothing of the original
+        # derivation survived. When a rule's only source is one section, prefer
+        # leaving the token unset over generalising it.
+        "arrowsTextColor": "var(--color-neutral-bold)",
+        "arrowsHoverTextColor": "var(--color-neutral-boldest)",
+        "arrowsBgColor": "transparent",
+        "arrowsHoverBgColor": "transparent",
+        "sliderBulletsBgColor": "var(--color-neutral-subtle)",
+        "sliderBulletsActiveBgColor": "var(--color-brand)",
+        "sliderBulletsHoverBgColor": "var(--color-brand)",
+    },
+    # x_cha (2026-08-17, live demo). Its main-2 inherits ALL of this via
+    # `_THEME_MAIN2_FROM_MAIN`, which then overrides only the two hover keys
+    # that differ between the schemes.
+    "x_cha": {
+        # Primary: brand, darkening to brand-bold. (main-2 hovers to black.)
+        "buttonPrimaryFillColor": "var(--color-brand)",
+        "buttonPrimaryBorderColor": "var(--color-brand)",
+        "buttonPrimaryHoverFillColor": "var(--color-brand-bold)",
+        "buttonPrimaryHoverBorderColor": "var(--color-brand-bold)",
+        # Secondary hovers exactly like Primary (user, 2026-08-17). v4-base
+        # leaves it as an outline that only changes text colour -- transparent
+        # fill, `currentcolor` border -- so hovering a Secondary looked like
+        # nothing happened next to a Primary that fills. Base state is left
+        # alone; only the hover is aligned, so the two buttons still read as
+        # different at rest and identical once hovered. (main-2 hovers to
+        # black instead, same as its Primary.)
+        "buttonSecondaryHoverFillColor": "var(--color-brand-bold)",
+        "buttonSecondaryHoverBorderColor": "var(--color-brand-bold)",
+        "buttonSecondaryHoverTextColor": "var(--color-neutral-subtlest)",
+        # Ghost: text-only. (main-2 hovers to black.)
+        "buttonGhostTextColor": "var(--color-brand)",
+        "buttonGhostHoverTextColor": "var(--color-brand-bold)",
+        # Links: Default reads as body text; Accent is brand-bold from rest, so
+        # the two are distinguishable without hovering -- the collision that bit
+        # x_playground (Ghost text == linkAccent) is avoided here by Accent
+        # sitting a step BOLDER than Ghost rather than on the same value.
+        "linkDefaultColor": "var(--color-neutral-boldest)",
+        "linkDefaultHoverColor": "var(--color-brand-bold)",
+        "linkAccentColor": "var(--color-brand-bold)",
+        "linkAccentHoverColor": "var(--color-brand-boldest)",
+        # Tag Default: black outline, matching the Secondary button's shape;
+        # fills brand on hover. Tag Accent: the same chip already outlined in
+        # brand. Both land on the identical hovered state (brand fill, white
+        # text) -- deliberate per the spec, the difference is at rest.
+        "tagDefaultBgColor": "transparent",
+        "tagDefaultBorderColor": "var(--color-neutral-boldest)",
+        "tagDefaultTextColor": "var(--color-neutral-boldest)",
+        "tagDefaultHoverBgColor": "var(--color-brand)",
+        "tagDefaultHoverBorderColor": "var(--color-brand)",
+        "tagDefaultHoverTextColor": "var(--color-neutral-subtlest)",
+        "tagAccentBgColor": "transparent",
+        "tagAccentBorderColor": "var(--color-brand)",
+        "tagAccentTextColor": "var(--color-brand)",
+        "tagAccentHoverBgColor": "var(--color-brand)",
+        "tagAccentHoverBorderColor": "var(--color-brand)",
+        "tagAccentHoverTextColor": "var(--color-neutral-subtlest)",
+        # Dots: a neutral ramp, idle -> active -> hovered.
+        "sliderBulletsBgColor": "var(--color-neutral-subtle)",
+        "sliderBulletsActiveBgColor": "var(--color-neutral-bold)",
+        "sliderBulletsHoverBgColor": "var(--color-neutral-boldest)",
+        # Arrows: same treatment as x_bakery -- no box, glyph only, darkening on
+        # hover. `arrowsHoverBgColor` must be restated or v4-base's
+        # `neutral-subtle` puts the box back on hover.
+        "arrowsBgColor": "transparent",
+        "arrowsHoverBgColor": "transparent",
+        "arrowsHoverTextColor": "var(--color-neutral-boldest)",
+    },
+    # x_bakery (2026-08-14): same spec as its main-2, see
+    # `_BAKERY_LIGHT_COMPONENTS`. This theme had NO `.color-scheme-main` block
+    # before -- it inherited v4-base's generic light scheme, which is what the
+    # live-demo QA turned up. First Phase 4 theme, arrived at through QA rather
+    # than through the systematic pass, which is still not started.
+    "x_bakery": dict(_BAKERY_LIGHT_COMPONENTS),
     # x_adventure Tag colours (2026-08-11, user-specified across all four
     # schemes). NOT CSS-derived: this theme's `--buttontag_lightBG_style` is a
     # solid black chip (bg `--color_dark`, white text, hover brand red) and its
@@ -6328,11 +7073,17 @@ _THEME_MAIN_OVERRIDES = {
         # DEFAULT stays brand-subtle border+text (visible outline) as the one
         # necessary exception; HOVER (which does have a fill slot) follows the
         # instruction exactly: brand-alt fill + white text.
+        # Ghost (2026-08-11, user-corrected from the live demo). Resting state
+        # stays green (`brand-subtle`) -- the fix is entirely in the hover:
+        # it used to fill brand-alt yellow with white text, which read as a
+        # different component. Now it fills with the scheme's own bgColor so
+        # the button dissolves into the page, and the text darkens to
+        # `brand-boldest` (#965e6e), a colour nothing else in this theme uses.
         "buttonGhostBorderColor": "var(--color-brand-subtle)",
         "buttonGhostTextColor": "var(--color-brand-subtle)",
-        "buttonGhostHoverFillColor": "var(--color-brand-alt)",
+        "buttonGhostHoverFillColor": "var(--color-neutral-subtlest)",
         "buttonGhostHoverBorderColor": "transparent",
-        "buttonGhostHoverTextColor": "var(--color-neutral-subtlest)",
+        "buttonGhostHoverTextColor": "var(--color-brand-boldest)",
         "tagDefaultBgColor": "var(--color-brand-subtle)",
         "tagDefaultBorderColor": "transparent",
         "tagDefaultTextColor": "var(--color-neutral-subtlest)",
@@ -6890,6 +7641,159 @@ _THEME_INVERSE = {
         "arrowsHoverBgColor": "var(--color-brand)",
         "arrowsHoverTextColor": "var(--color-neutral-subtlest)",
     },
+    # x_ceramicstore (2026-08-17). Unusually well grounded for an inverse: this
+    # theme's `.darkMode` is a genuine dark scheme (`.darkMode.headerPane`
+    # `background-color: var(--color_dark)` = #000, links white) AND it styles a
+    # real Secondary button, which most themes never do.
+    #
+        # The palette defines no `--background_darkBG_style`, so darkMode here is
+        # a plain inverse. Its `.color-scheme-main-2` comes from somewhere else
+        # entirely -- six sections with a `--color_schemeA_l` background, see
+        # `_THEME_MAIN2_FROM_MAIN`.
+    "x_ceramicstore": {
+        # bgColor: #617BA0 = this theme's Brand (user, 2026-08-17). NOT the
+        # `--color_dark` #000 its `.darkMode.headerPane` states -- the CSS
+        # describes v3's header, the design wants the brand blue-grey. Same
+        # shape as x_cha, where the user also overrode a `--color_dark` inverse.
+        "bgColor": "var(--color-brand)",
+        "textColor": "var(--color-neutral-subtlest)",
+        "textSubtleColor": "var(--color-neutral-subtlest)",
+        # `--title_darkBG_style { color: var(--color_light) }`
+        "titleTextColor": "var(--color-neutral-subtlest)",
+        "captionTextColor": "var(--color-neutral-subtlest)",
+        "descriptionTextColor": "var(--color-neutral-subtlest)",
+        # `.darkMode ... a { color: var(--color_light) }`. v3 states no hover
+        # colour on the dark scheme, so both hovers take brand-alt-subtlest --
+        # NOT brand-bold, which is this theme's stray pink.
+        "linkDefaultColor": "var(--color-neutral-subtlest)",
+        "linkDefaultHoverColor": "var(--color-neutral-subtlest)",
+        "linkAccentColor": "var(--color-neutral-subtlest)",
+        "linkAccentHoverColor": "var(--color-neutral-subtlest)",
+        # `--button_darkBG_style`: white fill, brand text -- the exact inversion
+        # of main's Primary. Its hover is `color(var(--color_light100)
+        # alpha(-15%))`, a v3 colour function with no v4 equivalent, so the
+        # hover fill is left at white and only the text moves.
+        "buttonPrimaryFillColor": "var(--color-neutral-subtlest)",
+        "buttonPrimaryBorderColor": "var(--color-neutral-subtlest)",
+        "buttonPrimaryTextColor": "var(--color-brand)",
+        # Hover fills `brand-subtlest`, the theme's own cream, rather than the
+        # plain white it rests at (user, 2026-08-17) -- a white button on a
+        # brand background had nowhere to go on hover, since its hover state
+        # was the same white.
+        "buttonPrimaryHoverFillColor": "var(--color-brand-subtle)",
+        "buttonPrimaryHoverBorderColor": "var(--color-brand-subtle)",
+        "buttonPrimaryHoverTextColor": "var(--color-brand)",
+        # Rest state is `.darkMode .btn_secondary` verbatim -- white text, 1px
+        # white border, transparent. Its hover is NOT: the CSS fills white with
+        # dark text, and the design fills the same cream as Primary with brand
+        # text, so the two buttons converge on hover here too.
+        "buttonSecondaryFillColor": "transparent",
+        "buttonSecondaryBorderColor": "var(--color-neutral-subtlest)",
+        "buttonSecondaryTextColor": "var(--color-neutral-subtlest)",
+        "buttonSecondaryHoverFillColor": "var(--color-brand-subtle)",
+        "buttonSecondaryHoverBorderColor": "var(--color-brand-subtle)",
+        "buttonSecondaryHoverTextColor": "var(--color-brand)",
+        "buttonGhostBorderColor": "transparent",
+        "buttonGhostTextColor": "var(--color-neutral-subtlest)",
+        "buttonGhostHoverFillColor": "transparent",
+        "buttonGhostHoverBorderColor": "transparent",
+        "buttonGhostHoverTextColor": "var(--color-brand-subtle)",
+        # Tags follow the Secondary/Primary pair, same as main.
+        "tagDefaultBgColor": "transparent",
+        "tagDefaultBorderColor": "var(--color-neutral-subtlest)",
+        "tagDefaultTextColor": "var(--color-neutral-subtlest)",
+        "tagDefaultHoverBgColor": "var(--color-neutral-subtlest)",
+        "tagDefaultHoverBorderColor": "var(--color-neutral-subtlest)",
+        "tagDefaultHoverTextColor": "var(--color-brand)",
+        "tagAccentBgColor": "var(--color-brand-subtle)",
+        "tagAccentBorderColor": "var(--color-brand-subtle)",
+        "tagAccentTextColor": "var(--color-brand-alt-bold)",
+        "tagAccentHoverBgColor": "var(--color-neutral-subtlest)",
+        "tagAccentHoverBorderColor": "var(--color-neutral-subtlest)",
+        "tagAccentHoverTextColor": "var(--color-brand)",
+        # Arrows keep main's 1px box, re-coloured white for the dark ground.
+        "arrowsBorderColor": "currentcolor",
+        "arrowsTextColor": "var(--color-neutral-subtle)",
+        "arrowsHoverBorderColor": "currentcolor",
+        "arrowsHoverTextColor": "var(--color-neutral-subtlest)",
+        "arrowsBgColor": "transparent",
+        "arrowsHoverBgColor": "transparent",
+        "sliderBulletsBgColor": "var(--color-neutral-subtle)",
+        "sliderBulletsActiveBgColor": "var(--color-neutral-subtlest)",
+        "sliderBulletsHoverBgColor": "var(--color-neutral-subtlest)",
+    },
+    # x_cha (2026-08-14, live demo). ONLY the background was specified by the
+    # user -- "พื้นต้องสีส้ม brand". Everything else here is inferred to make
+    # that background legible, and is the part to check on the next demo pass.
+    #
+    # It deliberately CONTRADICTS the CSS: `.darkMode.footer_section` is
+    # `background-color: var(--color_dark)` (#333) with white text -- a real
+    # inverse pattern, so the theme does have one, it's just not the colour the
+    # design wants. The user saw the render; the CSS loses.
+    #
+    # Inferred keys follow v4's inverse convention (flip the solid/outline
+    # pair) rather than any other theme's CSS, per
+    # [[feedback-no-cross-theme-css-pattern]]. Hovers go to `brand-boldest`
+    # (#904d16, dark brown) because cha's `brand-alt` is a near-white cream
+    # that barely reads as a change against an orange field.
+    "x_cha": {
+        "bgColor": "var(--color-brand)",
+        "textColor": "var(--color-neutral-subtlest)",
+        "textSubtleColor": "var(--color-neutral-subtlest)",
+        "titleTextColor": "var(--color-neutral-subtlest)",
+        "captionTextColor": "var(--color-neutral-subtlest)",
+        "descriptionTextColor": "var(--color-neutral-subtlest)",
+        # Every hover on this scheme lands on BLACK (user, 2026-08-17). The
+        # first build used `brand-boldest` (#904d16) throughout, which read as
+        # "dark orange on orange" -- a shade change rather than a state change.
+        "linkDefaultColor": "var(--color-neutral-subtlest)",
+        "linkDefaultHoverColor": "var(--color-neutral-boldest)",
+        "linkAccentColor": "var(--color-neutral-subtlest)",
+        "linkAccentHoverColor": "var(--color-neutral-boldest)",
+        # Primary inverts to a white solid; Secondary is its outline.
+        "buttonPrimaryFillColor": "var(--color-neutral-subtlest)",
+        "buttonPrimaryBorderColor": "var(--color-neutral-subtlest)",
+        "buttonPrimaryTextColor": "var(--color-brand)",
+        "buttonPrimaryHoverFillColor": "var(--color-neutral-boldest)",
+        "buttonPrimaryHoverBorderColor": "var(--color-neutral-boldest)",
+        "buttonPrimaryHoverTextColor": "var(--color-neutral-subtlest)",
+        "buttonSecondaryFillColor": "transparent",
+        "buttonSecondaryBorderColor": "var(--color-neutral-subtlest)",
+        "buttonSecondaryTextColor": "var(--color-neutral-subtlest)",
+        # Hovers to BLACK, identical to Primary (user, 2026-08-17). It used to
+        # fill white -- which on this scheme is the colour Primary already sits
+        # at, so hovering a Secondary made it look like an un-hovered Primary.
+        "buttonSecondaryHoverFillColor": "var(--color-neutral-boldest)",
+        "buttonSecondaryHoverBorderColor": "var(--color-neutral-boldest)",
+        "buttonSecondaryHoverTextColor": "var(--color-neutral-subtlest)",
+        "buttonGhostBorderColor": "transparent",
+        "buttonGhostTextColor": "var(--color-neutral-subtlest)",
+        "buttonGhostHoverFillColor": "transparent",
+        "buttonGhostHoverBorderColor": "transparent",
+        "buttonGhostHoverTextColor": "var(--color-neutral-boldest)",
+        # Tags: Default is the white outline that fills white on hover; Accent
+        # starts white and softens to `brand-subtlest` (the pale cream) rather
+        # than intensifying -- it is already the loudest thing on the scheme.
+        # Both keep brand text once filled, so the pair reads as one family.
+        "tagDefaultBgColor": "transparent",
+        "tagDefaultBorderColor": "var(--color-neutral-subtlest)",
+        "tagDefaultTextColor": "var(--color-neutral-subtlest)",
+        "tagDefaultHoverBgColor": "var(--color-neutral-subtlest)",
+        "tagDefaultHoverBorderColor": "var(--color-neutral-subtlest)",
+        "tagDefaultHoverTextColor": "var(--color-brand)",
+        "tagAccentBgColor": "var(--color-neutral-subtlest)",
+        "tagAccentBorderColor": "var(--color-neutral-subtlest)",
+        "tagAccentTextColor": "var(--color-brand)",
+        "tagAccentHoverBgColor": "var(--color-brand-subtlest)",
+        "tagAccentHoverBorderColor": "var(--color-brand-subtlest)",
+        "tagAccentHoverTextColor": "var(--color-brand)",
+        "arrowsBgColor": "transparent",
+        "arrowsHoverBgColor": "transparent",
+        "arrowsBorderColor": "currentcolor",
+        "arrowsHoverBorderColor": "currentcolor",
+        "arrowsTextColor": "var(--color-neutral-subtle)",
+        "arrowsHoverTextColor": "var(--color-neutral-subtlest)",
+    },
     "x_bakery": {
         "bgColor": "var(--color-brand)",
         "textColor": "var(--color-white)",
@@ -6930,7 +7834,33 @@ _THEME_INVERSE = {
         "buttonGhostTextColor": "var(--color-white)",
         "buttonGhostHoverFillColor": "transparent",
         "buttonGhostHoverBorderColor": "transparent",
-        "buttonGhostHoverTextColor": "var(--color-brand-alt)"
+        "buttonGhostHoverTextColor": "var(--color-brand-alt)",
+        # Tags (2026-08-14, user-specified from the live demo). Same
+        # outline/solid pairing as this theme's light schemes, re-read for a
+        # red background: Default is the white outline that FILLS on hover
+        # (the light scheme's Default keeps its fill out, because there a fill
+        # would be the loud option and here it's the legible one); Accent is
+        # already solid white at rest, so its hover moves the fill to cream
+        # rather than intensifying it. Both hover to brand-bold text, which is
+        # the only colour dark enough to read on either white or cream.
+        "tagDefaultBgColor": "transparent",
+        "tagDefaultBorderColor": "var(--color-white)",
+        "tagDefaultTextColor": "var(--color-white)",
+        "tagDefaultHoverBgColor": "var(--color-white)",
+        "tagDefaultHoverBorderColor": "var(--color-white)",
+        "tagDefaultHoverTextColor": "var(--color-brand-bold)",
+        "tagAccentBgColor": "var(--color-white)",
+        "tagAccentBorderColor": "var(--color-white)",
+        "tagAccentTextColor": "var(--color-brand-bold)",
+        "tagAccentHoverBgColor": "var(--color-brand-alt)",
+        "tagAccentHoverBorderColor": "var(--color-brand-alt)",
+        "tagAccentHoverTextColor": "var(--color-brand-bold)",
+        "arrowsBgColor": "transparent",
+        "arrowsHoverBgColor": "transparent",
+        "arrowsBorderColor": "currentcolor",
+        "arrowsHoverBorderColor": "currentcolor",
+        "arrowsTextColor": "var(--color-neutral-subtle)",
+        "arrowsHoverTextColor": "var(--color-neutral-subtlest)",
     },
     "x_denim_fw": {
         "bgColor": "var(--color-neutral-boldest)",
@@ -8041,6 +8971,34 @@ def _fill_color_scale(root):
         setk("colorNeutralBold", _interp(ns, nb, 0.72))
 
 
+def _split_collapsed_brand_subtle(root):
+    """Re-point a BrandSubtle anchor that v3 set to the SAME colour as Brand.
+
+    Deliberately NOT part of `_fill_color_scale()`, which must never overwrite
+    an anchor the theme provided -- BrandSubtle is one of the six
+    `_THEME_COLOR_KEYS` that come verbatim from v3's `currentColors`, and
+    `test_anchor_colors_map_verbatim` enforces that. This is the one sanctioned
+    exception, so it lives on its own where it can be seen.
+
+    v3 keeps Brand and BrandSubtle as separate anchors but nothing forces them
+    apart, and on some themes they are identical. That wastes a step of the v4
+    scale: two of the five slots render the same, and anything reaching for
+    `--color-brand-subtle` as a softer brand silently gets full-strength brand.
+    Found on x_cha (2026-08-14) by the user reading the generated scale --
+    nothing in the pipeline flagged it, cf.
+    [[feedback-flag-unused-near-duplicate-colors]].
+
+    Subtlest is already derived from Subtle by `_fill_color_scale()`, so the
+    replacement is the midpoint of the two ENDS rather than another mix with
+    white: that leaves Subtlest untouched and spaces the ramp
+    Subtlest -> Subtle -> Brand evenly."""
+    b = root.get("colorBrand")
+    if b and root.get("colorBrandSubtle") == b and root.get("colorBrandSubtlest"):
+        mid = _interp(root["colorBrandSubtlest"], b, 0.5)
+        if mid:
+            root["colorBrandSubtle"] = mid
+
+
 def _resolve_system_font(name):
     """Map a v3 font name to its canonical v4 system-font name, or return None
     if it is not a system font (i.e. a Google/unknown font). Tolerates case
@@ -8140,6 +9098,8 @@ def _build_theme_root(colors, fonts, theme_id, *, include_colors=True,
             # Fill the v4 5-step scales from the anchors (does not overwrite an
             # anchor the theme provided). Status colors are left to v4.
             _fill_color_scale(root)
+            # The one sanctioned anchor rewrite, kept separate for that reason.
+            _split_collapsed_brand_subtle(root)
 
     if include_fonts and isinstance(fonts, dict):
         # Skip a font-family key entirely when it resolves to an empty list (e.g.
@@ -8309,6 +9269,41 @@ def convert_global(site_json: dict, warnings: list = None, *,
 # hover brand; Link Accent brand-bold, hover brand. Tag not covered -- inherits
 # main's values unchanged (not requested).
 _THEME_MAIN2_FROM_MAIN = {
+    # x_ceramicstore (2026-08-17). Its alternative background is
+    # `--color_schemeA_l` #faf7f3, used as a plain `background` on SIX sections:
+    # `.subHeaderPane`, `.searchwidget_section`, `.f_feature_section_1`,
+    # `.f_iconcontact_section`, `.f_gallery_section`, `.ourteam_section`.
+    #
+    # ❌ The first pass (earlier the same day) recorded "no alternative page
+    # background" and emitted no main-2 at all. That was wrong, and wrong in a
+    # familiar way: the check looked for the two shapes other themes use --
+    # a `--background_darkBG_style` mixin, or an `&.darkMode { background }`
+    # rule -- found neither, and concluded there was nothing. This theme just
+    # says it differently. Searching for the expected pattern instead of reading
+    # what is there is the same failure as the `.viewTab` miss; see
+    # [[feedback-scan-nested-css-with-a-parser]].
+    #
+    # It is a genuinely SUBTLE panel -- #faf7f3 against main's #ffffff is barely
+    # a tint -- but that is v3's own intent, not an artefact.
+    "x_ceramicstore": {"bgColor": "var(--color-brand-subtlest)"},
+    # x_cha (2026-08-14, live demo): its footer renders on main-2, and that
+    # background should be the pale `brand-subtlest`. The theme has no v3
+    # darkMode alt-bg at all, so `_theme_scheme2_overrides()` gives it nothing
+    # and `_THEME_MAIN2_OVERRIDES` alone would not create a block -- this path
+    # does, by re-keying its resolved main.
+    #
+    # 2026-08-17: main-2 is no longer a pure tint of main. Its Primary,
+    # Secondary and Ghost hovers all go to BLACK where main's go to
+    # `brand-bold` -- the only keys that differ, everything else still rides on
+    # `_THEME_MAIN_OVERRIDES`.
+    "x_cha": {
+        "bgColor": "var(--color-brand-subtlest)",
+        "buttonPrimaryHoverFillColor": "var(--color-neutral-boldest)",
+        "buttonPrimaryHoverBorderColor": "var(--color-neutral-boldest)",
+        "buttonSecondaryHoverFillColor": "var(--color-neutral-boldest)",
+        "buttonSecondaryHoverBorderColor": "var(--color-neutral-boldest)",
+        "buttonGhostHoverTextColor": "var(--color-neutral-boldest)",
+    },
     "x_elite": {
         "bgColor": "var(--color-white)",
         "buttonPrimaryFillColor": "var(--color-brand-boldest)",
@@ -8420,16 +9415,44 @@ def _build_inverse2(theme_id: str) -> dict:
     return dict(_THEME_INVERSE2.get(theme_id) or {})
 
 
+def _apply_search_form(theme_id: str, style: dict) -> None:
+    """Write `_THEME_SEARCH_FORM` to `.widget-search-form`, in place.
+
+    Separate from `_apply_theme_radius()` because `style` doesn't exist yet at
+    the point `:root` is assembled -- and because these aren't all radius."""
+    spec = _THEME_SEARCH_FORM.get(theme_id)
+    if not spec:
+        return
+    block = style.setdefault(".widget-search-form", {})
+    if "radius" in spec:
+        # Set on BOTH breakpoints, unlike the single-value root token: v3 states
+        # one radius for every width, so leaving `xs` out would silently fall
+        # back to :root and make mobile disagree with desktop for no reason.
+        px = {"value": spec["radius"], "unit": "px"}
+        block["inputRadius"] = {"xs": dict(px), "lg": dict(px)}
+    if "borderWidth" in spec:
+        block["inputBorderWidth"] = {"value": spec["borderWidth"], "unit": "px"}
+    for key, token in (("borderColor", "inputBorderColor"),
+                       ("bgColor", "inputBgColor")):
+        if key in spec:
+            block[token] = spec[key]
+
+
 def _apply_theme_radius(theme_id: str, root: dict) -> None:
     """Write a theme's `_THEME_RADIUS` entry into its `:root`, in place.
 
     Radius has no `.color-scheme-*` presence at all in v4 -- every token is
-    root-level and theme-wide -- so unlike the colour phases there's nothing
+    root-level or widget-scoped -- so unlike the colour phases there's nothing
     per-scheme to resolve here. `button` fans out to all three of v4's
     per-SIZE tokens because v3 has no size concept for radius (it buckets by
     button FAMILY instead); see `_THEME_RADIUS`'s comment for the one theme
-    where that lossy mapping actually costs something."""
-    spec = _THEME_RADIUS.get(theme_id)
+    where that lossy mapping actually costs something. The `search` key is
+    handled by `_apply_search_form()` instead -- it isn't root-level."""
+    spec = _THEME_RADIUS.get(theme_id) or {}
+    if "input" not in spec and theme_id not in _THEME_INPUT_RADIUS_ZERO:
+        # v3's platform default -- see `_V3_DEFAULT_INPUT_RADIUS`. Applied here
+        # rather than written into 16 registry entries so the rule is stated once.
+        root["inputRadius"] = {"value": _V3_DEFAULT_INPUT_RADIUS, "unit": "px"}
     if not spec:
         return
     if "button" in spec:
@@ -8438,7 +9461,8 @@ def _apply_theme_radius(theme_id: str, root: dict) -> None:
         root["buttonMediumBorderRadius"] = dict(size)
         root["buttonLargeBorderRadius"] = dict(size)
     for key, token in (("tag", "tagRadius"), ("input", "inputRadius"),
-                       ("arrows", "arrowsBorderRadius")):
+                       ("arrows", "arrowsBorderRadius"),
+                       ("listTab", "listTabBorderRadius")):
         if key in spec:
             root[token] = {"value": spec[key], "unit": "px"}
 
@@ -8505,6 +9529,12 @@ def convert_theme(theme_id: str, warnings: list = None) -> dict:
     if theme_id in _THEME_ARROWS_BORDER_WIDTH:
         root["arrowsBorderWidth"] = {"value": 1, "unit": "px"}
         root["arrowsHoverBorderWidth"] = {"value": 1, "unit": "px"}
+    for family, px in (_THEME_BUTTON_BORDER_WIDTH.get(theme_id) or {}).items():
+        # Both states: v3 states one border on the button and only ever changes
+        # its COLOUR on hover, so a rest-only width would drop the outline the
+        # moment the pointer lands on it.
+        root["button%sBorderWidth" % family] = {"value": px, "unit": "px"}
+        root["button%sHoverBorderWidth" % family] = {"value": px, "unit": "px"}
     _apply_theme_radius(theme_id, root)
     if theme_id == "x_supercar":
         # Link hover underline (2026-07-21, user-requested): v4-base's :root
@@ -8572,6 +9602,64 @@ def convert_theme(theme_id: str, warnings: list = None) -> dict:
         # wants it visible.
         root["colorBrandSubtlest"] = "#f8fbfd"
         root["colorBrandSubtle"] = _mix(root.get("colorBrand", "#6096ba"), _WHITE, 0.8)
+    if theme_id == "x_ceramicstore":
+        # Repointed 2026-08-17 (user). v3 hands this theme two anchors that do
+        # not mean what v4's scale names say, so four of its fifteen colours
+        # were unusable and two of those were actively harmful:
+        #
+        #   --color_schemeA_l  #faf7f3  a warm near-white -> BrandSubtle
+        #   --color_schemeA_d  #e1a79c  a PINK             -> BrandBold
+        #
+        # BrandSubtle came out a near-white indistinguishable from the
+        # BrandSubtlest computed from it (#fcfbf9), and BrandBold came out
+        # LIGHTER than Brand and in a different hue -- the brand ramp ran
+        # dark -> light -> dark. Anything v4 renders from `--color-brand-bold`
+        # (v4-base's main uses it for Ghost text and Link Accent) came out pink
+        # against a blue-grey theme.
+        #
+        # The fix keeps every v3 colour, just in the slot it actually belongs to:
+        #
+        #   Brand ramp   -> the two near-whites merge into Subtlest, and Subtle/
+        #                   Bold/Boldest become real tints and shades of Brand
+        #                   (`_fill_color_scale()`'s own ratios, as if v3 had
+        #                   given no anchor at all).
+        #   BrandAlt ramp-> the pink moves in as Subtle. It is the same hue
+        #                   family as the brown (10 deg vs 15 deg) and sits
+        #                   exactly between AltSubtlest and Alt by luminance
+        #                   (0.737 / 0.460 / 0.117), so it lands on a step that
+        #                   was previously a computed placeholder (#b6988e) and
+        #                   unused.
+        #
+        # Both ramps are monotonic afterwards. NOTE for Phase 7: `.proTag` (the
+        # product-card badge) is the one v3 rule that uses the pink, so it must
+        # map to `--color-brand-alt-subtle`, NOT to `--color-brand-bold`.
+        b = root.get("colorBrand", "#617ba0")
+        root["colorBrandSubtlest"] = "#faf7f3"      # v3's schemeA_l, the real one
+        # 0.6 rather than `_fill_color_scale()`'s usual 0.4 (user, 2026-08-17):
+        # at 0.4 (#a0b0c6) the tint reads as a mid-blue rather than a light one.
+        # This value is GENERATED -- v3 has no anchor for it; `schemeA_l`, the
+        # only near-white v3 supplies, is now BrandSubtlest where it belongs.
+        root["colorBrandSubtle"] = _mix(b, _WHITE, 0.6)
+        root["colorBrandBold"] = _mix(b, _BLACK, 0.25)
+        root["colorBrandBoldest"] = _mix(b, _BLACK, 0.5)
+        root["colorBrandAltSubtle"] = "#e1a79c"     # the pink, rehomed
+    if theme_id == "x_cha":
+        # Exact values from the user, 2026-08-14, replacing what
+        # `_split_collapsed_brand_subtle()` computed. That helper only knows how
+        # to space a ramp evenly; it produced `#f8b176` for Subtle and left
+        # Subtlest at `#facba4` (a 50%-white mix of Brand). The design wants the
+        # ramp shifted one step out: the computed Subtlest becomes SUBTLE, and
+        # Subtlest goes paler still.
+        #
+        # `#faefe2` is not on the Brand→white line at all -- it is this theme's
+        # own `--color_schemeB`, i.e. the same value as `colorBrandAlt`. So
+        # BrandSubtlest and BrandAlt are deliberately the same colour here; the
+        # palest brand tint IS the alt colour on this theme. Flagged rather than
+        # "corrected" (cf. [[feedback-flag-unused-near-duplicate-colors]]) --
+        # they sit on different axes, so it costs nothing, but it does mean a
+        # future edit to one will not move the other.
+        root["colorBrandSubtlest"] = "#faefe2"
+        root["colorBrandSubtle"] = "#facba4"
     if theme_id == "x_mixednuts":
         # BrandSubtle/Bold(est) re-derived from the REAL Brand green (2026-08-06,
         # user request + investigation): this theme's registry anchors for those two
@@ -8615,11 +9703,18 @@ def convert_theme(theme_id: str, warnings: list = None) -> dict:
         # mutation persist into the module-level registry across calls.
         style[selector] = json.loads(json.dumps(override))
     _apply_quantity_button_size(style)
+    _apply_search_form(theme_id, style)
     info: dict = {"fontManifest": manifest} if manifest else {}
     for widget, fields in _THEME_WIDGET_INFO_ALL.items():
         info.setdefault("Widget", {}).setdefault(widget, {}).update(fields)
     for widget, fields in _THEME_WIDGET_INFO.get(theme_id, {}).items():
         info.setdefault("Widget", {}).setdefault(widget, {}).update(fields)
+    for kind, fields in _THEME_ELEMENT_INFO.get(theme_id, {}).items():
+        # One level deeper than the widget loop: these carry a nested
+        # `cardConfig` dict rather than flat fields.
+        dest = info.setdefault("Element", {}).setdefault(kind, {})
+        for group, values in fields.items():
+            dest.setdefault(group, {}).update(values)
     return {
         "id": None,                 # assigned by the target system on import
         "theme_key": theme_id,
