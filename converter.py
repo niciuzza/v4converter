@@ -23,7 +23,7 @@ import sys
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.19"
+__version__ = "1.20"
 LAST_UPDATED = "2026-08-10"
 
 # Short summary of what the converter handles — shown in the browser popup.
@@ -38,6 +38,13 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.20", "date": "2026-09-01", "items": [
+        "Footer: คอลัมน์ในแถว <code>lg</code> เต็ม 12 พอดีทุกกรณีแล้ว — เดิมใช้ค่า span ตายตัวที่คัดลอกมาจาก template ซึ่งเป็นแบบเปิดครบทุก pane (brand 6 + อีก 6 คอลัมน์ละ 1) ร้านที่เปิดไม่ครบจึงได้แค่ 9 จาก 12 เหลือพื้นที่ว่างท้ายแถวเกือบหนึ่งในสี่ (41 จาก 47 footer ในไฟล์ตัวอย่างทั้งหมดเป็นแบบนี้)",
+        "Footer: span ของ <code>lg</code> คิดจาก 12 ลบคอลัมน์ brand แล้วหารเท่า ๆ กันตามจำนวนคอลัมน์ที่เปิดจริง เศษที่เหลือไปอยู่คอลัมน์เนื้อหาแรก — เคสที่พบบ่อยที่สุด (เปิด 3 pane บน preset 1) ได้ span 2 เท่ากันทุกคอลัมน์",
+        "Footer: คอลัมน์เนื้อหาไม่ต่ำกว่า span 2 — ถ้าหารแล้วได้น้อยกว่านั้น คอลัมน์ brand จะหดลงมาช่วย (ลงได้ถึง 3) เพื่อให้ลงตัวพอดี เช่น preset 1 ที่เปิด 4 pane ได้ <code>4,2,2,2,2</code> แทน <code>6,1,1,1,1</code> — span 1 กว้างแค่ ~8% ของแถว หัวข้ออย่าง \"ลิงก์แนะนำ\" จะตกบรรทัดทีละคำ",
+        "Footer: ถ้าหด brand แล้วยังไม่พอ (เปิด 5-6 pane) จะไม่หด เพราะบีบ logo ให้เล็กลงแล้วแถวก็ยังตกอยู่ดี ปล่อยให้ตกบรรทัดแทน — เกิดกับ 2 จาก 47 footer ในไฟล์ตัวอย่าง ถ้าไม่สวยให้ปรับที่ design เอง",        "Footer: <code>xs</code>/<code>md</code> ไม่แตะ — สองขนาดนี้ตั้งใจให้เกิน 12 เพื่อให้ grid ตัดขึ้นบรรทัดใหม่ (v4 template จริงก็ทำแบบเดียวกัน)",
+        "Footer: แก้บั๊กคอลัมน์ใช้ span dict ก้อนเดียวกันร่วมกัน ทำให้ทุกคอลัมน์ได้ค่าของคอลัมน์สุดท้าย",
+    ]},
     {"version": "1.19", "date": "2026-09-01", "items": [
         "SlideShow: สไลด์ที่ไม่มีข้อความทับบนรูป ตอนนี้ได้ <code>variant: \"full-image\"</code> แทน <code>\"bg-image\"</code> — <code>bg-image</code> ครอปรูปให้เต็มกรอบ (cover) ส่วน <code>full-image</code> แสดงรูปทั้งใบ (contain) ของเดิมดูแค่ <code>textPosition</code> เลยส่ง section ที่ปิด <code>isShowSlideContent</code> ไปเป็นแบบครอปทั้งหมด ทำให้ต้องมานั่งแก้เองทุกครั้ง (110 จาก 150 section ในไฟล์ตัวอย่างทั้งหมดเข้าข่ายนี้)",
         "SlideShow: <code>slideContentConfig.autoplaySpeed</code> ตอนนี้ตั้ง <code>isAutoplay</code> + <code>isLoop</code> + <code>autoplaySpeed</code> ให้แล้ว — เดิมไม่เคยอ่าน object นี้เลย สไลด์ที่ตั้งความเร็วไว้ใน v3 จึงนิ่งสนิทใน v4",
@@ -3766,10 +3773,99 @@ def _footer_col(span: dict, h_align: dict, widgets: list,
     if vert_align:
         col_info["verticalAlign"] = "start"
     if span:
-        col_info["span"] = span
+        # Copy: callers pass one shared `nav_span`/`account_span` dict for
+        # several columns, and `_footer_distribute_lg` writes a per-column `lg`
+        # into it afterwards. Aliasing made every column take the last value.
+        col_info["span"] = dict(span)
     if h_align:
         col_info["horizontalAlign"] = h_align
     return make_node("col", None, None, col_info, widgets)
+
+
+#: Narrowest a footer content column may get at `lg`. Below this a nav list's
+#: title wraps a word per line, so something has to give. See
+#: `_footer_distribute_lg`.
+_FOOTER_MIN_CONTENT_SPAN = 2
+
+#: Narrowest the brand column may be squeezed to in order to make the content
+#: columns fit. It holds the logo, social row and join button, so it cannot go
+#: arbitrarily small -- but giving up some of its width beats wrapping the row.
+_FOOTER_MIN_BRAND_SPAN = 3
+
+
+def _footer_distribute_lg(content_cols: list, brand_lg: int,
+                          brand_col: dict = None) -> None:
+    """Lay out the `lg` row in place: brand width first, then the content split.
+
+    **A footer row should fill exactly 12 at `lg`** -- checked against every
+    real v4 footer in the repo (`example/site/template-v4-reference.json` and
+    both 7-column footers in `v3/v4-example.json`). `xs`/`md` deliberately
+    overflow (36, 60) because the grid is meant to wrap there, so those
+    breakpoints are left alone.
+
+    The old code hardcoded one span per column *type*, copied verbatim from
+    that template's full house: brand 6 + six content columns at 1 = 12. Real
+    shops rarely open all six panes -- 31 of the 47 footers in this repo open
+    three -- so the row came to 6 + 1 + 1 + 1 = **9**, leaving a quarter of the
+    footer empty. 41 of 47 were short at `lg`; none overflowed.
+
+    Three rules, applied in this order:
+
+    1. **A content column never goes below `_FOOTER_MIN_CONTENT_SPAN`.** One
+       twelfth of the row is ~8% of the container, and these columns hold a
+       `WidgetNavList` *with a title* -- "ลิงก์แนะนำ", "บัญชีของฉัน" -- which breaks
+       a word per line at that width.
+    2. **The brand column shrinks to make them fit, but only down to
+       `_FOOTER_MIN_BRAND_SPAN`, and only when shrinking actually buys an exact
+       fit.** Squeezing the logo for a row that still wraps costs width and
+       gains nothing, so in that case the brand keeps its preset span.
+    3. **Otherwise the row overflows 12 and wraps**, which is fine -- a wrapped
+       row reads, a 1-span column does not. The designer adjusts by hand if a
+       particular footer looks wrong (user, 2026-09-01).
+
+    Whatever is left after the brand is split evenly across the content
+    columns, with the remainder going to the first of them.
+
+    | preset | 3 panes | 4 panes | 6 panes |
+    |---|---|---|---|
+    | 1 (brand 6) | `6,2,2,2` | **`4,2,2,2,2`** (brand shrank) | `6,2,2,2,2,2,2` ⤶ |
+    | 2 (brand 4) | `4,4,2,2` | `4,2,2,2,2` | `4,2,2,2,2,2,2` ⤶ |
+    | 3 (own row) | `4,4,4` | `3,3,3,3` | `2,2,2,2,2,2` |
+
+    The shrink fires for **preset 1 with exactly 4 content panes** and nowhere
+    else -- 3 of the 47 real footers. Preset 3 never needs any of this: its
+    brand sits on its own row, so all 12 stay available. Wrapping is reachable
+    only from 5+ panes, which no real shop in this repo has on preset 1 or 2.
+
+    > `_FOOTER_MIN_BRAND_SPAN` is never hit exactly: a fit needs
+    > `12 - 2n`, which is even, so the brand lands on 4 or wider. It is a floor
+    > guarding the shrink, not a value the current inputs produce.
+
+    > ⚠️ **The content minimum gives up "lg totals exactly 12" for the wrapping
+    > cases.** v4's own templates *do* use span 1 with those same long titles,
+    > so if span 1 turns out to render acceptably, that minimum is the thing to
+    > revert -- not the division or the shrink.
+    """
+    n = len(content_cols)
+    if not n:
+        return
+
+    needed = _FOOTER_MIN_CONTENT_SPAN * n
+    if brand_lg and brand_lg + needed > 12 and _FOOTER_MIN_BRAND_SPAN + needed <= 12:
+        # Shrinking buys an exact fit -- take it, and no further than needed.
+        brand_lg = 12 - needed
+        if brand_col is not None:
+            brand_col["info"].setdefault("span", {})["lg"] = str(brand_lg)
+
+    available = 12 - brand_lg
+    if available < needed:
+        spans = [_FOOTER_MIN_CONTENT_SPAN] * n
+    else:
+        base, remainder = divmod(available, n)
+        spans = [base] * n
+        spans[0] += remainder
+    for col, lg in zip(content_cols, spans):
+        col["info"].setdefault("span", {})["lg"] = str(lg)
 
 
 def _footer_h_align(props: dict) -> dict:
@@ -3876,13 +3972,16 @@ def _footer_preset1(props: dict) -> dict:
         {"xs": "12", "md": "12", "lg": "6"}, h_align,
         _footer_brand_widgets(props),
     )
-    nav_span     = {"xs": "6", "md": "4", "lg": "1"}
-    account_span = {"md": "4", "lg": "1"}
-    contact_span = {"md": "4", "lg": "1"}
-    cols = ([brand_col]
-            + _footer_custom_nav_cols(props, nav_span)
-            + _footer_fixed_cols(props, nav_span, account_span, contact_span,
-                                  True, 1))
+    # `lg` is overwritten by _footer_distribute_lg below -- these carry the
+    # wrapping breakpoints, which stay fixed.
+    nav_span     = {"xs": "6", "md": "4"}
+    account_span = {"md": "4"}
+    contact_span = {"md": "4"}
+    content_cols = (_footer_custom_nav_cols(props, nav_span)
+                    + _footer_fixed_cols(props, nav_span, account_span,
+                                          contact_span, True, 1))
+    _footer_distribute_lg(content_cols, brand_lg=6, brand_col=brand_col)
+    cols = [brand_col] + content_cols
     section_info: dict = {}
     scheme = _footer_color_scheme(props)
     if scheme:
@@ -3895,13 +3994,14 @@ def _footer_preset1(props: dict) -> dict:
 def _footer_preset2(props: dict) -> dict:
     h_align   = _footer_h_align(props)
     brand_col = _footer_col({"lg": "4"}, h_align, _footer_brand_widgets(props))
-    nav_span     = {"xs": "6", "md": "4", "lg": "1"}
-    account_span = {"md": "4", "lg": "2", "2xl": "2"}
-    contact_span = {"md": "4", "lg": "2", "2xl": "2"}
-    cols = ([brand_col]
-            + _footer_custom_nav_cols(props, nav_span)
-            + _footer_fixed_cols(props, nav_span, account_span, contact_span,
-                                  True, 2))
+    nav_span     = {"xs": "6", "md": "4"}
+    account_span = {"md": "4", "2xl": "2"}
+    contact_span = {"md": "4", "2xl": "2"}
+    content_cols = (_footer_custom_nav_cols(props, nav_span)
+                    + _footer_fixed_cols(props, nav_span, account_span,
+                                          contact_span, True, 2))
+    _footer_distribute_lg(content_cols, brand_lg=4, brand_col=brand_col)
+    cols = [brand_col] + content_cols
     section_info: dict = {}
     scheme = _footer_color_scheme(props)
     if scheme:
@@ -3921,12 +4021,14 @@ def _footer_preset3(props: dict) -> dict:
     brand_col = _footer_col({}, h_align, brand_widgets)
     row1 = make_node("row", None, None, {}, [brand_col])
 
-    nav_span     = {"xs": "6", "md": "3", "lg": "3"}
-    account_span = {"md": "3", "lg": "3"}
-    contact_span = {"md": "3", "lg": "3"}
+    # Preset 3 puts the brand on its own row, so the whole 12 is available.
+    nav_span     = {"xs": "6", "md": "3"}
+    account_span = {"md": "3"}
+    contact_span = {"md": "3"}
     row2_cols = (_footer_custom_nav_cols(props, nav_span)
                  + _footer_fixed_cols(props, nav_span, account_span,
                                        contact_span, False, 3))
+    _footer_distribute_lg(row2_cols, brand_lg=0)
     row2 = make_node("row", None, None, {}, row2_cols)
 
     section_info: dict = {}
