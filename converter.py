@@ -158,10 +158,18 @@ CHANGELOG = [
 # from converter2v4's __version__/CHANGELOG above). htmlfix.html reads these.
 # ---------------------------------------------------------------------------
 
-HTMLFIX_VERSION = "1.4"
+HTMLFIX_VERSION = "1.5"
 HTMLFIX_LAST_UPDATED = "2026-09-02"
 
 HTMLFIX_CHANGELOG = [
+    {"version": "1.5", "date": "2026-09-02", "items": [
+        "แก้แท็กที่พิมพ์ผิดให้อัตโนมัติแล้ว เช่น <code>&lt;p'&gt;</code> → <code>&lt;p&gt;</code>, <code>&lt;//p&gt;</code> → <code>&lt;/p&gt;</code>, <code>&lt;/ p&gt;</code> → <code>&lt;/p&gt;</code>, <code>&lt; p&gt;</code> → <code>&lt;p&gt;</code> — เดิมผ่านไปเงียบ ๆ ไม่มีอะไรบอกเลย",
+        "อ่านออกว่าเป็นแท็กเปิดหรือปิดจาก <code>/</code> ที่อยู่ระหว่าง <code>&lt;</code> กับชื่อแท็ก — ไม่มีอย่างอื่นในแท็กที่ใส่ <code>/</code> ตรงนั้นได้ จึงไม่ต้องเดา",
+        "กรณีที่เสียหายที่สุดคือ <code>&lt; p&gt;</code> (มีช่องว่าง) เพราะตัวแยกแท็กไม่รู้จัก แท็กปิด <code>&lt;/p&gt;</code> เลยถูกมองว่าเกินแล้วโดนลบทิ้ง — ตอนนี้ซ่อมแท็กเปิดให้ แท็กปิดจึงรอด",
+        "<b>ไม่แก้ให้</b>ถ้าหลังชื่อแท็กมีตัวอักษรอยู่ (เช่น <code>&lt;p' class='x'&gt;</code>) เพราะอาจเป็น attribute ที่พิมพ์พลาด การเดา attribute เป็นคนละเรื่องและเสี่ยงกว่ามาก — เตือนให้แก้เองแทน",
+        "ข้อความปกติที่ใช้ <code>&lt;</code> <code>&gt;</code> เป็นเครื่องหมายเปรียบเทียบ (เช่น \"ราคา &lt; 100 บาท &gt; ส่งฟรี\") ไม่ถูกแตะ",
+        "แก้บั๊ก: <code>&lt;a title=\"a&gt;b\"&gt;</code> ซึ่งเป็น HTML ที่ถูกต้อง เคยถูกขั้นตอนซ่อม quote ทำพังเป็น <code>&lt;a title=\"a\"&gt;b\"&gt;</code> เพราะเข้าใจผิดว่า quote ไม่ได้ปิด — ตอนนี้ดูก่อนว่ามี quote ปิดตามมามั้ย ส่วนการซ่อม <code>&lt;a href='http://x&gt;</code> ยังทำงานเหมือนเดิม",
+    ]},
     {"version": "1.4", "date": "2026-09-02", "items": [
         "สีที่เขียนไม่มี <code>#</code> นำหน้า (เช่น <code>f4f4f4</code>) เติม <code>#</code> ให้แล้ว — สีเดียวกันแต่เขียนคนละแบบ ถ้าไม่มี <code>#</code> v4 อ่านไม่ออก",
         "จับเฉพาะคีย์ที่เป็นสี (<code>bgColor</code>, <code>fontColor</code>, <code>borderColor</code> ฯลฯ) และเฉพาะค่าที่เป็นเลขฐานสิบหก 3 หรือ 6 หลักล้วน ๆ — <code>transparent</code>, <code>var(--color-*)</code>, ชื่อ <code>color-scheme-*</code> และชื่อสีอย่าง <code>white</code>/<code>red</code>/<code>maroon</code> ไม่ถูกแตะ (เช็คครบทั้ง 154 ชื่อสีของ CSS แล้ว)",
@@ -370,7 +378,14 @@ def _fix_smart_quotes_in_tags(s: str):
 # '>' into the value, so the link text / following markup disappears. Anchored on
 # a tag start so it won't touch quotes/`>` in visible text; the value run excludes
 # quotes and angle brackets, so a properly-closed attribute never matches.
-_UNCLOSED_ATTR_RE = re.compile(r"""(<[a-zA-Z][a-zA-Z0-9]*[^<>]*?=\s*)(['"])([^'"<>]*)>""")
+#: An attribute value opened with a quote and never closed before the tag ends:
+#: `<a href='http://x>`. The trailing lookahead is what keeps a legitimate `>`
+#: *inside* a value safe -- in `<a title="a>b">` a matching quote follows before
+#: the next `<`, so the value was closed after all and nothing is rewritten.
+#: Without it the repair mangled valid HTML into `<a title="a">b">`.
+_UNCLOSED_ATTR_RE = re.compile(
+    r"""(<[a-zA-Z][a-zA-Z0-9]*[^<>]*?=\s*)(['"])([^'"<>]*)>(?![^<]*\2)"""
+)
 
 
 def _fix_unclosed_attr_quotes(s: str):
@@ -581,6 +596,82 @@ def _fix_bare_hex(value: str, path: str, warnings: list) -> str:
     return fixed
 
 
+#: Anything shaped like a tag. Attribute values may not contain `<` or `>`.
+_TAGLIKE_RE = re.compile(r"<[^<>]*>")
+
+#: A tag that is actually valid: optional `/`, a name, optional attributes.
+_WELL_FORMED_TAG_RE = re.compile(r"^</?[a-zA-Z][\w-]*(\s[^<>]*)?/?>$")
+
+
+def _malformed_tags(s: str) -> list:
+    """Tag-like tokens that are not valid tags -- `<p'>`, `<//p>`, `</ p>`.
+
+    **Reported, never rewritten.** What `<p'>` was meant to be is a guess: the
+    quote could be a slipped `>`, a leftover attribute, or a typo for something
+    else. htmlfix repairs breakage whose repair is unambiguous and leaves the
+    rest to a person, so this warns and stops.
+
+    Worth reporting even though **zero occurrences exist in the 202 real files**
+    scanned, because the failure is silent and one shape of it is destructive:
+    `< p>` (a space after the bracket) is not recognised as an opening tag, so
+    the matching `</p>` is treated as an orphan and **deleted** -- one stray
+    character quietly costs a closing tag. Nothing flagged it before.
+
+    Comments and doctypes (`<!-- -->`, `<!DOCTYPE>`) are skipped. A `>` inside
+    an attribute value is safe: the truncated token still matches as
+    well-formed, so it raises nothing.
+    """
+    bad = []
+    for token in _TAGLIKE_RE.findall(s):
+        if token.startswith("<!"):
+            continue
+        if _WELL_FORMED_TAG_RE.match(token):
+            continue
+        # Prose, not markup: `ราคา < 100 บาท > ส่งฟรี`, `a < b and c > d`. A
+        # real tag is one word unless it carries attributes, and attributes
+        # bring an `=`. Costs nothing on real data -- the check fires on none
+        # of the 202 files either way -- and keeps a merchant's sentence from
+        # being reported as a typo.
+        inner = token[1:-1].lstrip("/").strip()
+        if "=" not in token and len(inner.split()) > 1:
+            continue
+        bad.append(token)
+    return bad
+
+
+#: A malformed tag whose intent is still recoverable: optional junk, an
+#: optional `/` marking a close, a real tag name, then junk that is *only*
+#: punctuation. `<p'>`, `<//p>`, `</ p>`, `< p>` all match; `<p' class='x'>`
+#: does not, because letters after the name might be a real attribute.
+_REPAIRABLE_TAG_RE = re.compile(r"^<[\s/]*([a-zA-Z][\w-]*)['\"/\s]*>$")
+
+
+def _repair_tag(token: str):
+    """`(fixed_tag, was_closing)` for a recoverable typo, or None.
+
+    The intent is recoverable because two things survive any of these typos:
+
+    * **open vs close** -- a `/` between the `<` and the name means closing.
+      Nothing else in a tag can put one there, so the reading is unambiguous.
+    * **the name** -- the first identifier is the tag name; HTML has no other
+      candidate.
+
+    Everything else in these tokens is punctuation with no meaning: a stray
+    quote, a doubled slash, a space. Dropping it is the only reading.
+
+    **Deliberately refuses anything with letters after the name.** `<p' class>`
+    could be a mangled attribute list, and guessing at attributes is a
+    different and much worse problem than guessing at a tag.
+    """
+    m = _REPAIRABLE_TAG_RE.match(token)
+    if not m:
+        return None
+    name = m.group(1)
+    # A slash anywhere before the name means it was meant to close.
+    closing = "/" in token[: token.index(name)]
+    return ("</%s>" % name if closing else "<%s>" % name), closing
+
+
 def _walk_html(v, path: str, warnings: list):
     if isinstance(v, dict):
         return {k: _walk_html(val, f"{path}.{k}", warnings) for k, val in v.items()}
@@ -652,6 +743,21 @@ def _walk_html(v, path: str, warnings: list):
         for m in _STYLE_SCRIPT_RE.finditer(out):
             warnings.append({"path": path, "kind": "warn",
                              "msg": f"<{m.group(1).lower()}> embedded in content"})
+
+        # 10b. Report tags that are not valid tags. Before nesting resolution,
+        #      because a malformed *open* tag makes its close look orphaned and
+        #      step 11 then deletes it.
+        for token in _malformed_tags(out):
+            repaired = _repair_tag(token)
+            if repaired:
+                out = out.replace(token, repaired[0])
+                fix(f"แท็กพิมพ์ผิด: {token} → {repaired[0]}")
+            else:
+                warnings.append({
+                    "path": path, "kind": "warn",
+                    "msg": f"แท็กพิมพ์ผิด: {token} — ไม่ได้แก้ให้ เพราะหลังชื่อแท็ก"
+                           "มีตัวอักษรอยู่ อาจเป็น attribute ที่พิมพ์พลาด ต้องแก้เอง",
+                })
 
         # 11. Resolve nesting: remove orphan closes, warn on crossed nesting,
         #     auto-close genuinely-unclosed tags.
