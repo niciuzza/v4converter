@@ -32,7 +32,7 @@ CAPABILITIES = [
     "แปลงโค้ด JSON หน้าร้าน LNW Shop จาก <code>v3</code> เป็น <code>v4</code>",
     "ตรวจชนิดข้อมูลอัตโนมัติ: section เดี่ยว, ทั้งเว็บ (<code>site</code>), zone, หรือ global component",
     "รองรับครบ 17 content section + Header/Footer zone + Global component",
-    "จัดระเบียบ HTML ในเนื้อหาอัตโนมัติ (ปิด tag เช่น <code>&lt;br&gt;</code>) และเตือนเมื่อพบ tag ที่ไม่ได้ปิด",
+    "จัดระเบียบ HTML ในเนื้อหาอัตโนมัติ — ปิด tag ที่ลืมปิด (เช่น <code>&lt;br&gt;</code>), แก้ tag ที่พิมพ์ผิด (<code>&lt;p'&gt;</code> → <code>&lt;p&gt;</code>), เติม <code>#</code> ให้ค่าสีที่เขียนขาด (<code>f4f4f4</code> → <code>#f4f4f4</code>) และเตือนเมื่อพบ tag ที่ไม่ได้ปิด/ซ้อนไขว้",
 ]
 
 # Backend changelog, newest first. Add an entry + bump __version__ whenever

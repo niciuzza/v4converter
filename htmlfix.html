@@ -447,7 +447,9 @@
     const README_HTMLFIX = [
       "รับ <code>v4 JSON</code> ที่มี HTML ผิด แล้วคืน JSON เดิมที่แก้ HTML แล้ว",
       "ปิด void tag อัตโนมัติ (เช่น <code>&lt;br&gt;</code> → <code>&lt;br/&gt;</code>) และตัด newline ระหว่าง tag",
-      "เตือนเมื่อพบ tag ที่ไม่ได้ปิด / ปิดผิด (ดูที่แถบเตือน) — คลิกที่รายการเพื่อกระโดดไปจุดนั้นในโค้ด",
+      "แก้ tag ที่พิมพ์ผิดให้ (เช่น <code>&lt;p'&gt;</code> → <code>&lt;p&gt;</code>, <code>&lt;//p&gt;</code> → <code>&lt;/p&gt;</code>, <code>&lt; p&gt;</code> → <code>&lt;p&gt;</code>) — แต่ถ้าหลังชื่อ tag มีตัวอักษรอยู่ จะเตือนแทน ไม่เดา attribute ให้",
+      "เติม <code>#</code> ให้ค่าสีที่เขียนขาดไป (เช่น <code>f4f4f4</code> → <code>#f4f4f4</code>) — <code>transparent</code>, <code>var(--color-*)</code> และชื่อสีอย่าง <code>white</code> ไม่ถูกแตะ",
+      "เตือนเมื่อพบ tag ที่ไม่ได้ปิด / ปิดผิด / ซ้อนไขว้กัน (ดูที่แถบเตือน) — คลิกที่รายการเพื่อกระโดดไปจุดนั้นในโค้ด",
       "กล่อง OUTPUT แก้มือได้ (มุมมอง “ทั้งหมด”) แล้วระบบ re-check ให้สด ๆ ว่ายังเหลือจุดต้องแก้ไหม · กดคัดลอกจะตรวจซ้ำให้อีกที",
       "<b>ค้นหาในกล่อง:</b> กดปุ่ม <code>⌕</code> หรือ <code>Ctrl/Cmd-F</code> → พิมพ์คำที่ช่องค้นหาบนสุดของกล่อง · <code>Enter</code> = ผลถัดไป, <code>Shift-Enter</code> = ก่อนหน้า · หรือกดปุ่ม <code>▾</code>/<code>▴</code> · (นอกช่องค้นหาใช้ <code>Cmd/Ctrl-G</code> = ถัดไป, <code>Shift-Cmd/Ctrl-G</code> = ก่อนหน้า) · ปิดช่องค้นหาด้วย <code>Esc</code>",
       "<b>ย่อ/ขยาย:</b> <code>⊟</code> ย่อเฉพาะระดับบนสุด · <code>⊞</code> ขยายทั้งหมด",
