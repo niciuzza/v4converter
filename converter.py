@@ -23,7 +23,7 @@ import sys
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.20"
+__version__ = "1.21"
 LAST_UPDATED = "2026-08-10"
 
 # Short summary of what the converter handles — shown in the browser popup.
@@ -38,6 +38,12 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.21", "date": "2026-09-01", "items": [
+        "ParagraphSection: <code>description</code> ที่เป็นเนื้อหาก้อนเดียวใต้หัวข้อ (ไม่มี contentBlocks ตามมาเลย) ย้ายไปเป็น <code>WidgetTextStack</code> แทนที่จะอยู่ในช่อง description ของ <code>WidgetHeading</code> — วัดจากข้อมูลจริง 66 section: กลุ่มที่มี description อย่างเดียวสั้นสุด 167 ตัวอักษร (median 207) คือเนื้อหาเต็ม ๆ ส่วนกลุ่มที่มีเนื้อหาอื่นตามมา median แค่ 26 ตัวอักษร คือหัวข้อรอง ซึ่งยังอยู่ใน heading เหมือนเดิม",
+        "ParagraphSection: <b>แก้เนื้อหาหาย</b> — section ที่ไม่ได้ตั้ง <code>title</code> จะไม่มี <code>WidgetHeading</code> ทำให้ description ถูกทิ้งไปเงียบ ๆ ทั้งก้อน (เจอใน demo ธีม writenow: หายไป 249 ตัวอักษร เหลือแต่ brand info) ตอนนี้เนื้อหาไปอยู่ใน TextStack จึงไม่หายอีกแล้ว",
+        "ParagraphSection: description ที่เป็น plain text และมีขึ้นบรรทัดใหม่ ถูกตัดเป็นย่อหน้าแยกกันแล้ว (เหมือนที่ฝั่ง HTML ทำอยู่) — <b>ยกเว้น</b>ถ้าจุดขึ้นบรรทัดนั้นอยู่ข้างใน HTML tag ที่ยังไม่ปิด จะยกมาทั้งก้อนไม่ตัด ไม่งั้น tag จะขาดครึ่ง (เช่นขึ้นบรรทัดกลาง <code>&lt;a&gt;</code> จะทำให้ลิงก์พัง)",
+        "ParagraphSection: <code>bullets</code> นับเป็นเนื้อหาด้วย — ถ้าใต้หัวข้อมีลิสรายการตามมา description ยังถือเป็นหัวข้อรองและอยู่ใน heading",
+    ]},
     {"version": "1.20", "date": "2026-09-01", "items": [
         "Footer: คอลัมน์ในแถว <code>lg</code> เต็ม 12 พอดีทุกกรณีแล้ว — เดิมใช้ค่า span ตายตัวที่คัดลอกมาจาก template ซึ่งเป็นแบบเปิดครบทุก pane (brand 6 + อีก 6 คอลัมน์ละ 1) ร้านที่เปิดไม่ครบจึงได้แค่ 9 จาก 12 เหลือพื้นที่ว่างท้ายแถวเกือบหนึ่งในสี่ (41 จาก 47 footer ในไฟล์ตัวอย่างทั้งหมดเป็นแบบนี้)",
         "Footer: span ของ <code>lg</code> คิดจาก 12 ลบคอลัมน์ brand แล้วหารเท่า ๆ กันตามจำนวนคอลัมน์ที่เปิดจริง เศษที่เหลือไปอยู่คอลัมน์เนื้อหาแรก — เคสที่พบบ่อยที่สุด (เปิด 3 pane บน preset 1) ได้ span 2 เท่ากันทุกคอลัมน์",
@@ -957,29 +963,149 @@ def build_widget_button(props: dict):
 # Shared widget list builder
 # ---------------------------------------------------------------------------
 
+#: An HTML tag, or a bare newline. Used to walk `_newline_splits_an_element`.
+_HTML_TOKEN_RE = re.compile(r"<\s*(/?)\s*([a-zA-Z][\w-]*)[^>]*?(/?)\s*>|\n")
+
+#: Tags that never wrap content, so they can never be left hanging open.
+_HTML_VOID_TAGS = frozenset({"br", "hr", "img", "input", "meta", "link",
+                             "source", "wbr"})
+
+
+def _newline_splits_an_element(text: str) -> bool:
+    """True when some newline sits *inside* an element that is still open.
+
+    Splitting there would tear the element in half -- the first piece keeps an
+    unclosed opening tag and a later piece carries a stray closing one, which is
+    exactly the structural breakage `normalize_html` exists to repair. Better to
+    carry the block whole (user, 2026-09-02: "ถ้า \n อยู่ใน html tag เดียวกันก็ไม่ควรไป
+    แยกมัน ให้ยกมาทั้งก้อนดีกว่า").
+
+    Two real inputs in the repo do this, which is why the check is not
+    theoretical:
+
+    * `ilhongbookstore`'s Headline title -- a newline right after
+      `<p style="color: transparent; ...">`, where it is only source indentation.
+    * `plugthai`'s SlideShowSection description -- a newline inside an `<a>`,
+      so splitting cuts the link in half.
+
+    Neither reaches this function today (one is a title, the other is flagged
+    `isDescriptionHtml` and goes through `_parse_html_paragraphs`, which strips
+    tags outright). It guards the plain-text path, which keeps tags verbatim and
+    currently has no such input -- 0 of 66 ParagraphSections -- but nothing
+    stopping one.
+
+    Walks a tag stack rather than matching a flat regex: a flat scan has given
+    the wrong answer repeatedly in this project, once inventing a bug that was
+    not there.
+    """
+    stack = []
+    for m in _HTML_TOKEN_RE.finditer(text):
+        if m.group(0) == "\n":
+            if stack:
+                return True
+            continue
+        closing, name, self_closing = m.group(1), m.group(2).lower(), m.group(3)
+        if closing:
+            # Pop to the matching open tag; ignore a close with nothing open.
+            if name in stack:
+                while stack and stack.pop() != name:
+                    pass
+        elif not self_closing and name not in _HTML_VOID_TAGS:
+            stack.append(name)
+    return False
+
+
+def _description_is_the_only_content(props: dict) -> bool:
+    """True when nothing follows the title except the description itself.
+
+    v3's `description` does two different jobs and the shape of the section is
+    what tells them apart. Measured over all 66 real ParagraphSections in the
+    repo (every shop + demo):
+
+    | under the title | n | median length | range |
+    |---|---|---|---|
+    | description ONLY | 7 | 207 | 167-262 |
+    | description + other content | 24 | 26 | 20 of 24 are <= 33 |
+
+    **The description-only group has no short entries at all** -- the shortest
+    is 167 characters. Every one is a full paragraph of body copy that the
+    merchant typed into the description field because they never added a
+    content block. When something else follows, the description is a lead-in
+    line instead.
+
+    Note `bullets` counts as content (user, 2026-09-01: "มีเนื้อหาอื่นต่อ").
+    Counting only paragraph/image left six short descriptions (11-33 chars) in
+    the "only" group and blurred the split.
+
+    **This question cannot arise for any other section type, so do not go
+    looking for it there.** `ParagraphSection` is the only one that has
+    `contentBlocks` at all -- 56 of its 66 instances do, while the other 15
+    section types carrying a `description` (Headline 183, FeatureSection 163,
+    SlideShowSection 150, ProductSection 78, ...) have **zero** across 752
+    sections. They each have exactly one slot for body text, so their
+    description has only one place it can go (user, 2026-09-02: "section
+    พวกนั้นมีได้แค่ description เดียวอยู่แล้ว").
+    """
+    types = {b.get("contentType") for b in (props.get("contentBlocks") or [])}
+    return not (types & {"paragraph", "image", "bullets"})
+
+
+def _resolve_description(props: dict):
+    """`(items to prepend to the first TextStack, props for the heading)`.
+
+    The description belongs in the TextStack -- as body copy -- in two cases:
+
+    1. **It is rich text with 2+ paragraphs.** Long-standing rule: something
+       that parses into several paragraphs is body copy no matter what follows
+       it. Fixture `paragraph/case4` is the hand-corrected example.
+    2. **It is the only thing under the title** (2026-09-01). Then it *is* the
+       section's body, sitting in a slot meant for a lead -- see
+       `_description_is_the_only_content` for the measurement.
+
+    Otherwise it stays on the heading, where a short lead-in belongs. That
+    leaves two real sections behind -- `missbeautysleepdee` (163 chars) and
+    `pordeehealthshop` (121) are long but do have content after them. Catching
+    those would need a length threshold, which is exactly the kind of rule that
+    breaks on the next shop; the structural signal does not.
+
+    Plain text is split on newlines, matching what the HTML path already does.
+    `normalize_html` will not do it later -- it only rewrites `info.html`, and
+    TextStack items are `text.text` -- so if the converter does not split here,
+    nothing does (user, 2026-09-01).
+    """
+    raw = props.get("description") or ""
+    if props.get("isDescriptionHtml"):
+        paras = _parse_html_paragraphs(raw)
+    elif _newline_splits_an_element(raw):
+        # A newline inside an open tag is markup layout, not a paragraph break.
+        paras = [raw.strip()] if raw.strip() else []
+    else:
+        paras = [p.strip() for p in raw.split("\n") if p.strip()]
+
+    if not paras:
+        return [], ({**props, "description": None} if props.get("isDescriptionHtml")
+                    else props)
+
+    if len(paras) >= 2 or _description_is_the_only_content(props):
+        items = [{"itemType": "text", "text": {"text": p}} for p in paras]
+        return items, {**props, "description": None}
+
+    # A single-paragraph lead with other content after it -- keep it on the
+    # heading, but hand over the parsed text so HTML markup is not echoed.
+    return [], ({**props, "description": paras[0]} if props.get("isDescriptionHtml")
+                else props)
+
+
 def build_content_widgets(props: dict) -> list:
     """Build the ordered widget list for any content column.
 
     Consecutive paragraph/image contentBlocks collapse into one WidgetTextStack.
     Bullet blocks flush the current group and emit as WidgetBulletList (Option B).
-    When isDescriptionHtml has 2+ paragraphs, they prepend the first TextStack group
-    and the heading description is suppressed.
+    The heading's description moves into that TextStack in two cases -- see
+    `_resolve_description`.
     """
     widgets = []
-
-    # Resolve description: HTML with 2+ paragraphs goes to TextStack; 1 paragraph → plain text heading
-    prepend_items = []
-    heading_props = props
-    if props.get("isDescriptionHtml"):
-        raw_desc = props.get("description") or ""
-        html_paras = _parse_html_paragraphs(raw_desc)
-        if len(html_paras) >= 2:
-            prepend_items = [{"itemType": "text", "text": {"text": p}} for p in html_paras]
-            heading_props = {**props, "description": None}
-        elif len(html_paras) == 1:
-            heading_props = {**props, "description": html_paras[0]}
-        else:
-            heading_props = {**props, "description": None}
+    prepend_items, heading_props = _resolve_description(props)
 
     if props.get("logo"):
         widgets.append(build_widget_brand_info(props))
