@@ -23,8 +23,8 @@ import sys
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.21"
-LAST_UPDATED = "2026-08-10"
+__version__ = "1.23"
+LAST_UPDATED = "2026-09-02"
 
 # Short summary of what the converter handles — shown in the browser popup.
 # Plain strings; inline HTML (e.g. <code>) is allowed for rendering there.
@@ -38,6 +38,17 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.23", "date": "2026-09-02", "items": [
+        "ทุก section ใช้กฎเดียวกันแล้ว: ถ้าร้านเลือกสีพื้นเข้มเอง (ไม่ได้ติ๊ก dark mode) ตอนนี้ได้ <code>colorScheme: \"color-scheme-inverse\"</code> — เดิมดูแค่ธง <code>isDarkMode</code> ทำให้ 23 section ในไฟล์ตัวอย่างได้พื้นเข้มแต่ตัวอักษรยังเข้มอยู่ อ่านไม่ออก (เช่น <code>demodenim</code> พื้นดำ 4 section, <code>monman</code> พื้น <code>#002043</code>) — เป็นกฎเดียวกับที่ header ใช้มาตั้งแต่ v1.18",
+        "Footer: พาสีพื้นที่ร้านตั้งเอง (<code>sectionStyle.bgColor</code>) มาด้วยแล้ว — เดิมทิ้งทั้งหมด ทำให้ 6 footer เสียสีที่ร้านเลือก เช่น <code>x_writenow</code> สีชมพูและ <code>bluehorizon</code> สีครีม ที่ไม่เหลือร่องรอยเลยเพราะไม่ได้เปลี่ยน scheme ด้วย",
+        "BlogSection และ ProductSection พาสีพื้นมาด้วยแล้วเช่นกัน (อีก 5 section builder ทำอยู่แล้ว)",
+        "สีพื้นที่ v3 ส่งมาแบบไม่มี <code>#</code> นำหน้า (เช่น <code>f4f4f4</code>) เติม <code>#</code> ให้แล้ว — สีเดียวกันแต่เขียนคนละแบบ ถ้าไม่มี <code>#</code> v4 อ่านไม่ออก ส่วนค่าที่ไม่ใช่ hex เช่น <code>rgba(...)</code> ปล่อยผ่านเหมือนเดิม",
+        "เครื่องมือแก้ HTML (htmlfix) เติม <code>#</code> ให้ค่าสีทุกคีย์ด้วยเช่นกัน ดู changelog ของ htmlfix v1.4",
+    ]},
+    {"version": "1.22", "date": "2026-09-02", "items": [
+        "เตือนเมื่อเจอลิงก์ไปหน้า <code>showroom</code> ของ v3 (<code>/showroom/recommend</code>, <code>/showroom/sale</code>, <code>/showroom/new</code>, <code>/showroom/hot</code> ฯลฯ) — v3 มีหน้าพวกนี้ให้สำเร็จรูป แต่ v4 เปลี่ยนไปใช้รูปแบบที่ปรับแต่งได้แทน จึงไม่มีหน้าปลายทาง ลิงก์ยังกดไม่ได้จนกว่าจะสร้างหน้ามารองรับ",
+        "ลิงก์ showroom <b>ไม่ถูกแก้ค่า</b> ปล่อยไว้เหมือนเดิม เพราะยังไม่มีปลายทางที่ถูกต้องให้ชี้ไป — แค่เตือนให้เห็นเฉย ๆ (เดิมผ่านไปเงียบ ๆ ไม่มีอะไรบอกเลย ทั้งที่มี 80 ลิงก์กระจายอยู่ใน 34 จาก 50 ไฟล์ตัวอย่าง)",
+    ]},
     {"version": "1.21", "date": "2026-09-01", "items": [
         "ParagraphSection: <code>description</code> ที่เป็นเนื้อหาก้อนเดียวใต้หัวข้อ (ไม่มี contentBlocks ตามมาเลย) ย้ายไปเป็น <code>WidgetTextStack</code> แทนที่จะอยู่ในช่อง description ของ <code>WidgetHeading</code> — วัดจากข้อมูลจริง 66 section: กลุ่มที่มี description อย่างเดียวสั้นสุด 167 ตัวอักษร (median 207) คือเนื้อหาเต็ม ๆ ส่วนกลุ่มที่มีเนื้อหาอื่นตามมา median แค่ 26 ตัวอักษร คือหัวข้อรอง ซึ่งยังอยู่ใน heading เหมือนเดิม",
         "ParagraphSection: <b>แก้เนื้อหาหาย</b> — section ที่ไม่ได้ตั้ง <code>title</code> จะไม่มี <code>WidgetHeading</code> ทำให้ description ถูกทิ้งไปเงียบ ๆ ทั้งก้อน (เจอใน demo ธีม writenow: หายไป 249 ตัวอักษร เหลือแต่ brand info) ตอนนี้เนื้อหาไปอยู่ใน TextStack จึงไม่หายอีกแล้ว",
@@ -147,10 +158,14 @@ CHANGELOG = [
 # from converter2v4's __version__/CHANGELOG above). htmlfix.html reads these.
 # ---------------------------------------------------------------------------
 
-HTMLFIX_VERSION = "1.3"
-HTMLFIX_LAST_UPDATED = "2026-07-01"
+HTMLFIX_VERSION = "1.4"
+HTMLFIX_LAST_UPDATED = "2026-09-02"
 
 HTMLFIX_CHANGELOG = [
+    {"version": "1.4", "date": "2026-09-02", "items": [
+        "สีที่เขียนไม่มี <code>#</code> นำหน้า (เช่น <code>f4f4f4</code>) เติม <code>#</code> ให้แล้ว — สีเดียวกันแต่เขียนคนละแบบ ถ้าไม่มี <code>#</code> v4 อ่านไม่ออก",
+        "จับเฉพาะคีย์ที่เป็นสี (<code>bgColor</code>, <code>fontColor</code>, <code>borderColor</code> ฯลฯ) และเฉพาะค่าที่เป็นเลขฐานสิบหก 3 หรือ 6 หลักล้วน ๆ — <code>transparent</code>, <code>var(--color-*)</code>, ชื่อ <code>color-scheme-*</code> และชื่อสีอย่าง <code>white</code>/<code>red</code>/<code>maroon</code> ไม่ถูกแตะ (เช็คครบทั้ง 154 ชื่อสีของ CSS แล้ว)",
+    ]},
     {"version": "1.3", "date": "2026-07-01", "items": [
         "ปิด quote ของ attribute ที่เปิดค้าง (เช่น <code>&lt;a href='http://x&gt;aaa&lt;/a&gt;</code>) — เติม quote ปิดก่อน <code>&gt;</code> แทนที่จะปล่อยให้ browser กลืน <code>&gt;aaa&lt;/a&gt;</code> เข้าไปในค่า",
     ]},
@@ -536,6 +551,36 @@ def normalize_html(data, path: str = "$"):
     return new_data, warnings
 
 
+#: A key that holds a colour -- `bgColor`, `fontColor`, `borderColor`, `color`.
+_COLOR_KEY_RE = re.compile(r"\.[a-zA-Z]*[Cc]olor[a-zA-Z]*$")
+
+#: A hex colour written without its `#`. Three or six digits, nothing else, so
+#: `transparent`, `var(--color-brand)` and `color-scheme-main` cannot match.
+_BARE_HEX_RE = re.compile(r"^[0-9a-fA-F]{3}$|^[0-9a-fA-F]{6}$")
+
+
+def _fix_bare_hex(value: str, path: str, warnings: list) -> str:
+    """Give a hex colour back its `#`.
+
+    v4 cannot read `f4f4f4`; it needs `#f4f4f4`. Same colour, different
+    spelling. Rare but real -- **2 of 731** colour values across every shop and
+    demo file in the repo (both `monman`'s `bgColor`), which is exactly the kind
+    of single-character breakage nobody finds by eye.
+
+    Deliberately narrow. It fires only on a key whose name contains "color" and
+    a value that is *nothing but* 3 or 6 hex digits, so the 149 `transparent`s,
+    the `var(--color-*)` refs and the `color-scheme-*` names all pass through
+    untouched. Case is left alone -- it does not break anything, and htmlfix
+    repairs what breaks rather than tidying what does not.
+    """
+    fixed = "#" + value
+    warnings.append({
+        "path": path, "kind": "fixed",
+        "msg": f"สีเขียนไม่มี # นำหน้า — เติมให้แล้ว ({value} → {fixed})",
+    })
+    return fixed
+
+
 def _walk_html(v, path: str, warnings: list):
     if isinstance(v, dict):
         return {k: _walk_html(val, f"{path}.{k}", warnings) for k, val in v.items()}
@@ -544,6 +589,8 @@ def _walk_html(v, path: str, warnings: list):
     # Skip paths that are dropped by the v3→v4 converter (no effect on output).
     if _is_dropped_path(path):
         return v
+    if isinstance(v, str) and _COLOR_KEY_RE.search(path) and _BARE_HEX_RE.match(v.strip()):
+        return _fix_bare_hex(v.strip(), path, warnings)
     if isinstance(v, str) and "<" in v and ">" in v:
         out = v
 
@@ -1069,9 +1116,9 @@ def _resolve_description(props: dict):
     breaks on the next shop; the structural signal does not.
 
     Plain text is split on newlines, matching what the HTML path already does.
-    `normalize_html` will not do it later -- it only rewrites `info.html`, and
-    TextStack items are `text.text` -- so if the converter does not split here,
-    nothing does (user, 2026-09-01).
+    `normalize_html` will not do it later: it only rewrites strings that already
+    contain tags, and a plain-text description has none -- so if the converter
+    does not split here, nothing does (user, 2026-09-01).
     """
     raw = props.get("description") or ""
     if props.get("isDescriptionHtml"):
@@ -1321,9 +1368,9 @@ def build_paragraph_section(props: dict) -> dict:
     section_info = {}
 
     # --- Background ---
-    bg_color = section_style.get("bgColor")
+    bg_color = _section_bg_color(props)
     if bg_color:
-        section_info["bgColor"] = bg_color.lower()
+        section_info["bgColor"] = bg_color
 
     bg_image = section_style.get("bgImage")
     if bg_image:
@@ -1609,9 +1656,9 @@ def build_headline_section(props: dict) -> dict:
                 section_info["bgAttachment"] = section_style["bgAttachment"]
 
     # bgColor from sectionStyle
-    bg_color = section_style.get("bgColor")
+    bg_color = _section_bg_color(props)
     if bg_color:
-        section_info["bgColor"] = bg_color.lower()
+        section_info["bgColor"] = bg_color
 
     # Overlay
     if props.get("isBgOverlay"):
@@ -2018,9 +2065,9 @@ def build_slideshow_section(props: dict) -> dict:
     if is_full_screen is not None:
         section_info["isFullwidth"] = bool(is_full_screen)
 
-    bg_color = section_style.get("bgColor")
+    bg_color = _section_bg_color(props)
     if bg_color:
-        section_info["bgColor"] = bg_color.lower()
+        section_info["bgColor"] = bg_color
 
     bg_image = section_style.get("bgImage")
     if bg_image:
@@ -2301,9 +2348,9 @@ def build_featuresection_section(props: dict) -> dict:
 
     section_info = {}
 
-    bg_color = section_style.get("bgColor")
+    bg_color = _section_bg_color(props)
     if bg_color:
-        section_info["bgColor"] = bg_color.lower()
+        section_info["bgColor"] = bg_color
 
     bg_image = section_style.get("bgImage")
     if bg_image:
@@ -2584,6 +2631,9 @@ def build_productsection_section(props: dict) -> dict:
         pt, pb = merge_classname2_padding(pt, pb, props.get("className2"))
         if pt: section_info["paddingTop"]    = pt
         if pb: section_info["paddingBottom"] = pb
+
+    bg = _section_bg_color(props)
+    if bg: section_info["bgColor"] = bg
 
     heading      = _product_widget_heading(props)
     product_list = _product_widget_product_list(props, layout_type, is_slick)
@@ -2929,9 +2979,9 @@ def build_slidetextsection_section(props: dict) -> dict:
     section_info["paddingTop"]    = {"lg": {"value": 0, "unit": "px"}}
     section_info["paddingBottom"] = {"lg": {"value": 0, "unit": "px"}}
 
-    bg_color = section_style.get("bgColor", "")
+    bg_color = _section_bg_color(props)
     if bg_color:
-        section_info["bgColor"] = bg_color.lower()
+        section_info["bgColor"] = bg_color
 
     bg_image = section_style.get("bgImage", "")
     if bg_image:
@@ -3114,6 +3164,8 @@ def build_blog_section(props: dict) -> dict:
     section_info = {}
     if pt: section_info["paddingTop"]    = pt
     if pb: section_info["paddingBottom"] = pb
+    bg = _section_bg_color(props)
+    if bg: section_info["bgColor"] = bg
 
     heading   = _blog_heading_widget(props, key_name)
     blog_list = _blog_list_widget(props, key_name, preset_id)
@@ -4062,6 +4114,47 @@ def _footer_fixed_cols(props: dict, social_span: dict, account_span: dict,
     return cols
 
 
+def _section_bg_color(props: dict) -> str | None:
+    """The background the merchant picked by hand, lowercased, or None.
+
+    Five builders already wrote this straight onto `section.info.bgColor`;
+    `BlogSection`, `ProductSection` and all three footer presets did not, so on
+    those the colour was simply lost -- 3 content sections and 6 footers across
+    the real files. Same key, same meaning, everywhere: v4's footer takes an
+    ordinary `bgColor` (unlike the header, which has its own `headerBgColor`).
+    """
+    bg = ((props.get("sectionStyle") or {}).get("bgColor") or "").strip().lower()
+    if not bg:
+        return None
+    # One shop stores a bare hex (`monman`, `f4f4f4`); 95 of the 96 use `#`.
+    # Same colour, different spelling -- restore the `#` so v4 can read it.
+    if re.fullmatch(r"[0-9a-f]{3}|[0-9a-f]{6}", bg):
+        bg = "#" + bg
+    return bg
+
+
+def _is_dark_ground(props: dict) -> bool:
+    """True when v3 says this block sits on a dark ground.
+
+    Two signals, and the header has trusted both since v1.18:
+
+    1. **`isDarkMode`** -- the flag a theme preset sets.
+    2. **A dark `sectionStyle.bgColor`** -- the merchant picked the colour by
+       hand in the admin instead of using a preset.
+
+    Content sections used to read only the flag, which left **23 real sections**
+    (`demodenim`'s four black `SlideTextSection`s, `monman`'s `#002043`
+    Headline, `ilhongbookstore`'s `#151515`, …) on `color-scheme-main`: the
+    background came through, the *text* colour did not, so they rendered dark
+    text on a dark ground. That is the same defect v1.18 fixed for the header,
+    and this is the shared test both now use.
+    """
+    if props.get("isDarkMode"):
+        return True
+    bg = ((props.get("sectionStyle") or {}).get("bgColor") or "").strip()
+    return bool(bg and _is_dark_hex(bg))
+
+
 def _footer_color_scheme(props: dict) -> str | None:
     """`"color-scheme-inverse"` when v3's footer sits on a dark ground, else None.
 
@@ -4081,10 +4174,7 @@ def _footer_color_scheme(props: dict) -> str | None:
        that one shop, agrees with `monman` (light title AND the flag), and
        correctly stays quiet for `ilhongbookstore`, whose `#7A7A7A` title is
        dark. **This is the one to revisit first if a footer comes out wrong.**"""
-    if props.get("isDarkMode"):
-        return "color-scheme-inverse"
-    bg = ((props.get("sectionStyle") or {}).get("bgColor") or "").strip()
-    if bg and _is_dark_hex(bg):
+    if _is_dark_ground(props):
         return "color-scheme-inverse"
     font = ((props.get("siteTitleStyle") or {}).get("fontColor") or "").strip()
     if font and not _is_dark_hex(font):
@@ -4112,6 +4202,9 @@ def _footer_preset1(props: dict) -> dict:
     scheme = _footer_color_scheme(props)
     if scheme:
         section_info["colorScheme"] = scheme
+    bg = _section_bg_color(props)
+    if bg:
+        section_info["bgColor"] = bg
     row = make_node("row", None, None, {}, cols)
     return make_node("section", "footer", "[preset1]", section_info,
                      [row, _footer_copyright_row(props)])
@@ -4132,6 +4225,9 @@ def _footer_preset2(props: dict) -> dict:
     scheme = _footer_color_scheme(props)
     if scheme:
         section_info["colorScheme"] = scheme
+    bg = _section_bg_color(props)
+    if bg:
+        section_info["bgColor"] = bg
     row = make_node("row", None, None, {}, cols)
     return make_node("section", "footer", "[preset2]", section_info,
                      [row, _footer_copyright_row(props)])
@@ -4161,6 +4257,9 @@ def _footer_preset3(props: dict) -> dict:
     scheme = _footer_color_scheme(props)
     if scheme:
         section_info["colorScheme"] = scheme
+    bg = _section_bg_color(props)
+    if bg:
+        section_info["bgColor"] = bg
     return make_node("section", "footer", "[preset3]", section_info,
                      [row1, row2, _footer_copyright_row(props)])
 
@@ -10465,6 +10564,40 @@ SECTION_BUILDERS = {
 }
 
 
+#: A v3 showroom path, with or without the leading slash -- `pifastore` writes
+#: `showroom/sale` while everyone else writes `/showroom/sale`. Anchored so a
+#: title like "Our Showroom" cannot match.
+_SHOWROOM_LINK_RE = re.compile(r"(?:^|/)showroom(?:/|$)", re.IGNORECASE)
+
+
+def _showroom_links(node, found=None) -> set:
+    """Every `to` in a converted section still pointing at a v3 showroom page.
+
+    v3 shipped `/showroom/recommend|hot|new|sale` as **built-in pages**. v4 did
+    not carry them over -- it replaced the fixed pages with something more
+    customisable -- so the link has no destination until someone builds a page
+    to answer it (user, 2026-09-02).
+
+    Only `to` is inspected. The value also appears in a `text` once, as the
+    heading "Our Showroom" on `x_seat`, which is a label and not a link.
+
+    80 such links live across 34 of the 50 real shop and demo files, and 29
+    sections carry one into the converted output. They used to pass through in
+    silence; a dead link the designer cannot see is worse than one they can.
+    """
+    found = set() if found is None else found
+    if isinstance(node, list):
+        for item in node:
+            _showroom_links(item, found)
+    elif isinstance(node, dict):
+        for key, value in node.items():
+            if key == "to" and isinstance(value, str) and _SHOWROOM_LINK_RE.search(value):
+                found.add(value)
+            else:
+                _showroom_links(value, found)
+    return found
+
+
 def convert_section(old_json: dict, warnings: list = None) -> dict:
     name    = old_json.get("name", "")
     props   = old_json.get("props", {})
@@ -10488,9 +10621,27 @@ def convert_section(old_json: dict, warnings: list = None) -> dict:
                    "ต้องนำโค้ด HTML เดิมไปวางเองใน manage ของร้าน "
                    "(v4 เก็บ custom HTML แยกจากโครงหน้า)",
         })
+    # Showroom links: v3 built-in pages that v4 does not have. See
+    # `_showroom_links`. Warn rather than rewrite -- there is no correct target
+    # to rewrite to until the replacement page exists.
+    if warnings is not None and result is not None:
+        links = sorted(_showroom_links(result))
+        if links:
+            nickname = (result or {}).get("nickname") or name
+            # Kept to one line on purpose: designers already know these need a
+            # new page, so the warning only has to point at them (user,
+            # 2026-09-02). The "why" lives in the v1.22 changelog entry.
+            warnings.append({
+                "path": None, "kind": "warn",
+                "msg": f"“{nickname}”: มีลิงก์ไปหน้า showroom ของ v3 "
+                       f"({', '.join(links)})",
+            })
+
     # --- Global section-level props (apply to most section types) ---
-    # BannerSlick handles its own dark mode (no colorScheme mapping)
-    if result is not None and props.get("isDarkMode") and name != "BannerSlick":
+    # One rule for every zone: a dark ground gets the inverse scheme, whether
+    # v3 said so with the flag or by handing us a dark colour. See
+    # `_is_dark_ground`. BannerSlick handles its own dark mode.
+    if result is not None and name != "BannerSlick" and _is_dark_ground(props):
         result["info"]["colorScheme"] = "color-scheme-inverse"
     return result
 
