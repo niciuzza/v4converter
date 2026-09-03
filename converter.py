@@ -23,7 +23,7 @@ import sys
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.23"
+__version__ = "1.24"
 LAST_UPDATED = "2026-09-02"
 
 # Short summary of what the converter handles — shown in the browser popup.
@@ -38,6 +38,10 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.24", "date": "2026-09-02", "items": [
+        "Marquee (SlideTextSection): <code>paddingTop</code>/<code>paddingBottom</code> ใส่ค่าเท่ากันทั้ง <code>lg</code> และ <code>xs</code> แล้ว — เดิมใส่แค่ <code>lg</code> บนมือถือแถบวิ่งจึงได้ padding default ของ v4 แทนที่จะเป็น 0 ตามที่ตั้งใจ (<code>containerPaddingX</code> ในฟังก์ชันเดียวกันใส่ครบทั้งสองมาตลอด)",
+        "ไม่ได้ทับค่าของร้าน — v3 ไม่เคยส่ง padding มาให้ section นี้เลย (0 จาก 20 ตัวในไฟล์ตัวอย่าง) ค่าทั้งหมดเป็นของ converter เอง",
+    ]},
     {"version": "1.23", "date": "2026-09-02", "items": [
         "ทุก section ใช้กฎเดียวกันแล้ว: ถ้าร้านเลือกสีพื้นเข้มเอง (ไม่ได้ติ๊ก dark mode) ตอนนี้ได้ <code>colorScheme: \"color-scheme-inverse\"</code> — เดิมดูแค่ธง <code>isDarkMode</code> ทำให้ 23 section ในไฟล์ตัวอย่างได้พื้นเข้มแต่ตัวอักษรยังเข้มอยู่ อ่านไม่ออก (เช่น <code>demodenim</code> พื้นดำ 4 section, <code>monman</code> พื้น <code>#002043</code>) — เป็นกฎเดียวกับที่ header ใช้มาตั้งแต่ v1.18",
         "Footer: พาสีพื้นที่ร้านตั้งเอง (<code>sectionStyle.bgColor</code>) มาด้วยแล้ว — เดิมทิ้งทั้งหมด ทำให้ 6 footer เสียสีที่ร้านเลือก เช่น <code>x_writenow</code> สีชมพูและ <code>bluehorizon</code> สีครีม ที่ไม่เหลือร่องรอยเลยเพราะไม่ได้เปลี่ยน scheme ด้วย",
@@ -3082,8 +3086,16 @@ def build_slidetextsection_section(props: dict) -> dict:
     if height:
         section_info["height"] = height
 
-    section_info["paddingTop"]    = {"lg": {"value": 0, "unit": "px"}}
-    section_info["paddingBottom"] = {"lg": {"value": 0, "unit": "px"}}
+    # Both breakpoints, same value. The marquee is a full-bleed strip -- the
+    # `containerPaddingX` ten lines up already zeroes `lg` *and* `xs` -- but
+    # these two wrote only `lg`, so on mobile the strip picked up v4's default
+    # section padding instead of the 0 that was intended. v3 never sends a
+    # padding for this section (0 of 20 in the repo), so there is no merchant
+    # value being overridden here: the whole value is the converter's own
+    # (user, 2026-09-02: "ใส่ค่าเท่ากันให้ทั้ง lg และ xs").
+    zero = {"value": 0, "unit": "px"}
+    section_info["paddingTop"]    = {"lg": dict(zero), "xs": dict(zero)}
+    section_info["paddingBottom"] = {"lg": dict(zero), "xs": dict(zero)}
 
     bg_color = _section_bg_color(props)
     if bg_color:
