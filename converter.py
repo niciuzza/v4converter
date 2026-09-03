@@ -23,7 +23,7 @@ import sys
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.24"
+__version__ = "1.25"
 LAST_UPDATED = "2026-09-02"
 
 # Short summary of what the converter handles — shown in the browser popup.
@@ -38,6 +38,13 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.25", "date": "2026-09-02", "items": [
+        "Header เมนู <code>auto_category</code> ใช้ <code>WidgetCategoryList</code> แล้ว — เดิมทุก template ได้ <code>WidgetNavList</code> ที่ตั้ง <code>preset: \"category\"</code> เหมือนกันหมด ซึ่งเป็นตัวแทนชั่วคราวสมัยที่ยังไม่มี widget นี้ ทำให้เมกะเมนูออกมาเป็นลิสต์ข้อความแทนที่จะเป็นตารางการ์ดหมวดหมู่ (24 เมนูใน 49 header ของไฟล์ตัวอย่าง)",
+        "แต่ละ template ได้หน้าตาต่างกันตามที่ v3 ตั้งใจ: <code>default</code> = ตารางการ์ดพร้อมรูป · <code>showTextListTemplate</code> = ตารางเดียวกันแต่ปิดรูป (<code>layoutCard.isShowMedia: false</code>) ตามชื่อ template · <code>custom</code> และเมนูที่ไม่ได้ระบุ template = ไม่ตั้งค่าอะไรเลย ปล่อยให้ v4 ใช้ค่าเริ่มต้นของตัวเอง",
+        "<code>showTextTemplate</code> ยังใช้ <code>WidgetNavList</code> เหมือนเดิม — เป็น template เดียวที่กว้างแค่ <code>boxWidth</code> ตารางการ์ด 4 คอลัมน์ใส่ไม่ลง",
+        "เมนูแบบ flyout (<code>showTextLevelTemplate</code>) ใส่ <code>flyoutTemplate: \"default\"</code> ให้แล้ว",
+        "แก้บั๊ก: flyout เคยส่ง <code>category_id: \"0\"</code> ออกไป ทั้งที่ <code>cat_id: 0</code> ใน v3 แปลว่า \"ทุกหมวด\" ไม่ใช่หมวดเลข 0 — ฝั่งเมกะเมนูอ่านถูกมาตลอด ฝั่ง flyout ไม่ได้อ่าน (เจอ 3 จาก 6 flyout ในไฟล์ตัวอย่าง)",
+    ]},
     {"version": "1.24", "date": "2026-09-02", "items": [
         "Marquee (SlideTextSection): <code>paddingTop</code>/<code>paddingBottom</code> ใส่ค่าเท่ากันทั้ง <code>lg</code> และ <code>xs</code> แล้ว — เดิมใส่แค่ <code>lg</code> บนมือถือแถบวิ่งจึงได้ padding default ของ v4 แทนที่จะเป็น 0 ตามที่ตั้งใจ (<code>containerPaddingX</code> ในฟังก์ชันเดียวกันใส่ครบทั้งสองมาตลอด)",
         "ไม่ได้ทับค่าของร้าน — v3 ไม่เคยส่ง padding มาให้ section นี้เลย (0 จาก 20 ตัวในไฟล์ตัวอย่าง) ค่าทั้งหมดเป็นของ converter เอง",
@@ -4449,20 +4456,90 @@ def _header_menu_items(menu_list: list) -> tuple:
                 item["maxHierarchyNumber"] = hierarchy
         elif menu_type == "auto_category" and template == "showTextLevelTemplate":
             item["dropdownType"] = "flyout"
-            if "cat_id" in m and "submenu" not in m:
-                item["category_id"] = str(m["cat_id"])
+            item["flyoutTemplate"] = "default"
+            # `cat_id: 0` is v3 for "every category", not category zero -- the
+            # mega branch has always read it that way and this one had not,
+            # so 3 of the 6 real flyouts were emitting `category_id: "0"`.
+            cid = m.get("cat_id")
+            if isinstance(cid, int) and cid > 0 and "submenu" not in m:
+                item["category_id"] = str(cid)
             hierarchy = m.get("hierarchyLevel", "")
             if hierarchy != "" and hierarchy is not None:
                 item["maxHierarchyNumber"] = hierarchy
         elif menu_type == "auto_category":
             cat_id = m.get("cat_id")
+            cat_id = cat_id if isinstance(cat_id, int) and cat_id > 0 else None
             item["dropdownType"] = "megaMenu"
-            item["dropdownContent"] = _mega_dc_simple(
-                cat_id if isinstance(cat_id, int) and cat_id > 0 else None)
+            # Each v3 template asks for a different presentation, and until
+            # 2026-09-02 they all produced the same nav list because
+            # `WidgetCategoryList` did not exist yet. Only `showTextTemplate`
+            # still wants a plain list -- it is the `boxWidth` one, too narrow
+            # for a card grid.
+            if template == "showTextTemplate":
+                item["dropdownContent"] = _mega_dc_simple(cat_id)
+            else:
+                item["dropdownContent"] = _mega_dc_category_list(
+                    cat_id,
+                    "text" if template == "showTextListTemplate"
+                    else "bare" if template in ("custom", "", None)
+                    else "cards")
             item["dropdownWidth"] = "boxWidth" if template == "showTextTemplate" else "fullWidth"
         # no type or unrecognised template: bare isDropdown only
         items.append(item)
     return items, has_dropdown
+
+
+def _mega_dc_category_list(cat_id=None, style="cards") -> dict:
+    """dropdownContent for an `auto_category` mega menu, using the real widget.
+
+    `WidgetCategoryList` did not exist when this was first mapped, so every
+    `auto_category` dropdown got a `WidgetNavList` with `preset: "category"` --
+    a stand-in that renders a plain list where the menu wants a grid of
+    category cards. Shape taken verbatim from the v4 the user supplied for
+    `pordeehealthshop`'s "Products" menu (2026-09-02); no real v4 file in the
+    repo puts this widget in a mega menu, so that sample is the only reference.
+
+    **`template: "default"` only.** The `showText*` templates go on rendering
+    through `_mega_dc_simple`: their names say text list, and one of them
+    (`showTextTemplate`) is `boxWidth`, where a four-column image grid would
+    not fit. Splitting them is the point -- until now every template produced
+    identical content and differed only in `dropdownWidth`.
+    """
+    if style == "bare":
+        # `custom` and no-template: v3 says nothing about how to present this,
+        # so nothing is configured and v4's own defaults stand.
+        info = {}
+    else:
+        info = {
+            "maxHierarchyNumber": 1,
+            "layoutCard": {"cardInfoAlignment": "left", "variant": "full-image"},
+            "layoutGridCols": {"xs": "2", "lg": "4"},
+        }
+        if style == "text":
+            # `showTextListTemplate` -- the name is the spec: same card grid,
+            # no thumbnails.
+            info["layoutCard"]["isShowMedia"] = False
+    if cat_id is not None:
+        # v3 pointed the menu at one category; keep that rather than listing
+        # the whole tree. Absent from the reference samples only because their
+        # `cat_id` is 0. No real `custom`/no-template menu carries one.
+        info["category_id"] = str(cat_id)
+    return {
+        "id": None, "type": "section", "kind": None, "nickname": None,
+        "info": {"colorScheme": "color-scheme-main"}, "style": [],
+        "children": [{
+            "id": None, "type": "row", "kind": None, "nickname": None,
+            "info": [], "style": [],
+            "children": [{
+                "id": None, "type": "col", "kind": None, "nickname": None,
+                "info": [], "style": [],
+                "children": [{
+                    "id": None, "type": "widget", "kind": "WidgetCategoryList",
+                    "nickname": None, "info": info, "style": [],
+                }],
+            }],
+        }],
+    }
 
 
 def _mega_dc_simple(cat_id=None) -> dict:
