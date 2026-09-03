@@ -24,7 +24,7 @@ import sys
 # ---------------------------------------------------------------------------
 
 __version__ = "1.25"
-LAST_UPDATED = "2026-09-02"
+LAST_UPDATED = "2026-09-03"
 
 # Short summary of what the converter handles — shown in the browser popup.
 # Plain strings; inline HTML (e.g. <code>) is allowed for rendering there.
@@ -38,20 +38,20 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
-    {"version": "1.25", "date": "2026-09-02", "items": [
+    {"version": "1.25", "date": "2026-09-03", "items": [
         "Header เมนู <code>auto_category</code> ใช้ <code>WidgetCategoryList</code> แล้ว — เดิมทุก template ได้ <code>WidgetNavList</code> ที่ตั้ง <code>preset: \"category\"</code> เหมือนกันหมด ซึ่งเป็นตัวแทนชั่วคราวสมัยที่ยังไม่มี widget นี้ ทำให้เมกะเมนูออกมาเป็นลิสต์ข้อความแทนที่จะเป็นตารางการ์ดหมวดหมู่ (24 เมนูใน 49 header ของไฟล์ตัวอย่าง)",
         "แต่ละ template ได้หน้าตาต่างกันตามที่ v3 ตั้งใจ: <code>default</code> = ตารางการ์ดพร้อมรูป · <code>showTextListTemplate</code> = ตารางเดียวกันแต่ปิดรูป (<code>layoutCard.isShowMedia: false</code>) ตามชื่อ template · <code>custom</code> และเมนูที่ไม่ได้ระบุ template = ไม่ตั้งค่าอะไรเลย ปล่อยให้ v4 ใช้ค่าเริ่มต้นของตัวเอง",
         "<code>showTextTemplate</code> ยังใช้ <code>WidgetNavList</code> เหมือนเดิม — เป็น template เดียวที่กว้างแค่ <code>boxWidth</code> ตารางการ์ด 4 คอลัมน์ใส่ไม่ลง",
         "เมนูแบบ flyout (<code>showTextLevelTemplate</code>) ใส่ <code>flyoutTemplate: \"default\"</code> ให้แล้ว",
         "แก้บั๊ก: flyout เคยส่ง <code>category_id: \"0\"</code> ออกไป ทั้งที่ <code>cat_id: 0</code> ใน v3 แปลว่า \"ทุกหมวด\" ไม่ใช่หมวดเลข 0 — ฝั่งเมกะเมนูอ่านถูกมาตลอด ฝั่ง flyout ไม่ได้อ่าน (เจอ 3 จาก 6 flyout ในไฟล์ตัวอย่าง)",
     ]},
-    {"version": "1.24", "date": "2026-09-02", "items": [
+    {"version": "1.24", "date": "2026-09-03", "items": [
         "Marquee (SlideTextSection): <code>paddingTop</code>/<code>paddingBottom</code> ใส่ค่าเท่ากันทั้ง <code>lg</code> และ <code>xs</code> แล้ว — เดิมใส่แค่ <code>lg</code> บนมือถือแถบวิ่งจึงได้ padding default ของ v4 แทนที่จะเป็น 0 ตามที่ตั้งใจ (<code>containerPaddingX</code> ในฟังก์ชันเดียวกันใส่ครบทั้งสองมาตลอด)",
         "ไม่ได้ทับค่าของร้าน — v3 ไม่เคยส่ง padding มาให้ section นี้เลย (0 จาก 20 ตัวในไฟล์ตัวอย่าง) ค่าทั้งหมดเป็นของ converter เอง",
     ]},
     {"version": "1.23", "date": "2026-09-02", "items": [
-        "ทุก section ใช้กฎเดียวกันแล้ว: ถ้าร้านเลือกสีพื้นเข้มเอง (ไม่ได้ติ๊ก dark mode) ตอนนี้ได้ <code>colorScheme: \"color-scheme-inverse\"</code> — เดิมดูแค่ธง <code>isDarkMode</code> ทำให้ 23 section ในไฟล์ตัวอย่างได้พื้นเข้มแต่ตัวอักษรยังเข้มอยู่ อ่านไม่ออก (เช่น <code>demodenim</code> พื้นดำ 4 section, <code>monman</code> พื้น <code>#002043</code>) — เป็นกฎเดียวกับที่ header ใช้มาตั้งแต่ v1.18",
-        "Footer: พาสีพื้นที่ร้านตั้งเอง (<code>sectionStyle.bgColor</code>) มาด้วยแล้ว — เดิมทิ้งทั้งหมด ทำให้ 6 footer เสียสีที่ร้านเลือก เช่น <code>x_writenow</code> สีชมพูและ <code>bluehorizon</code> สีครีม ที่ไม่เหลือร่องรอยเลยเพราะไม่ได้เปลี่ยน scheme ด้วย",
+        "ทุก section ใช้กฎเดียวกันแล้ว: ถ้าร้านเลือกสีพื้นเข้มเอง (ไม่ได้ติ๊ก dark mode) ตอนนี้ได้ <code>colorScheme: \"color-scheme-inverse\"</code> — เดิมดูแค่ธง <code>isDarkMode</code> ทำให้ 23 section ในไฟล์ตัวอย่างได้พื้นเข้มแต่ตัวอักษรยังเข้มอยู่ อ่านไม่ออก (เช่น พื้นดำล้วนและพื้นกรมท่า) — เป็นกฎเดียวกับที่ header ใช้มาตั้งแต่ v1.18",
+        "Footer: พาสีพื้นที่ร้านตั้งเอง (<code>sectionStyle.bgColor</code>) มาด้วยแล้ว — เดิมทิ้งทั้งหมด ทำให้ 6 footer เสียสีที่ร้านเลือก โดยเฉพาะสีอ่อน (เช่น ชมพูและครีม) ที่ไม่เหลือร่องรอยเลยเพราะไม่ได้เปลี่ยน scheme ด้วย",
         "BlogSection และ ProductSection พาสีพื้นมาด้วยแล้วเช่นกัน (อีก 5 section builder ทำอยู่แล้ว)",
         "สีพื้นที่ v3 ส่งมาแบบไม่มี <code>#</code> นำหน้า (เช่น <code>f4f4f4</code>) เติม <code>#</code> ให้แล้ว — สีเดียวกันแต่เขียนคนละแบบ ถ้าไม่มี <code>#</code> v4 อ่านไม่ออก ส่วนค่าที่ไม่ใช่ hex เช่น <code>rgba(...)</code> ปล่อยผ่านเหมือนเดิม",
         "เครื่องมือแก้ HTML (htmlfix) เติม <code>#</code> ให้ค่าสีทุกคีย์ด้วยเช่นกัน ดู changelog ของ htmlfix v1.4",
@@ -590,7 +590,7 @@ def _fix_bare_hex(value: str, path: str, warnings: list) -> str:
 
     v4 cannot read `f4f4f4`; it needs `#f4f4f4`. Same colour, different
     spelling. Rare but real -- **2 of 731** colour values across every shop and
-    demo file in the repo (both `monman`'s `bgColor`), which is exactly the kind
+    demo file in the repo (both on one shop's `bgColor`), which is exactly the kind
     of single-character breakage nobody finds by eye.
 
     Deliberately narrow. It fires only on a key whose name contains "color" and
@@ -1147,9 +1147,9 @@ def _newline_splits_an_element(text: str) -> bool:
     Two real inputs in the repo do this, which is why the check is not
     theoretical:
 
-    * `ilhongbookstore`'s Headline title -- a newline right after
+    * One shop's Headline title -- a newline right after
       `<p style="color: transparent; ...">`, where it is only source indentation.
-    * `plugthai`'s SlideShowSection description -- a newline inside an `<a>`,
+    * Another's SlideShowSection description -- a newline inside an `<a>`,
       so splitting cuts the link in half.
 
     Neither reaches this function today (one is a title, the other is flagged
@@ -1227,8 +1227,8 @@ def _resolve_description(props: dict):
        `_description_is_the_only_content` for the measurement.
 
     Otherwise it stays on the heading, where a short lead-in belongs. That
-    leaves two real sections behind -- `missbeautysleepdee` (163 chars) and
-    `pordeehealthshop` (121) are long but do have content after them. Catching
+    leaves two real sections behind -- one of 163 characters and one of 121
+    are long but do have content after them. Catching
     those would need a length threshold, which is exactly the kind of rule that
     breaks on the next shop; the structural signal does not.
 
@@ -3099,7 +3099,7 @@ def build_slidetextsection_section(props: dict) -> dict:
     # section padding instead of the 0 that was intended. v3 never sends a
     # padding for this section (0 of 20 in the repo), so there is no merchant
     # value being overridden here: the whole value is the converter's own
-    # (user, 2026-09-02: "ใส่ค่าเท่ากันให้ทั้ง lg และ xs").
+    # (user, 2026-09-03: "ใส่ค่าเท่ากันให้ทั้ง lg และ xs").
     zero = {"value": 0, "unit": "px"}
     section_info["paddingTop"]    = {"lg": dict(zero), "xs": dict(zero)}
     section_info["paddingBottom"] = {"lg": dict(zero), "xs": dict(zero)}
@@ -4251,7 +4251,7 @@ def _section_bg_color(props: dict) -> str | None:
     bg = ((props.get("sectionStyle") or {}).get("bgColor") or "").strip().lower()
     if not bg:
         return None
-    # One shop stores a bare hex (`monman`, `f4f4f4`); 95 of the 96 use `#`.
+    # One shop stores a bare hex (`f4f4f4`); 95 of the 96 use `#`.
     # Same colour, different spelling -- restore the `#` so v4 can read it.
     if re.fullmatch(r"[0-9a-f]{3}|[0-9a-f]{6}", bg):
         bg = "#" + bg
@@ -4268,8 +4268,8 @@ def _is_dark_ground(props: dict) -> bool:
        hand in the admin instead of using a preset.
 
     Content sections used to read only the flag, which left **23 real sections**
-    (`demodenim`'s four black `SlideTextSection`s, `monman`'s `#002043`
-    Headline, `ilhongbookstore`'s `#151515`, …) on `color-scheme-main`: the
+    (four black `SlideTextSection`s on one shop, a `#002043` Headline on
+    another, a `#151515` on a third, …) on `color-scheme-main`: the
     background came through, the *text* colour did not, so they rendered dark
     text on a dark ground. That is the same defect v1.18 fixed for the header,
     and this is the shared test both now use.
@@ -4292,12 +4292,12 @@ def _footer_color_scheme(props: dict) -> str | None:
        nothing on any current input (every dark-bg footer also sets the flag),
        and exists so the two zones cannot drift apart again.
     3. A LIGHT `siteTitleStyle.fontColor` -- weaker, and the only signal
-       `pordeehealthshop` gives: white title text with no flag and no bg. Sound
+       one real shop gives: white title text with no flag and no bg. Sound
        in both readings -- nobody puts white text on a light footer, and if the
        white is there because the *theme's* footer is dark by default, inverse
        is still the right v4 answer. Verified against all 23 inputs: it fires on
-       that one shop, agrees with `monman` (light title AND the flag), and
-       correctly stays quiet for `ilhongbookstore`, whose `#7A7A7A` title is
+       that one shop, agrees with a second (light title AND the flag), and
+       correctly stays quiet for a third, whose `#7A7A7A` title is
        dark. **This is the one to revisit first if a footer comes out wrong.**"""
     if _is_dark_ground(props):
         return "color-scheme-inverse"
@@ -4471,7 +4471,7 @@ def _header_menu_items(menu_list: list) -> tuple:
             cat_id = cat_id if isinstance(cat_id, int) and cat_id > 0 else None
             item["dropdownType"] = "megaMenu"
             # Each v3 template asks for a different presentation, and until
-            # 2026-09-02 they all produced the same nav list because
+            # 2026-09-03 they all produced the same nav list because
             # `WidgetCategoryList` did not exist yet. Only `showTextTemplate`
             # still wants a plain list -- it is the `boxWidth` one, too narrow
             # for a card grid.
@@ -4496,7 +4496,7 @@ def _mega_dc_category_list(cat_id=None, style="cards") -> dict:
     `auto_category` dropdown got a `WidgetNavList` with `preset: "category"` --
     a stand-in that renders a plain list where the menu wants a grid of
     category cards. Shape taken verbatim from the v4 the user supplied for
-    `pordeehealthshop`'s "Products" menu (2026-09-02); no real v4 file in the
+    a real shop's "Products" menu (2026-09-03); no real v4 file in the
     repo puts this widget in a mega menu, so that sample is the only reference.
 
     **`template: "default"` only.** The `showText*` templates go on rendering
@@ -7340,7 +7340,7 @@ _THEME_MAIN2_OVERRIDES = {
         # Accent's text is `brand-alt-bold`, not `brand-bold` (user, 2026-08-17).
         # The two render almost identically on this theme -- both are a dark
         # shade -- but they behave differently on a shop that overrides the
-        # palette: `pordeehealthshop` sets Brand green and BrandBold red, so a
+        # palette: one shop sets Brand green and BrandBold red, so a
         # `brand-bold` reference here would have picked up whatever the merchant
         # happened to put in that slot. `brand-alt-bold` at least names the role
         # it wants, the second brand colour darkened.
@@ -10759,7 +10759,7 @@ SECTION_BUILDERS = {
 }
 
 
-#: A v3 showroom path, with or without the leading slash -- `pifastore` writes
+#: A v3 showroom path, with or without the leading slash -- one shop writes
 #: `showroom/sale` while everyone else writes `/showroom/sale`. Anchored so a
 #: title like "Our Showroom" cannot match.
 _SHOWROOM_LINK_RE = re.compile(r"(?:^|/)showroom(?:/|$)", re.IGNORECASE)
