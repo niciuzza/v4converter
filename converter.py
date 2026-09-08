@@ -23,8 +23,8 @@ import sys
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.25"
-LAST_UPDATED = "2026-09-03"
+__version__ = "1.27"
+LAST_UPDATED = "2026-09-08"
 
 # Short summary of what the converter handles — shown in the browser popup.
 # Plain strings; inline HTML (e.g. <code>) is allowed for rendering there.
@@ -38,6 +38,14 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.27", "date": "2026-09-08", "items": [
+        "แก้บั๊ก: <code>contentBlocks</code> ที่มีช่องว่างเปล่า (<code>[]</code>) แทนที่จะเป็นบล็อกเนื้อหา ทำให้การแปลง<b>ทั้งไฟล์</b>ล้มทั้งหมด ไม่ได้ผลลัพธ์อะไรออกมาเลย — ตอนนี้ข้ามช่องว่างนั้นไปเฉย ๆ เนื้อหาที่เหลือแปลงได้ตามปกติ (เจอ 1 จุดในไฟล์ตัวอย่าง แต่จุดเดียวก็พอทำให้ทั้งร้านแปลงไม่ได้)",
+    ]},
+    {"version": "1.26", "date": "2026-09-04", "items": [
+        "ProductTab preset \"5. Banner with bottom Tab\" และ \"6. ... [center]\" วางแบนเนอร์ไว้<b>เหนือ</b>แท็บแล้ว — คำว่า bottom ในชื่อ preset หมายถึงตัวแท็บที่อยู่ล่าง ไม่ใช่แบนเนอร์ เดิม preset 5 ถูกส่งไปใช้ <code>template: \"banner-right\"</code> แบนเนอร์จึงไปอยู่ข้าง ๆ แท็บแทนที่จะอยู่บน (4 section ในไฟล์ตัวอย่าง)",
+        "v4 ไม่มี template สำหรับแบนเนอร์บน จึงแยกออกมาเป็น <code>WidgetMedia</code> คั่นระหว่างหัวข้อกับแท็บ — รูปแบบเดียวกับที่ preset 6 ใช้อยู่แล้ว",
+        "preset ของ <code>bannerWithTab</code> ที่ไม่รู้จัก ยึดตาม preset 6 (แบนเนอร์บน จัดกึ่งกลาง) แทนที่จะเป็น preset 7 — สามในสี่แบบของ bannerWithTab เป็นแบบแท็บล่าง",
+    ]},
     {"version": "1.25", "date": "2026-09-03", "items": [
         "Header เมนู <code>auto_category</code> ใช้ <code>WidgetCategoryList</code> แล้ว — เดิมทุก template ได้ <code>WidgetNavList</code> ที่ตั้ง <code>preset: \"category\"</code> เหมือนกันหมด ซึ่งเป็นตัวแทนชั่วคราวสมัยที่ยังไม่มี widget นี้ ทำให้เมกะเมนูออกมาเป็นลิสต์ข้อความแทนที่จะเป็นตารางการ์ดหมวดหมู่ (24 เมนูใน 49 header ของไฟล์ตัวอย่าง)",
         "แต่ละ template ได้หน้าตาต่างกันตามที่ v3 ตั้งใจ: <code>default</code> = ตารางการ์ดพร้อมรูป · <code>showTextListTemplate</code> = ตารางเดียวกันแต่ปิดรูป (<code>layoutCard.isShowMedia: false</code>) ตามชื่อ template · <code>custom</code> และเมนูที่ไม่ได้ระบุ template = ไม่ตั้งค่าอะไรเลย ปล่อยให้ v4 ใช้ค่าเริ่มต้นของตัวเอง",
@@ -1314,6 +1322,13 @@ def build_content_widgets(props: dict) -> list:
         widgets.append(make_node("widget", "WidgetTextStack", None, info))
 
     for block in props.get("contentBlocks") or []:
+        # A v3 editor can leave an empty `[]` in the block list where a block
+        # was deleted. It carries no content, but reading `contentType` off it
+        # raised AttributeError and took the whole conversion down with it --
+        # in the browser tool that means the shop's entire site JSON fails,
+        # over one empty slot. Skip anything that is not a block.
+        if not isinstance(block, dict):
+            continue
         ct = block.get("contentType")
         if ct in ("paragraph", "image"):
             buffer.append(block)
@@ -2902,19 +2917,58 @@ def _producttab_build_tab(tab_obj: dict) -> dict:
     return tab
 
 
-def _producttab_widget(props: dict) -> dict:
+# v3 ships seven ProductTab presets, and `(tabProductType, presetId)` names each
+# one exactly -- checked across all 41 real sections in the repo, where the pair
+# maps 1:1 onto `presetName` (the one exception is noted below):
+#
+#   simple/1        "1. Default Tab"
+#   simple/2        "2. Center Tab"
+#   simple/3        "3. Left Tab"
+#   banner/2        "4. Banner Tab [Style 2]"          banner beside the tabs
+#   bannerWithTab/3 "5. Banner with bottom Tab"        banner ON TOP, tabs under
+#   bannerWithTab/2 "6. Banner with bottom Tab [center]"          "  , centred
+#   bannerWithTab/1 "7. Banner with Left Tab"          tabs left, banner right
+#
+# "bottom" names the TABS, not the banner -- so presets 2 and 3 both put the
+# image above the tab widget, which v4 expresses as a separate `WidgetMedia`
+# rather than the widget's own embedded `banner`. Preset 3 was routed to
+# `banner-right` until 2026-09-04, which put its banner beside the tabs instead
+# of over them (3 real sections). The hand-authored `[PT9]` in
+# `example/sections/output-producttab.json` -- the second of the two, the one
+# with null ids -- has said `WidgetMedia` + `default` all along. Confirmed on a
+# live v4 paste 2026-09-08: both layouts were rendered side by side from the
+# same props, and the banner belongs above the tabs.
+#
+# One demo carries `bannerWithTab/4` while naming itself "6. ... [center]", so
+# an unrecognised bannerWithTab preset follows preset 2 rather than preset 1:
+# three of the four bottom-tab variants are the centred one.
+_PRODUCTTAB_LEFT_TAB_PRESET    = 1   # the only bannerWithTab with a side banner
+_PRODUCTTAB_BOTTOM_LEFT_PRESET = 3   # bottom tabs, not centred
+
+
+def _producttab_layout(props: dict):
+    """(template, banner placement, tabsDefaultDistribute) for one section.
+
+    Placement is `"embedded"` (the widget's own `banner` field), `"above"` (a
+    separate `WidgetMedia` between the heading and the tabs) or `None`.
+    """
     tab_type  = props.get("tabProductType", "simple")
     preset_id = props.get("presetId", 1)
-    product_limit = props.get("productLimit", 4)
 
     if tab_type == "simple":
-        template = "default"
-    elif tab_type == "banner":
-        template = "banner-left"
-    elif preset_id == 2:
-        template = "default"
-    else:
-        template = "banner-right"
+        return "default", None, {1: "flex-end", 2: "center",
+                                 3: "flex-start"}.get(preset_id)
+    if tab_type == "banner":
+        return "banner-left", "embedded", None
+    if preset_id == _PRODUCTTAB_LEFT_TAB_PRESET:
+        return "banner-right", "embedded", None
+    distribute = None if preset_id == _PRODUCTTAB_BOTTOM_LEFT_PRESET else "center"
+    return "default", "above", distribute
+
+
+def _producttab_widget(props: dict) -> dict:
+    product_limit = props.get("productLimit", 4)
+    template, placement, distribute = _producttab_layout(props)
 
     tabs = [_producttab_build_tab(t) for t in (props.get("tabProductObjects") or [])]
 
@@ -2933,15 +2987,10 @@ def _producttab_widget(props: dict) -> dict:
     if props.get("button"):
         tab_info["isViewAllThisTab"] = True
 
-    if tab_type == "simple":
-        dist_map = {1: "flex-end", 2: "center", 3: "flex-start"}
-        dist = dist_map.get(preset_id)
-        if dist:
-            tab_info["tabsDefaultDistribute"] = dist
-    elif tab_type == "bannerWithTab" and preset_id == 2:
-        tab_info["tabsDefaultDistribute"] = "center"
+    if distribute:
+        tab_info["tabsDefaultDistribute"] = distribute
 
-    if tab_type in ("banner", "bannerWithTab") and not (tab_type == "bannerWithTab" and preset_id == 2):
+    if placement == "embedded":
         banner = {}
         if props.get("bannerImage"):
             banner["src"] = props["bannerImage"]
@@ -3025,6 +3074,7 @@ def build_gallerysection_section(props: dict) -> dict:
 def build_producttab_section(props: dict) -> dict:
     tab_type  = props.get("tabProductType", "simple")
     preset_id = props.get("presetId", 1)
+    _, placement, distribute = _producttab_layout(props)
 
     section_style = props.get("sectionStyle") or {}
     padding = section_style.get("padding") or {}
@@ -3044,14 +3094,14 @@ def build_producttab_section(props: dict) -> dict:
     desc = props.get("description", "")
     if desc:
         h_info["description"] = {"text": desc}
-    if tab_type != "banner" and preset_id == 2:
+    if distribute == "center":
         h_info["alignment"] = {"sm": "center", "lg": "center"}
-    elif tab_type == "bannerWithTab" and preset_id == 1:
+    elif tab_type == "bannerWithTab" and preset_id == _PRODUCTTAB_LEFT_TAB_PRESET:
         h_info["alignment"] = {"sm": "left", "lg": "left"}
     heading = make_node("widget", "WidgetHeading", None, h_info)
 
     col_widgets = [heading]
-    if tab_type == "bannerWithTab" and preset_id == 2:
+    if placement == "above":
         col_widgets.append(_producttab_media_widget(props))
     col_widgets.append(_producttab_widget(props))
 
