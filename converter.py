@@ -23,8 +23,8 @@ import sys
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.27"
-LAST_UPDATED = "2026-09-08"
+__version__ = "1.32"
+LAST_UPDATED = "2026-09-10"
 
 # Short summary of what the converter handles — shown in the browser popup.
 # Plain strings; inline HTML (e.g. <code>) is allowed for rendering there.
@@ -38,6 +38,36 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.32", "date": "2026-09-10", "items": [
+        "เพิ่มตัวเลือก <b>“สร้างหน้าที่ขาดให้”</b> ในแถบตั้งค่า — เอาติ๊กออกแล้ว converter จะ<b>ไม่สร้างหน้าใหม่ให้เลย</b> เหมาะกับร้านที่แพ็กเกจจำกัดจำนวน custom page เพราะหน้าที่สร้างให้ก็นับรวมในโควตาด้วย",
+        "ทุกครั้งที่สร้างหน้าให้ จะขึ้น<b>แถบแจ้งเตือนแยกต่างหาก</b> (ไม่ได้ซ่อนอยู่ในรายการเตือนที่พับไว้) บอกว่าสร้างหน้าอะไร path ไหนบ้าง",
+        "ถ้าปิดการสร้างหน้าไว้ ลิงก์ showroom จะ<b>คงเป็นของ v3 เหมือนเดิม</b> ไม่แก้ให้ พร้อมแสดงรายการลิงก์ทุกจุดที่ยังกดไม่ได้ ให้เอาไปไล่แก้เอง — ดีกว่าชี้ไปหน้าที่ไม่มีอยู่จริง",
+        "แก้บั๊ก: คำเตือนของหน้าศูนย์ช่วยเหลือส่งออกมาเป็นข้อความเปล่า ๆ ไม่ใช่รูปแบบเดียวกับคำเตือนอื่น",
+    ]},
+    {"version": "1.31", "date": "2026-09-10", "items": [
+        "<code>/showroom/recommend</code> และ <code>/showroom/sale</code> แปลงเป็น <code>/recommend</code> และ <code>/sale</code> แล้ว พร้อม<b>สร้างหน้าให้ใหม่</b> — v3 มีสองหน้านี้ให้สำเร็จรูป v4 ไม่มี และไม่มีตัวกรองแบบ sort ที่ใช้แทนได้เหมือน new/hot",
+        "หน้าที่สร้างให้ = หัวข้อ + <code>WidgetProductList</code> ที่กรองด้วย <code>showroom</code> (<code>RECOMMENDED</code>/<code>SALE</code>) + ปุ่ม VIEW ALL ไป <code>/category</code> — ปรับแต่งต่อได้ตามปกติ",
+        "หัวข้อของหน้า<b>ดึงชื่อที่ร้านใช้ใน v3 มาเลย</b> — จากชื่อที่คั่นอยู่ในลิงก์ (<code>/showroom/สินค้าแนะนำ/recommend</code>) หรือจากชื่อเมนูที่ลิงก์มาหน้านี้ ถ้าไม่มีทั้งคู่จึงใช้ค่าเริ่มต้นภาษาอังกฤษ · ไม่ดึงจากข้อความบนปุ่ม เพราะเป็นคำชวนกด (เช่น \"SHOP NOW\") ไม่ใช่ชื่อหน้า",
+        "สร้างเฉพาะเมื่อ<b>มีลิงก์ชี้มาจริง</b> ร้านที่ไม่เคยใช้ showroom จะไม่ได้หน้าเพิ่มมาเปล่า ๆ และถ้าร้านมีหน้าที่ path นั้นอยู่แล้ว ของร้านชนะ",
+        "ขึ้นเตือนทุกครั้งที่สร้างหน้าใหม่ ให้เห็นว่าหน้านี้ converter สร้างให้ ไม่ได้มาจากของเดิม",
+    ]},
+    {"version": "1.30", "date": "2026-09-10", "items": [
+        "ลิงก์ <code>/showroom/new</code> และ <code>/showroom/hot</code> แปลงเป็นหน้าหมวดหมู่พร้อมตัวกรองแล้ว — <code>/category?filters=sort:newest</code> และ <code>/category?filters=sort:most_popular</code> ตามลำดับ (16 ลิงก์ในไฟล์ตัวอย่าง วัดจากผลลัพธ์ของการแปลงทั้งเว็บ) เดิมปล่อยผ่านและได้แค่คำเตือน",
+        "รูปแบบที่มีชื่อไทยคั่น (เช่น <code>/showroom/สินค้ามาใหม่/new</code>) แปลงได้ด้วย — v3 ยอมให้ใส่ชื่อคั่นได้ ตัว slug จริงอยู่ท้ายสุดเสมอ",
+        "<code>/showroom/recommend</code> และ <code>/showroom/sale</code> <b>ยังไม่แปลง</b> ปล่อยไว้เหมือนเดิมและยังเตือนอยู่ — ยังไม่มีปลายทางที่ยืนยันแล้ว และอาจต้องสร้างเป็นหน้าจริง (42 ลิงก์)",
+    ]},
+    {"version": "1.29", "date": "2026-09-10", "items": [
+        "หน้าศูนย์ช่วยเหลือ (<code>/help</code>) ที่เก็บเป็น<b>แท็บ</b> (<code>helpObjects</code>) แปลงได้แล้ว — เดิมอ่านแค่ <code>help.layouts</code> ร้านที่ใช้แบบแท็บจึงไม่ได้หน้านี้เลย เนื้อหาศูนย์ช่วยเหลือหายไปทั้งหมดแบบเงียบ ๆ",
+        "รวมทุกแท็บไว้ใน<b>หน้าเดียว</b> เรียงตามลำดับเดิม โดยมีหัวข้อของแต่ละแท็บคั่นไว้",
+        "แท็บที่ v3 สร้างเนื้อหาให้เอง (การชำระเงิน / วิธีตรวจสอบสถานะ) ไม่มีเนื้อหาในไฟล์เลย — เก็บหัวข้อไว้และ<b>ขึ้นเตือน</b>ว่าต้องเขียนเนื้อหาใหม่",
+        "แท็บ FAQ ที่ยังไม่เคยแก้ ดึงเนื้อหาตั้งต้นที่ v3 เตรียมไว้ให้ (<code>help.FaqsSection</code>) มาแสดงแทน",
+    ]},
+    {"version": "1.28", "date": "2026-09-10", "items": [
+        "FaqsSection: พา <code>sectionStyle.padding</code> มาด้วยแล้ว — เดิมทิ้งทั้งหมด section เลยได้ระยะห่างค่าเริ่มต้นของ v4 แทนค่าที่ตั้งไว้จริง (เช่นตั้ง 80px/40px บน-ล่าง แล้วไม่มีผลเลย) เป็น section เดียวที่มี <code>sectionStyle</code> แต่ไม่เคยอ่าน · พา <code>bgColor</code> มาด้วยเช่นกัน",
+        "รองรับ <code>FaqsContent</code> แล้ว — เป็นแบบเดียวกับ FaqsSection ที่ v3 ใช้ใน<b>ศูนย์ช่วยเหลือ</b> (help) ต่างกันแค่ <code>faqsObjects</code> เก็บเป็น object แยกตามหัวข้อแทนที่จะเป็นลิสต์ เดิมขึ้น \"Unknown section type\" แปลงไม่ได้เลย",
+        "<code>topic</code> ของ FaqsContent ใช้เลือกเฉพาะหัวข้อที่ระบุ ส่วน <code>\"all\"</code> คือแสดงทุกหัวข้อ",
+        "หมายเหตุ: อันนี้แปลงเฉพาะตัว <b>section</b> — ตัว<b>หน้า</b>ศูนย์ช่วยเหลือ v4 ยังไม่มีที่ให้ลง ต้องรอทำพร้อมหน้า default อื่น ๆ",
+    ]},
     {"version": "1.27", "date": "2026-09-08", "items": [
         "แก้บั๊ก: <code>contentBlocks</code> ที่มีช่องว่างเปล่า (<code>[]</code>) แทนที่จะเป็นบล็อกเนื้อหา ทำให้การแปลง<b>ทั้งไฟล์</b>ล้มทั้งหมด ไม่ได้ผลลัพธ์อะไรออกมาเลย — ตอนนี้ข้ามช่องว่างนั้นไปเฉย ๆ เนื้อหาที่เหลือแปลงได้ตามปกติ (เจอ 1 จุดในไฟล์ตัวอย่าง แต่จุดเดียวก็พอทำให้ทั้งร้านแปลงไม่ได้)",
     ]},
@@ -879,6 +909,27 @@ def merge_classname2_padding(pt: dict, pb: dict, class2) -> tuple:
     breakpoints/sides the explicit padding leaves unset."""
     c2_pt, c2_pb = parse_classname2_padding(class2)
     return {**c2_pt, **pt}, {**c2_pb, **pb}
+
+
+def section_padding_info(props: dict) -> dict:
+    """`{"paddingTop": ..., "paddingBottom": ...}` from `sectionStyle.padding`,
+    with `className2`'s utility classes filling the gaps. Keys are omitted when
+    v3 set nothing, so the result can be merged straight into a section's info.
+
+    Five older call sites open-code this same block; they are left alone rather
+    than refactored under a fix, but new ones should use this.
+    """
+    padding = (props.get("sectionStyle") or {}).get("padding") or {}
+    pt, pb = {}, {}
+    for key, bp in (("sm", "xs"), ("xl", "lg"), ("md", "md")):
+        src = padding.get(key) or {}
+        if src.get("top")    is not None: pt[bp] = parse_size(src["top"])
+        if src.get("bottom") is not None: pb[bp] = parse_size(src["bottom"])
+    pt, pb = merge_classname2_padding(pt, pb, props.get("className2"))
+    info = {}
+    if pt: info["paddingTop"]    = pt
+    if pb: info["paddingBottom"] = pb
+    return info
 
 
 def convert_bg_position(position_str: str) -> str:
@@ -3982,6 +4033,43 @@ def build_contactussection_section(props: dict) -> dict:
     return make_node("section", "Contact", nickname, {}, [row])
 
 
+def _faqs_object_list(faqs_objects, topic: str = "") -> list:
+    """Normalise v3's two shapes for a FAQ group list into one list of dicts.
+
+    `FaqsSection` carries a **list**; `FaqsContent` -- the help-centre variant --
+    carries a **dict keyed by topic slug** (`{"delivery": {...}}`), so iterating
+    it yields the slugs as strings and `.get()` on one raises. Insertion order is
+    the authored order, so the dict converts to a list as-is.
+
+    `topic` filters that dict to a single slug. v3 writes `"all"` (and only
+    `"all"` in every real file seen) for "show every group".
+    """
+    if isinstance(faqs_objects, dict):
+        items = [(k, v) for k, v in faqs_objects.items()]
+        if topic and topic != "all":
+            items = [(k, v) for k, v in items if k == topic]
+        faqs_objects = [v for _, v in items]
+    return [f for f in (faqs_objects or []) if isinstance(f, dict)]
+
+
+def build_faqscontent_section(props: dict) -> dict:
+    """Build FaqsContent -> the same section as FaqsSection.
+
+    v3's help centre (`help.helpObjects[n].layouts`) uses `FaqsContent` where a
+    page uses `FaqsSection`. The rendered thing is the same accordion; the props
+    differ only in that `faqsObjects` is keyed by topic slug and a `topic` field
+    selects among them. Normalise, then reuse the one builder.
+
+    Note this converts the *section*. v4 has no help centre for it to live in --
+    `convert_site` does not walk `help` at all -- so the help **pages** are part
+    of the default-content work, not of this builder.
+    """
+    normalised = dict(props)
+    normalised["faqsObjects"] = _faqs_object_list(
+        props.get("faqsObjects"), props.get("topic") or "")
+    return build_faqssection_section(normalised)
+
+
 def build_faqssection_section(props: dict) -> dict:
     """Build FaqsSection → section(kind=Faq) > row > col > [WidgetHeading, (WidgetTextStack + WidgetAccordion)*].
 
@@ -4003,7 +4091,7 @@ def build_faqssection_section(props: dict) -> dict:
         col_children.append(make_node("widget", "WidgetHeading", None, h_info))
 
     # One WidgetTextStack + WidgetAccordion per faqsObject
-    for faq_obj in (props.get("faqsObjects") or []):
+    for faq_obj in _faqs_object_list(props.get("faqsObjects")):
         name = (faq_obj.get("name") or "").strip()
         col_children.append(make_node("widget", "WidgetTextStack", None, {
             "items": [{
@@ -4023,9 +4111,17 @@ def build_faqssection_section(props: dict) -> dict:
             })
         col_children.append(make_node("widget", "WidgetAccordion", None, {"items": items}))
 
+    # Section padding was dropped entirely until v1.28 -- one demo sets
+    # 80px/40px top and bottom and got v4's default instead. Every other
+    # builder with a `sectionStyle` reads it; this one never did.
+    section_info = section_padding_info(props)
+    bg_color = _section_bg_color(props)
+    if bg_color:
+        section_info["bgColor"] = bg_color
+
     col = make_node("col", None, None, {}, col_children)
     row = make_node("row", None, None, {}, [col])
-    return make_node("section", "Faq", nickname, {}, [row])
+    return make_node("section", "Faq", nickname, section_info, [row])
 
 
 # ---------------------------------------------------------------------------
@@ -10796,6 +10892,7 @@ SECTION_BUILDERS = {
     "FeatureSection":   build_featuresection_section,
     "ProductSection":   build_productsection_section,
     "ProductTab":       build_producttab_section,
+    "FaqsContent":      build_faqscontent_section,
     "GallerySection":      build_gallerysection_section,
     "SlideTextSection":    build_slidetextsection_section,
     "BlogSection":         build_blog_section,
@@ -10813,6 +10910,241 @@ SECTION_BUILDERS = {
 #: `showroom/sale` while everyone else writes `/showroom/sale`. Anchored so a
 #: title like "Our Showroom" cannot match.
 _SHOWROOM_LINK_RE = re.compile(r"(?:^|/)showroom(?:/|$)", re.IGNORECASE)
+
+
+# The two showroom slugs v4 answers with a sort filter on the category page
+# (user, 2026-09-10). `most_popular` is the same vocabulary the widget's
+# `apiOptions.options.sortBy` already uses -- see `_PRODUCTTAB_SORT_MAP` -- so
+# the URL grammar and the widget grammar agree on these two.
+#
+# NOTE: `v3/v4-example.json`'s reference nav writes "Best Seller" as
+# `sort:best_seller`, not `sort:most_popular`. The value below is the one the
+# user confirmed; the reference file is older. Recorded so the discrepancy is
+# not rediscovered as a bug.
+# Slugs that map onto a filter the category page already understands. These are
+# rewritten unconditionally: no page is created, so there is nothing to weigh up.
+_SHOWROOM_TO_FILTER = {
+    "new": "/category?filters=sort:newest",
+    "hot": "/category?filters=sort:most_popular",
+}
+
+# Slugs with no filter equivalent, which are answered by a **generated page**.
+# v4 has no `filters=showroom:...` (user, 2026-09-10 — "ไม่ได้มีการทำ filter แบบนี้
+# รองรับไว้ในตอนนี้"), so rebuilding the page is the only way to keep the
+# meaning. If v4 ever adds that filter these two should move to the map above
+# and the generated pages stop being necessary.
+#
+# Rewritten ONLY when page generation is on -- see `generate_pages`. A link
+# pointing at a page that was never created is worse than a v3 link the
+# designer can still see and fix.
+_SHOWROOM_TO_PAGE = {
+    "recommend": "/recommend",
+    "sale":      "/sale",
+}
+
+_SHOWROOM_TO_V4 = {**_SHOWROOM_TO_FILTER, **_SHOWROOM_TO_PAGE}
+
+# The slugs that need a page generated to answer them, and what goes in it:
+# (fallback heading + page nickname, the `showroom` filter value). Shape and
+# values come from a real v4 `/recommend` page supplied by the user
+# (2026-09-10); the filter vocabulary is the same one `_PRODUCTTAB_SHOWROOM_MAP`
+# already emits. The heading itself is taken from v3 where v3 has one -- see
+# `_showroom_page_title`; these two strings are only the last resort.
+#
+# `featured` (1 real link) is absent -- no example, no target.
+_SHOWROOM_PAGES = {
+    "/recommend": ("Recommend", "RECOMMENDED"),
+    "/sale":      ("Sale",      "SALE"),
+}
+
+# Link keys that carry a *name for the destination* rather than a call to
+# action. `link` is a menu item's target and sits beside a `title` that names
+# the page ("สินค้าแนะนำ", "On Sale"). `buttonLink`/`bannerLink` sit beside CTA
+# text -- "SHOP NOW", "ดูทั้งหมด", "View More" -- which would make a nonsense
+# page heading, so they are not read. Measured across the 51 real files.
+_SHOWROOM_TITLE_LINK_KEYS = ("link",)
+
+
+def _showroom_page_title(site_json, slug: str) -> str:
+    """The shop's own name for a showroom, out of the v3 JSON, or "".
+
+    Two sources, best first (user, 2026-09-10: "ตรง header ให้ดึงจาก v3 มาเลย"):
+
+    1. **The decorative segment of the URL** -- v3 allowed
+       `/showroom/สินค้าแนะนำ/recommend`, and that middle segment is v3's own
+       display name for the page. It names the destination and nothing else.
+    2. **A menu item's `title`** whose `link` points at the showroom.
+
+    Ties go to whichever is more common in the file, then to first seen, so a
+    shop that names the same showroom twice gets its usual wording.
+    """
+    counts: dict = {}
+    order: list = []
+
+    def add(text):
+        text = (text or "").strip()
+        if not text or _SHOWROOM_LINK_RE.search(text):
+            return
+        if text not in counts:
+            order.append(text)
+        counts[text] = counts.get(text, 0) + 1
+
+    def walk(node):
+        if isinstance(node, list):
+            for item in node:
+                walk(item)
+        elif isinstance(node, dict):
+            for key in _SHOWROOM_TITLE_LINK_KEYS:
+                value = node.get(key)
+                if not (isinstance(value, str)
+                        and _SHOWROOM_LINK_RE.search(value)):
+                    continue
+                parts = [p for p in value.split("?")[0].split("#")[0].strip("/").split("/") if p]
+                if not parts or parts[-1].lower() != slug:
+                    continue
+                # "showroom" itself is parts[-2] when there is no display name
+                if len(parts) >= 3 and parts[-2].lower() != "showroom":
+                    add(parts[-2])
+                else:
+                    add(node.get("title"))
+            for value in node.values():
+                walk(value)
+
+    walk(site_json)
+    if not counts:
+        return ""
+    return max(order, key=lambda t: (counts[t], -order.index(t)))
+# `(?:^|/)` mirrors `_SHOWROOM_LINK_RE`: one real link is written without a
+# leading slash (`showroom/sale`), so anchoring on "/showroom/" alone would see
+# the warning fire on a link the rewrite could not touch.
+_SHOWROOM_SLUG_RE = re.compile(
+    r"(?:^|/)showroom/(?:[^/?#]+/)*([^/?#]+)/?(?=[?#]|$)", re.IGNORECASE)
+
+
+# Whether `convert_site` may add pages the v3 file did not have. Off means the
+# showroom links stay exactly as v3 wrote them and are reported instead.
+#
+# A module-level flag rather than a parameter because the rewrite happens deep
+# inside `convert_section`, which is called from a dozen places and has no
+# business growing a page-generation argument. `convert_site` sets it for the
+# length of one run; nothing else touches it, and Pyodide is single-threaded.
+_GENERATE_CUSTOM_PAGES = True
+
+
+def _rewrite_showroom_link(link: str) -> str:
+    """`/showroom/<...>/<slug>` → the v4 category URL, when the slug is known.
+
+    v3 allowed a decorative segment before the slug
+    (`/showroom/สินค้าแนะนำ/recommend`), so the slug is always the **last**
+    segment. Anything else is returned unchanged.
+    """
+    m = _SHOWROOM_SLUG_RE.search(link or "")
+    if not m:
+        return link
+    slug = m.group(1).lower()
+    if slug in _SHOWROOM_TO_PAGE and not _GENERATE_CUSTOM_PAGES:
+        return link
+    return _SHOWROOM_TO_V4.get(slug, link)
+
+
+def _rewrite_showroom_links(node) -> int:
+    """Rewrite every `to` in place. Returns how many changed."""
+    n = 0
+    if isinstance(node, list):
+        for item in node:
+            n += _rewrite_showroom_links(item)
+    elif isinstance(node, dict):
+        for key, value in list(node.items()):
+            if key == "to" and isinstance(value, str) and _SHOWROOM_LINK_RE.search(value):
+                new = _rewrite_showroom_link(value)
+                if new != value:
+                    node[key] = new
+                    n += 1
+            else:
+                n += _rewrite_showroom_links(value)
+    return n
+
+
+def _showroom_page_section(title: str, showroom: str) -> dict:
+    """The single section of a generated showroom page.
+
+    Copied from the real v4 `/recommend` page the user supplied: a heading, a
+    product list filtered to the showroom, and a "VIEW ALL" button back to the
+    category page. `horizontalAlign` centres the column on mobile and starts it
+    on desktop, which is what that page does.
+    """
+    widgets = [
+        make_node("widget", "WidgetHeading", None, {"title": {"text": title}}),
+        make_node("widget", "WidgetProductList", None, {
+            "apiOptions": {"filters": {"showroom": showroom}}}),
+        make_node("widget", "WidgetButtonGroup", None, {
+            "buttons": [{"title": "VIEW ALL", "to": "/category"}]}),
+    ]
+    col = make_node("col", None, None,
+                    {"horizontalAlign": {"xs": "center", "lg": "start"}}, widgets)
+    row = make_node("row", None, None, {}, [col])
+    return make_node("section", "Products", None, {}, [row])
+
+
+def _showroom_link_sites(site_json, path: str) -> set:
+    """The v3 link strings that would have pointed at `path`.
+
+    Reported verbatim when page generation is off, so the designer has the list
+    to fix by hand rather than a count.
+    """
+    slug = path.lstrip("/")
+    found = set()
+
+    def walk(node):
+        if isinstance(node, list):
+            for item in node:
+                walk(item)
+        elif isinstance(node, dict):
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, str) and _SHOWROOM_LINK_RE.search(node):
+            m = _SHOWROOM_SLUG_RE.search(node)
+            if m and m.group(1).lower() == slug:
+                found.add(node)
+    walk(site_json)
+    return found
+
+
+def _showroom_pages_needed(site_json) -> set:
+    """The `_SHOWROOM_PAGES` paths this shop actually links to.
+
+    Read off the **v3 source**, not the converted pages. `convert_site` runs
+    before `convert_zones`, so a showroom link in the header or footer menu is
+    invisible to it -- and that is where most of them live: 10 of the 51 real
+    files name a showroom only from a menu. Basing this on the converted pages
+    rewrote those links to `/sale` and then generated no page for them.
+
+    Any string is inspected, since v3 spells the key four ways
+    (`link`, `buttonLink`, `bannerLink`, `to`). A non-link string cannot match:
+    the rewrite needs a literal `showroom/<slug>` path.
+    """
+    needed = set()
+
+    def walk(node):
+        if isinstance(node, list):
+            for item in node:
+                walk(item)
+        elif isinstance(node, dict):
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, str) and _SHOWROOM_LINK_RE.search(node):
+            # Read the slug directly rather than asking `_rewrite_showroom_link`
+            # what it produces: that function is gated on
+            # `_GENERATE_CUSTOM_PAGES`, so with generation off it returns the
+            # link unchanged and this would find nothing -- which is exactly
+            # when the dead-link report needs the answer most.
+            m = _SHOWROOM_SLUG_RE.search(node)
+            if m:
+                target = _SHOWROOM_TO_PAGE.get(m.group(1).lower())
+                if target:
+                    needed.add(target)
+    walk(site_json)
+    return needed
 
 
 def _showroom_links(node, found=None) -> set:
@@ -10866,9 +11198,12 @@ def convert_section(old_json: dict, warnings: list = None) -> dict:
                    "ต้องนำโค้ด HTML เดิมไปวางเองใน manage ของร้าน "
                    "(v4 เก็บ custom HTML แยกจากโครงหน้า)",
         })
-    # Showroom links: v3 built-in pages that v4 does not have. See
-    # `_showroom_links`. Warn rather than rewrite -- there is no correct target
-    # to rewrite to until the replacement page exists.
+    # Showroom links: v3 built-in pages that v4 does not have. `new` and `hot`
+    # now have a confirmed v4 target and are rewritten; `recommend` and `sale`
+    # do not, so they pass through and warn, as every showroom link did before
+    # v1.30. See `_SHOWROOM_TO_V4` and DEFAULT-CONTENT.md.
+    if result is not None:
+        _rewrite_showroom_links(result)
     if warnings is not None and result is not None:
         links = sorted(_showroom_links(result))
         if links:
@@ -11237,6 +11572,63 @@ V4_PAGES: list = [
     {"v3_key": "blogsearch", "path": "/search",      "nickname": "Search",            "module": None,         "component_kind": "PageSearch",      "modules": ["blog", "ecommerce"],                                      "skip_if_empty": True},
 ]
 
+# v3's help centre stores its content two ways, and only one of them was read.
+# `help.layouts` is a plain page (6 of the 51 real files). The other is a set of
+# **tabs** -- `help.helpObjects[]`, each with its own `layouts` -- which the
+# `layouts`-only lookup skipped entirely, dropping a shop's whole help centre in
+# silence. v4 gets ONE combined page either way (user, 2026-09-10:
+# "เป็นแบบรวมหน้าเดียว"), each tab introduced by its v3 title.
+#
+# Two tabs are v3 built-ins that carry a title and no `layouts` at all --
+# `how2pay` and `how2track` -- because v3 rendered their bodies itself. Their
+# titles are real content and are kept as headings; the bodies are v4-side
+# default content that does not exist yet, so they warn. See DEFAULT-CONTENT.md.
+_HELP_BUILTIN_KEYS = ("how2pay", "how2track")
+
+
+def _help_heading_layout(title: str) -> dict:
+    """A v3-shaped Headline node, so the tab title goes through the normal
+    section builder rather than being hand-assembled here."""
+    return {"name": "Headline", "props": {"title": title}}
+
+
+def _help_layouts(help_json: dict, warnings: list = None) -> list:
+    """The v3 layout list for the single combined `/help` page."""
+    layouts = list(help_json.get("layouts") or [])
+
+    for obj in (help_json.get("helpObjects") or []):
+        if not isinstance(obj, dict):
+            continue
+        title = (obj.get("title") or "").strip()
+        own = obj.get("layouts") or []
+
+        if not own and obj.get("key") == "faqs":
+            # v3 seeds the built-in FAQ tab from the root of the help block, so
+            # a shop that never edited it still shows something. Only reached
+            # when the tab itself has no layouts -- an edited tab wins, and
+            # using both would render the same FAQ twice.
+            seed = help_json.get("FaqsSection") or help_json.get("FaqsContent")
+            if isinstance(seed, dict):
+                own = [{"name": ("FaqsSection" if help_json.get("FaqsSection")
+                                 else "FaqsContent"), "props": seed}]
+
+        if title:
+            layouts.append(_help_heading_layout(title))
+        if own:
+            layouts.extend(own)
+        elif warnings is not None and obj.get("key") in _HELP_BUILTIN_KEYS:
+            # Same dict shape as every other warning -- this one was a bare
+            # string until 2026-09-10, which made every consumer that reads
+            # `w["kind"]` blow up on it.
+            warnings.append({
+                "path": "/help", "kind": "warn",
+                "msg": f"หน้าช่วยเหลือ “{title or obj.get('key')}” — "
+                       f"v3 สร้างเนื้อหาให้เอง ไม่มีในไฟล์ "
+                       f"ต้องเขียนเนื้อหาใหม่ในหน้า /help",
+            })
+    return layouts
+
+
 # v3 keys that have no v4 system page — convert as custom pages (module: null, kind: null)
 SYSTEM_PAGES_AS_CUSTOM: set = {"help"}
 
@@ -11265,14 +11657,31 @@ def _path_from_title(title: str) -> str:
     return f"/{slug}" if slug else "/page"
 
 
-def convert_site(site_json: dict, warnings: list = None) -> list:
+def convert_site(site_json: dict, warnings: list = None,
+                 generate_pages: bool = True) -> list:
     """Convert a full site JSON containing multiple pages.
 
     Returns an ordered list of v4 page objects:
       1. All V4_PAGES entries in table order (system pages + v4-only pages).
       2. Any v3 system keys in SYSTEM_PAGES_AS_CUSTOM (e.g. "help").
       3. All entries in customRoutes.
+
+    `generate_pages=False` stops the converter adding any page the v3 file did
+    not have. A shop's package caps how many custom pages it may own, and that
+    cap differs per shop, so adding two uninvited ones can push a shop over it.
+    With it off the showroom links stay exactly as v3 wrote them and each one is
+    reported as `kind: "dead-link"` instead (user, 2026-09-10).
     """
+    global _GENERATE_CUSTOM_PAGES
+    _previous = _GENERATE_CUSTOM_PAGES
+    _GENERATE_CUSTOM_PAGES = generate_pages
+    try:
+        return _convert_site(site_json, warnings, generate_pages)
+    finally:
+        _GENERATE_CUSTOM_PAGES = _previous
+
+
+def _convert_site(site_json: dict, warnings: list, generate_pages: bool) -> list:
     results = []
 
     # ── 1. System pages (V4_PAGES table order) ───────────────────────────
@@ -11299,7 +11708,8 @@ def convert_site(site_json: dict, warnings: list = None) -> list:
         value = site_json.get(key)
         if not isinstance(value, dict):
             continue
-        layouts = value.get("layouts") or []
+        layouts = (_help_layouts(value, warnings) if key == "help"
+                   else value.get("layouts") or [])
         if not layouts:
             continue
         results.append(convert_page(
@@ -11344,6 +11754,50 @@ def convert_site(site_json: dict, warnings: list = None) -> list:
             nickname=key.capitalize(),
             warnings=warnings,
         ))
+
+    # ── 5. generated showroom pages ──────────────────────────────────────
+    # v3's `/showroom/recommend` and `/showroom/sale` have no filter equivalent
+    # in v4, so `_rewrite_showroom_links` points them at `/recommend` and
+    # `/sale` and the pages are generated here to answer them.
+    #
+    # Only when something actually links there. An unlinked page is clutter,
+    # and a shop that never used the showroom should not gain two pages it did
+    # not ask for. A page already at that path -- a customRoute, say -- wins;
+    # the shop authored it, and its links now resolve to it either way.
+    needed = _showroom_pages_needed(site_json)
+    for path, (fallback, showroom) in _SHOWROOM_PAGES.items():
+        if path not in needed:
+            continue
+        title = _showroom_page_title(site_json, path.lstrip("/")) or fallback
+
+        if not generate_pages:
+            # Links were left as v3 wrote them, so say which ones and where.
+            # A shop's package caps how many custom pages it may have, so this
+            # has to be the designer's call, not the converter's.
+            if warnings is not None:
+                warnings.append({
+                    "path": path, "kind": "dead-link", "title": title,
+                    "links": sorted(_showroom_link_sites(site_json, path)),
+                    "msg": f"ลิงก์ไปหน้า “{title}” ({path}) ยังกดไม่ได้ — "
+                           f"ปิดการสร้างหน้าอัตโนมัติไว้ ลิงก์จึงคงเป็นของ v3 "
+                           f"ต้องสร้างหน้าเองแล้วแก้ลิงก์",
+                })
+            continue
+
+        if path in used_paths:
+            continue
+        used_paths.add(path)
+        results.append(convert_page(
+            {}, layouts=[], path=path, nickname=title, warnings=warnings))
+        results[-1]["component"]["children"].append(
+            _showroom_page_section(title, showroom))
+        if warnings is not None:
+            warnings.append({
+                "path": path, "kind": "page-created", "title": title,
+                "msg": f"สร้างหน้าใหม่ให้: “{title}” → {path} — v3 มีหน้านี้ "
+                       f"ให้สำเร็จรูป v4 ไม่มี จึงสร้างจากแม่แบบ "
+                       f"(หัวข้อ + รายการสินค้า + ปุ่มดูทั้งหมด) ปรับแต่งต่อได้",
+            })
 
     return results
 

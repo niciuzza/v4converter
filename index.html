@@ -217,6 +217,23 @@
   .placeholder-icon{font-family:'JetBrains Mono',monospace;font-size:28px;color:var(--muted-2)}
   .placeholder-text{font-size:12.5px}
 
+  /* ── Pages added / links left dead ─────────────────────────────── */
+  /* Deliberately NOT inside the collapsible warnings banner. Those are "check
+     this"; this is "your shop gained pages", which touches the package's
+     custom-page quota — it has to be visible without opening anything. */
+  .page-callout{flex:none;border-bottom:1px solid var(--border);padding:10px 13px;font-size:12px;line-height:1.6}
+  .page-callout.made{background:var(--accent-soft)}
+  .page-callout.dead{background:var(--bad-soft)}
+  .page-callout .pc-head{font-weight:600;display:flex;align-items:center;gap:7px;margin-bottom:5px}
+  .page-callout.made .pc-head{color:var(--accent)}
+  .page-callout.dead .pc-head{color:var(--bad)}
+  .page-callout .pc-note{color:var(--muted);font-size:11px;margin-bottom:7px}
+  .page-callout ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
+  .page-callout li{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+  .page-callout .pc-path{font-family:'JetBrains Mono',monospace;font-size:11px;background:var(--panel-head);border:1px solid var(--border);border-radius:4px;padding:1px 6px}
+  .page-callout .pc-title{font-weight:500}
+  .page-callout .pc-links{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--muted-2);padding-left:12px;margin-top:2px;display:flex;flex-direction:column;gap:2px;width:100%}
+
   /* ── HTML warnings banner ──────────────────────────────────────── */
   .warn-banner{flex:none;background:var(--panel-head);border-bottom:1px solid var(--border)}
   .warn-banner summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:9px 13px;font-size:12px;color:var(--warn);font-weight:600}
@@ -319,6 +336,7 @@
           <label class="cfg-chip"><input type="checkbox" id="cfgAutoColor" checked title="สร้างเฉดสี 5 ระดับ (อ่อน→เข้ม) จากสีที่ตั้งไว้อัตโนมัติ"> สร้างเฉดสีอัตโนมัติ</label>
           <label class="cfg-chip"><input type="checkbox" id="cfgThemeFont" checked> ฟอนต์ธีม</label>
           <label class="cfg-chip"><input type="checkbox" id="cfgGlobal" checked> ตั้งค่ารวม</label>
+          <label class="cfg-chip"><input type="checkbox" id="cfgAutoPages" checked title="v3 มีหน้าสำเร็จรูปที่ v4 ไม่มี (สินค้าแนะนำ / สินค้าลดราคา) — ติ๊กไว้เพื่อให้สร้างหน้าพวกนี้ให้อัตโนมัติเมื่อมีลิงก์ชี้มา ถ้าแพ็กเกจของร้านมีโควตา custom page จำกัด ให้เอาติ๊กออก แล้วลิงก์จะคงเป็นของ v3 พร้อมรายการให้ไปแก้เอง"> สร้างหน้าที่ขาดให้</label>
         </div>
         <div class="foot-row">
           <span class="foot-meta" id="inputMeta">0 บรรทัด</span>
@@ -350,6 +368,9 @@
           </button>
         </div>
       </div>
+
+      <!-- Pages the converter added / links it could not answer -->
+      <div class="page-callout hidden" id="pageCallout"></div>
 
       <!-- HTML warnings banner -->
       <details class="warn-banner hidden" id="warnBanner">
@@ -494,7 +515,7 @@
 
   // ── Output config (what to include) — persisted in localStorage ─────
   const CONFIG_KEY = "converter2v4_outputConfig";
-  const CONFIG_DEFAULT = { content: true, themeColor: true, autoColor: true, themeFont: true, global: true };
+  const CONFIG_DEFAULT = { content: true, themeColor: true, autoColor: true, themeFont: true, global: true, autoPages: true };
   function loadConfig() {
     try {
       const v = JSON.parse(localStorage.getItem(CONFIG_KEY) || "{}");
@@ -516,7 +537,7 @@
     runError: null,     // string — Python-side error message
     selected: "all",    // sidebar selection key
     copied: false,
-    htmlWarnings: [],   // [{path, kind: "fixed"|"warn", msg, line}]
+    htmlWarnings: [],   // [{path, kind: "fixed"|"warn"|"page-created"|"dead-link", msg, line}]
     issueLines: [],     // [line] — 1-based line numbers in input that contain HTML issues
     issueIdx: 0,        // current index into issueLines
     cleanInput: null,   // normalized v3 data (used to look up values for output search)
@@ -537,6 +558,7 @@
     autoColor:  "cfgAutoColor",
     themeFont:  "cfgThemeFont",
     global:     "cfgGlobal",
+    autoPages:  "cfgAutoPages",
   };
   function setupConfigToggles() {
     for (const [key, id] of Object.entries(CFG_BOXES)) {
@@ -688,7 +710,10 @@
   // Right-edge tick overview of warning lines in the OUTPUT (full-doc view).
   function renderOutputRuler() {
     const ruler = $("outputRuler");
-    const ws = state.htmlWarnings || [];
+    // Page-level warnings carry a page path ("/sale"), not a JSON path, so
+    // they have no line to tick — and they are shown in their own callout.
+    const ws = (state.htmlWarnings || [])
+      .filter(w => w.kind !== "page-created" && w.kind !== "dead-link");
     if (!ws.length || !state.result || state.selected !== "all") {
       ruler.innerHTML = "";
       return;
@@ -869,7 +894,7 @@
     if (mode === "site") {
       snippet =
         "_twarns = []\n" +
-        `_pages = convert_site(_input, _twarns) if ${py(cfg.content)} else []\n` +
+        `_pages = convert_site(_input, _twarns, generate_pages=${py(cfg.autoPages)}) if ${py(cfg.content)} else []\n` +
         "_zones = convert_zones(_input)\n" +
         `_globals = convert_global(_input, _twarns, ${gkw})\n` +
         "_result = {\n" +
@@ -1329,9 +1354,51 @@
     if (state.outputActiveLine) setOutputActiveLine(state.outputActiveLine);
   }
 
+  // Pages the converter added, and links it deliberately left alone. Kept out
+  // of the collapsible warnings banner on purpose: a shop's package caps how
+  // many custom pages it may own, so "we created two pages" must be readable
+  // without opening anything.
+  function renderPageCallout() {
+    const box = $("pageCallout");
+    const ws  = (state.htmlWarnings || []);
+    const made = ws.filter(w => w.kind === "page-created");
+    const dead = ws.filter(w => w.kind === "dead-link");
+    if (!state.result || (!made.length && !dead.length)) {
+      box.classList.add("hidden");
+      box.innerHTML = "";
+      return;
+    }
+    box.classList.remove("hidden");
+    box.classList.toggle("made", !!made.length && !dead.length);
+    box.classList.toggle("dead", !!dead.length);
+    const list = (items, withLinks) => items.map(w => `<li>
+        <span class="pc-path">${escapeHTML(w.path || "")}</span>
+        <span class="pc-title">${escapeHTML(w.title || "")}</span>
+        ${withLinks && (w.links || []).length
+          ? `<span class="pc-links">${(w.links || [])
+               .map(l => "↳ " + escapeHTML(l)).join("<br>")}</span>`
+          : ""}
+      </li>`).join("");
+    const blocks = [];
+    if (made.length) blocks.push(`
+      <div class="pc-head">➕ สร้างหน้าใหม่ให้ ${made.length} หน้า</div>
+      <div class="pc-note">v3 มีหน้าพวกนี้ให้สำเร็จรูป v4 ไม่มี จึงสร้างจากแม่แบบให้ —
+        <b>นับรวมในโควตา custom page ของแพ็กเกจร้าน</b> ถ้าไม่ต้องการ
+        ให้เอาติ๊ก “สร้างหน้าที่ขาดให้” ออกแล้วแปลงใหม่</div>
+      <ul>${list(made, false)}</ul>`);
+    if (dead.length) blocks.push(`
+      <div class="pc-head">⚠ ลิงก์ที่ยังกดไม่ได้ ${dead.length} หน้า</div>
+      <div class="pc-note">ปิดการสร้างหน้าอัตโนมัติไว้ ลิงก์จึงคงเป็นของ v3 —
+        ต้องสร้างหน้าเองแล้วแก้ลิงก์ตามรายการนี้</div>
+      <ul>${list(dead, true)}</ul>`);
+    box.innerHTML = blocks.join('<div style="height:9px"></div>');
+  }
+
   function renderWarnings() {
+    renderPageCallout();
     const banner = $("warnBanner");
-    const ws = state.htmlWarnings || [];
+    const ws = (state.htmlWarnings || [])
+      .filter(w => w.kind !== "page-created" && w.kind !== "dead-link");
     if (!ws.length || !state.result) {
       banner.classList.add("hidden");
       banner.open = false;
