@@ -537,7 +537,7 @@
     runError: null,     // string — Python-side error message
     selected: "all",    // sidebar selection key
     copied: false,
-    htmlWarnings: [],   // [{path, kind: "fixed"|"warn"|"page-created"|"dead-link", msg, line}]
+    htmlWarnings: [],   // [{path, kind: "fixed"|"warn"|"page-created"|"dead-link"|"page-needed", msg, line}]
     issueLines: [],     // [line] — 1-based line numbers in input that contain HTML issues
     issueIdx: 0,        // current index into issueLines
     cleanInput: null,   // normalized v3 data (used to look up values for output search)
@@ -713,7 +713,7 @@
     // Page-level warnings carry a page path ("/sale"), not a JSON path, so
     // they have no line to tick — and they are shown in their own callout.
     const ws = (state.htmlWarnings || [])
-      .filter(w => w.kind !== "page-created" && w.kind !== "dead-link");
+      .filter(w => !["page-created", "dead-link", "page-needed"].includes(w.kind));
     if (!ws.length || !state.result || state.selected !== "all") {
       ruler.innerHTML = "";
       return;
@@ -895,7 +895,7 @@
       snippet =
         "_twarns = []\n" +
         `_pages = convert_site(_input, _twarns, generate_pages=${py(cfg.autoPages)}) if ${py(cfg.content)} else []\n` +
-        "_zones = convert_zones(_input)\n" +
+        "_zones = convert_zones(_input, _twarns)\n" +
         `_globals = convert_global(_input, _twarns, ${gkw})\n` +
         "_result = {\n" +
         "    'nickname':    'Imported',\n" +
@@ -910,7 +910,7 @@
         "    'unuse_configs': [],\n" +
         "}\n_errors = []\n";
     } else if (mode === "zones") {
-      snippet = "_twarns = []\n_result = convert_zones(_input)\n_errors = []\n";
+      snippet = "_twarns = []\n_result = convert_zones(_input, _twarns)\n_errors = []\n";
     } else if (mode === "global") {
       snippet = `_twarns = []\n_result = convert_global(_input, _twarns, ${gkw})\n_errors = []\n`;
     } else if (mode === "pages") {
@@ -1362,7 +1362,7 @@
     const box = $("pageCallout");
     const ws  = (state.htmlWarnings || []);
     const made = ws.filter(w => w.kind === "page-created");
-    const dead = ws.filter(w => w.kind === "dead-link");
+    const dead = ws.filter(w => w.kind === "dead-link" || w.kind === "page-needed");
     if (!state.result || (!made.length && !dead.length)) {
       box.classList.add("hidden");
       box.innerHTML = "";
@@ -1387,9 +1387,10 @@
         ให้เอาติ๊ก “สร้างหน้าที่ขาดให้” ออกแล้วแปลงใหม่</div>
       <ul>${list(made, false)}</ul>`);
     if (dead.length) blocks.push(`
-      <div class="pc-head">⚠ ลิงก์ที่ยังกดไม่ได้ ${dead.length} หน้า</div>
-      <div class="pc-note">ปิดการสร้างหน้าอัตโนมัติไว้ ลิงก์จึงคงเป็นของ v3 —
-        ต้องสร้างหน้าเองแล้วแก้ลิงก์ตามรายการนี้</div>
+      <div class="pc-head">⚠ ต้องสร้างหน้าเอง ${dead.length} หน้า</div>
+      <div class="pc-note">ลิงก์ชี้ไป path พวกนี้แต่ยังไม่มีหน้ารองรับ —
+        converter สร้างให้ไม่ได้ (ปิดสวิตช์ไว้ หรือเป็น showroom ที่ร้านสร้างเอง
+        ซึ่งสินค้าข้างในไม่ได้อยู่ในไฟล์)</div>
       <ul>${list(dead, true)}</ul>`);
     box.innerHTML = blocks.join('<div style="height:9px"></div>');
   }
@@ -1398,7 +1399,7 @@
     renderPageCallout();
     const banner = $("warnBanner");
     const ws = (state.htmlWarnings || [])
-      .filter(w => w.kind !== "page-created" && w.kind !== "dead-link");
+      .filter(w => !["page-created", "dead-link", "page-needed"].includes(w.kind));
     if (!ws.length || !state.result) {
       banner.classList.add("hidden");
       banner.open = false;

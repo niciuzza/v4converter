@@ -23,8 +23,8 @@ import sys
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.32"
-LAST_UPDATED = "2026-09-10"
+__version__ = "1.34"
+LAST_UPDATED = "2026-09-11"
 
 # Short summary of what the converter handles — shown in the browser popup.
 # Plain strings; inline HTML (e.g. <code>) is allowed for rendering there.
@@ -38,6 +38,19 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.34", "date": "2026-09-11", "items": [
+        "<b>แก้เนื้อหาหาย</b>: หน้าศูนย์ช่วยเหลือเคยออกมาเป็นหน้าเปล่าที่มีแต่แบนเนอร์ — เพราะ v3 เก็บแค่แบนเนอร์ไว้ในไฟล์ ส่วนเนื้อหาจริง (วิธีสั่งซื้อ / ชำระเงิน / ตรวจสอบสถานะ / เปลี่ยนคืนสินค้า) v3 สร้างให้เองตอนแสดงผล · ร้านที่มี help ในไฟล์ตัวอย่างเป็นแบบนี้ทุกร้าน",
+        "ตอนนี้ประกอบหน้าให้ครบตามแม่แบบของ v4: breadcrumb → แบนเนอร์ของร้าน (ถ้าไม่มีใช้ของแม่แบบ) → เนื้อหาที่ร้านทำเอง → เมนูด้านข้างแบบ sticky พร้อม 4 หัวข้อมาตรฐาน",
+        "ใช้ <code>WidgetHowToBuy</code> / <code>WidgetHowToPay</code> / <code>WidgetHowToTrack</code> / <code>WidgetHowToRefund</code> ของ v4 ซึ่งสร้างเนื้อหาให้เองเหมือน v3 — จึงไม่ต้องเขียนเนื้อหาใหม่แล้ว (v1.29 เคยเตือนว่าต้องเขียนเอง ซึ่งไม่จำเป็น) · ทั้งสี่ตัวใช้ <code>customId</code> เป็นจุดยึดลิงก์เหมือนกันหมด",
+        "ร้านที่ไม่มี <code>help</code> ในไฟล์เลยก็ได้หน้านี้ ถ้ามีลิงก์ชี้มา — อยู่ใต้สวิตช์ “สร้างหน้าที่ขาดให้” เหมือนหน้าอื่นที่สร้างให้ และขึ้นในแถบแจ้งเตือนด้วย",
+        "ใส่เฉพาะหัวข้อที่ v3 แสดงจริง — ร้านที่ทำแท็บเองได้เฉพาะแท็บมาตรฐานที่ยังเหลือไว้ ส่วนร้านที่ไม่ได้ทำแท็บได้ครบทั้ง 4",
+        "ร้านที่ทำแท็บเองใน v3 ได้<b>เมนูด้านข้างอันเดียวกัน</b> โดยเอา<b>ชื่อแท็บมาเป็นชื่อเมนู</b> เรียงตามลำดับเดิมของ v3 แล้วต่อด้วยหัวข้อมาตรฐาน — เนื้อหาทั้งหมดอยู่ในคอลัมน์เดียวกัน อ่านเป็นลิสต์เดียว ไม่ได้แยกเป็นสองก้อน",
+    ]},
+    {"version": "1.33", "date": "2026-09-11", "items": [
+        "ลิงก์ showroom ที่<b>ร้านสร้างเอง</b> (ไม่ใช่ 4 อันสำเร็จรูปของ v3 เช่น <code>/showroom/featured</code>) <b>คงไว้เหมือนเดิม ไม่แปลง</b> — สินค้าในนั้นไม่ได้อยู่ในไฟล์ที่ส่งมา จึงสร้างหน้าให้ไม่ได้ และการคงรูปแบบ v3 ไว้ทำให้เห็นชัดว่าลิงก์นี้ยังกดไม่ได้ ถ้าเปลี่ยนเป็น <code>/featured</code> จะดูเหมือนใช้ได้แล้วทั้งที่ยังไม่มีหน้า",
+        "ลิงก์พวกนี้ขึ้นในแถบแจ้งเตือนด้านบนพร้อม path ให้ไปสร้างหน้าเองแล้วแก้ลิงก์",
+        "<b>แก้บั๊กสำคัญ</b>: ลิงก์ showroom ใน<b>เมนู header/footer</b> ไม่เคยถูกแปลงเลย — v1.30–v1.32 แปลงเฉพาะลิงก์ที่อยู่ในเนื้อหาหน้า ทำให้เมนูยังชี้ไป <code>/showroom/...</code> ทั้งที่หน้าปลายทางถูกสร้างไว้ให้แล้ว (14 ลิงก์ในไฟล์ตัวอย่าง) ตอนนี้แปลงทั้งสองทาง",
+    ]},
     {"version": "1.32", "date": "2026-09-10", "items": [
         "เพิ่มตัวเลือก <b>“สร้างหน้าที่ขาดให้”</b> ในแถบตั้งค่า — เอาติ๊กออกแล้ว converter จะ<b>ไม่สร้างหน้าใหม่ให้เลย</b> เหมาะกับร้านที่แพ็กเกจจำกัดจำนวน custom page เพราะหน้าที่สร้างให้ก็นับรวมในโควตาด้วย",
         "ทุกครั้งที่สร้างหน้าให้ จะขึ้น<b>แถบแจ้งเตือนแยกต่างหาก</b> (ไม่ได้ซ่อนอยู่ในรายการเตือนที่พับไว้) บอกว่าสร้างหน้าอะไร path ไหนบ้าง",
@@ -10839,11 +10852,19 @@ def _write_theme_checklist(outdir: str, rows: list) -> None:
         f.write("\n".join(lines))
 
 
-def convert_zones(site_json: dict) -> dict:
+def convert_zones(site_json: dict, warnings: list = None) -> dict:
     """Extract global zones from a v3 site JSON.
 
     Returns {"header_zone": {...}|None, "footer_zone": {...}|None, "free_zone": {...}}.
     free_zone is built from `components.ContactWidget` (see _build_free_zone).
+
+    Showroom links are rewritten here as well as in `convert_section`. They are
+    two separate paths -- the header and footer are built by `convert_header`
+    and `convert_footer`, which never call `convert_section` -- so a rewrite
+    that lives only in the section path misses every menu link. **That is where
+    most showroom links are**: 14 of them survived v1.30-v1.32 untouched in the
+    zones while the pages they pointed at were being generated (found
+    2026-09-11).
     """
     result: dict = {
         "header_zone": None,
@@ -10858,6 +10879,26 @@ def convert_zones(site_json: dict) -> dict:
         result["footer_zone"] = convert_footer(footer)
     components = (site_json.get("components") or {}) if isinstance(site_json, dict) else {}
     result["free_zone"] = _build_free_zone(components)
+
+    shop_made = _rewrite_showroom_links(result)
+    if warnings is not None:
+        for link in sorted(shop_made):
+            warnings.append({
+                "path": link, "kind": "page-needed",
+                "title": _shop_showroom_slug(link),
+                "msg": f"เมนู header/footer: ลิงก์ {link} ยังไม่มีปลายทาง — "
+                       f"เป็น showroom ที่ร้านสร้างเอง สินค้าในนั้นไม่ได้อยู่ในไฟล์ "
+                       f"จึงสร้างหน้าให้ไม่ได้ · คงลิงก์เป็นของ v3 ไว้ตั้งใจ "
+                       f"จะได้เห็นชัดว่ายังกดไม่ได้",
+            })
+        links = sorted(l for l in _showroom_links(result)
+                       if not _shop_showroom_slug(l))
+        if links:
+            warnings.append({
+                "path": None, "kind": "warn",
+                "msg": f"เมนู header/footer: มีลิงก์ไปหน้า showroom ของ v3 "
+                       f"({', '.join(links)})",
+            })
     return result
 
 
@@ -10941,6 +10982,13 @@ _SHOWROOM_TO_PAGE = {
     "recommend": "/recommend",
     "sale":      "/sale",
 }
+
+# v3's four built-in showrooms. Anything else under `/showroom/` is a showroom
+# the **shop** created, whose contents live server-side and are not in this
+# file -- so there is nothing to rebuild, only a path to carry over. The link
+# becomes `/<slug>` and the designer builds the page (user, 2026-09-11:
+# "น่าจะเป็น custom ของร้านเอง ให้แปลงเป็นหน้า custom page ลิ้ง /featured ได้เลย").
+_SHOWROOM_BUILTIN_SLUGS = frozenset(_SHOWROOM_TO_FILTER) | frozenset(_SHOWROOM_TO_PAGE)
 
 _SHOWROOM_TO_V4 = {**_SHOWROOM_TO_FILTER, **_SHOWROOM_TO_PAGE}
 
@@ -11044,25 +11092,47 @@ def _rewrite_showroom_link(link: str) -> str:
     slug = m.group(1).lower()
     if slug in _SHOWROOM_TO_PAGE and not _GENERATE_CUSTOM_PAGES:
         return link
+    # A shop's own showroom (anything outside v3's four) is left exactly as v3
+    # wrote it. Rewriting `/showroom/featured` to `/featured` was tried in
+    # v1.33 and reverted the same day: `/featured` *looks* like a working v4
+    # path, so a dead link becomes invisible, while `/showroom/...` reads as v3
+    # legacy at a glance (user, 2026-09-11: "จะได้เข้าใจได้ว่าเป็นหน้าที่ไม่มี
+    # ลิงก์ต่อ ไม่งั้นจะงง"). It is reported instead -- see `_shop_showroom_slug`.
     return _SHOWROOM_TO_V4.get(slug, link)
 
 
-def _rewrite_showroom_links(node) -> int:
-    """Rewrite every `to` in place. Returns how many changed."""
-    n = 0
+def _shop_showroom_slug(link: str) -> str:
+    """The slug of a **shop-created** showroom link, or "" for anything else."""
+    m = _SHOWROOM_SLUG_RE.search(link or "")
+    if not m:
+        return ""
+    slug = m.group(1).lower()
+    return "" if slug in _SHOWROOM_BUILTIN_SLUGS else slug
+
+
+def _rewrite_showroom_links(node, shop_made=None) -> set:
+    """Rewrite every `to` in place.
+
+    Returns the **v3 links** that name a shop-created showroom. Those are left
+    untouched on purpose — there is no page to point them at, and a v3-looking
+    path is the honest signal — so the caller reports them.
+    """
+    shop_made = set() if shop_made is None else shop_made
     if isinstance(node, list):
         for item in node:
-            n += _rewrite_showroom_links(item)
+            _rewrite_showroom_links(item, shop_made)
     elif isinstance(node, dict):
         for key, value in list(node.items()):
             if key == "to" and isinstance(value, str) and _SHOWROOM_LINK_RE.search(value):
+                if _shop_showroom_slug(value):
+                    shop_made.add(value)
+                    continue
                 new = _rewrite_showroom_link(value)
                 if new != value:
                     node[key] = new
-                    n += 1
             else:
-                n += _rewrite_showroom_links(value)
-    return n
+                _rewrite_showroom_links(value, shop_made)
+    return shop_made
 
 
 def _showroom_page_section(title: str, showroom: str) -> dict:
@@ -11084,6 +11154,23 @@ def _showroom_page_section(title: str, showroom: str) -> dict:
                     {"horizontalAlign": {"xs": "center", "lg": "start"}}, widgets)
     row = make_node("row", None, None, {}, [col])
     return make_node("section", "Products", None, {}, [row])
+
+
+def _plain_links(site_json) -> set:
+    """Every internal path the v3 file links to, ignoring query and fragment."""
+    found = set()
+
+    def walk(node):
+        if isinstance(node, list):
+            for item in node:
+                walk(item)
+        elif isinstance(node, dict):
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, str) and node.startswith("/"):
+            found.add(re.split(r"[?#]", node)[0].rstrip("/") or "/")
+    walk(site_json)
+    return found
 
 
 def _showroom_link_sites(site_json, path: str) -> set:
@@ -11203,9 +11290,20 @@ def convert_section(old_json: dict, warnings: list = None) -> dict:
     # do not, so they pass through and warn, as every showroom link did before
     # v1.30. See `_SHOWROOM_TO_V4` and DEFAULT-CONTENT.md.
     if result is not None:
-        _rewrite_showroom_links(result)
+        shop_made = _rewrite_showroom_links(result)
+        if warnings is not None:
+            for link in sorted(shop_made):
+                warnings.append({
+                    "path": link, "kind": "page-needed",
+                    "title": _shop_showroom_slug(link),
+                    "msg": f"ลิงก์ {link} ยังไม่มีปลายทาง — เป็น showroom ที่ร้าน "
+                           f"สร้างเอง สินค้าในนั้นไม่ได้อยู่ในไฟล์ จึงสร้างหน้าให้ "
+                           f"ไม่ได้ · คงลิงก์เป็นของ v3 ไว้ตั้งใจ จะได้เห็นชัดว่า "
+                           f"ยังกดไม่ได้ ต้องสร้างหน้าแล้วแก้ลิงก์เอง",
+                })
     if warnings is not None and result is not None:
-        links = sorted(_showroom_links(result))
+        links = sorted(l for l in _showroom_links(result)
+                       if not _shop_showroom_slug(l))
         if links:
             nickname = (result or {}).get("nickname") or name
             # Kept to one line on purpose: designers already know these need a
@@ -11583,49 +11681,272 @@ V4_PAGES: list = [
 # `how2pay` and `how2track` -- because v3 rendered their bodies itself. Their
 # titles are real content and are kept as headings; the bodies are v4-side
 # default content that does not exist yet, so they warn. See DEFAULT-CONTENT.md.
-_HELP_BUILTIN_KEYS = ("how2pay", "how2track")
+
+# v3 rendered the standard help topics itself -- nothing about them is in the
+# exported JSON -- and v4 has a widget per topic that does the same. So these
+# are emitted, not converted: there is no v3 content to carry over, only the
+# knowledge of which topics v3 showed.
+#
+# Shape, anchor ids, nav labels and icons all come from the v4 `/help-ver`
+# template the user supplied (2026-09-11). `WidgetHowToBuy` carries a
+# `{{TEXT_HOW2ORDER}}` placeholder that v4 fills in.
+#
+# NOTE: the supplied template spells `WidgetHowToTrack`'s anchor `id` where its
+# three siblings use `customId`. It was copied verbatim at first -- guessing at
+# someone else's schema is how a page stops rendering -- and the user confirmed
+# on 2026-09-11 that it is a slip in the sample: **all four take `customId`**.
+_HELP_TOPICS = [
+    ("how_to_buy",    "WidgetHowToBuy",    "วิธีการสั่งซื้อสินค้า",     "shopping-cart",
+     {"html": "{{TEXT_HOW2ORDER}}"}),
+    ("how_to_pay",    "WidgetHowToPay",    "วิธีการชำระเงิน",          "credit-card", {}),
+    ("how_to_track",  "WidgetHowToTrack",  "ตรวจสอบสถานะ",             "truck",       {}),
+    ("how_to_refund", "WidgetHowToRefund", "การเปลี่ยนหรือคืนสินค้า",  "refresh-ccw", {}),
+]
+
+def _help_topic_widget(anchor: str) -> dict:
+    """The v4 widget for one standard help topic, with its anchor id."""
+    for topic, kind, _label, _icon, extra in _HELP_TOPICS:
+        if topic != anchor:
+            continue
+        info = dict(extra)
+        info["customId"] = anchor
+        return make_node("widget", kind, None, info)
+    raise KeyError(anchor)
 
 
-def _help_heading_layout(title: str) -> dict:
-    """A v3-shaped Headline node, so the tab title goes through the normal
-    section builder rather than being hand-assembled here."""
-    return {"name": "Headline", "props": {"title": title}}
+def _help_nav_and_body(entries: list) -> dict:
+    """The two-column block: a sticky menu on the left, everything on the right.
+
+    `entries` is `[(anchor, label, icon|None, [widgets])]` in menu order — the
+    shop's own tabs and the standard topics in one list, which is why the menu
+    is built here rather than from `_HELP_TOPICS` directly.
+
+    The anchor is carried on each group's leading widget as `customId`, which is
+    how v4's own template anchors its HowTo widgets; the section `id` below is
+    the same belt-and-braces the template uses.
+    """
+    navs = []
+    body = []
+    for anchor, label, icon, widgets in entries:
+        nav = {"text": label, "to": "#" + anchor}
+        if icon:
+            nav["iconLeft"] = icon
+        navs.append(nav)
+        if widgets:
+            widgets[0]["info"].setdefault("customId", anchor)
+            body.extend(widgets)
+    nav_widget = make_node("widget", "WidgetNavList", None, {
+        "navs": navs,
+        "layoutStackWrap":      {"xs": "nowrap"},
+        "layoutStackDirection": {"xs": "column", "md": "row", "lg": "column"},
+        "layoutStack":          {"isOverflowX": False},
+        "widgetWidth":          {"md": {"value": "auto"}, "lg": {"value": "auto"}},
+        "preset":               "default",
+        "textAlign":            {"lg": "left"},
+        "widgetAlignSelf":      {"lg": "flex-start"},
+        "widgetPaddingTop":     {"lg": {"value": 0, "unit": "px"}},
+        "widgetPaddingBottom":  {"lg": {"value": 0, "unit": "px"}},
+        "layoutStackGap":       {"lg": {"value": 20, "unit": "px"},
+                                 "xs": {"value": 20, "unit": "px"}},
+    })
+    nav_col = make_node("col", None, None, {
+        "height":          {"lg": "85vh"},
+        "position":        "sticky",
+        "top":             {"lg": {"value": 50, "unit": "px"}},
+        "horizontalAlign": {"lg": "flex-start"},
+        "gap":             {"lg": {"value": 0, "unit": "px"},
+                            "xs": {"value": 0, "unit": "px"}},
+        "paddingTop":      {"xs": {"value": 20, "unit": "px"}},
+        "verticalAlign":   {"lg": "flex-start"},
+        "span":            {"lg": "3"},
+        "borderColor":     "var(--color-neutral-subtle)",
+        "borderRightWidth": {"value": 1, "unit": "px"},
+    }, [nav_widget])
+    row = make_node("row", None, None, {}, [nav_col,
+                                            make_node("col", None, None, {}, body)])
+    return make_node("section", None, None, {
+        "paddingTop":    {"xs": {"value": 20, "unit": "px"},
+                          "lg": {"value": 60, "unit": "px"}},
+        "paddingBottom": {"xs": {"value": 80, "unit": "px"}},
+        "id":            entries[0][0] if entries else "how_to_buy",
+    }, [row])
+
+
+def _widgets_of(node, out=None) -> list:
+    """Every widget in a converted tree, in order."""
+    out = [] if out is None else out
+    if isinstance(node, list):
+        for item in node:
+            _widgets_of(item, out)
+    elif isinstance(node, dict):
+        if node.get("type") == "widget":
+            out.append(node)
+        else:
+            for value in node.values():
+                _widgets_of(value, out)
+    return out
+
+
+def _help_breadcrumb_section() -> dict:
+    widget = make_node("widget", "WidgetBreadcrumb", None,
+                       {"delimiterSize": "xsmall"})
+    col = make_node("col", None, None, {}, [widget])
+    row = make_node("row", None, None, {}, [col])
+    return make_node("section", None, None, {
+        "paddingTop":    {"xs": {"value": 12, "unit": "px"},
+                          "lg": {"value": 20, "unit": "px"}},
+        "paddingBottom": {"xs": {"value": 12, "unit": "px"},
+                          "lg": {"value": 20, "unit": "px"}},
+    }, [row])
+
+
+def _help_banner_section() -> dict:
+    """The template's own heading block, used when the shop supplied none."""
+    heading = make_node("widget", "WidgetHeading", None, {
+        "caption":   {"text": "วิธีการสั่งซื้อสินค้า",
+                      "typoStyle": "typo_paragraph_large"},
+        "title":     {"text": "How to Order",
+                      "typoStyle": "typo_heading_large_bold"},
+        "alignment": {"lg": "center", "xs": "center"},
+    })
+    col = make_node("col", None, None, {}, [heading])
+    row = make_node("row", None, None, {
+        "bgColor": "var(--color-neutral-subtle)",
+        "borderTopLeftRadius":     {"value": 16, "unit": "px"},
+        "borderTopRightRadius":    {"value": 16, "unit": "px"},
+        "borderBottomLeftRadius":  {"value": 16, "unit": "px"},
+        "borderBottomRightRadius": {"value": 16, "unit": "px"},
+        "height":       {"lg": {"value": 300, "unit": "px"},
+                         "xs": {"value": 200, "unit": "px"}},
+        "paddingRight": {"xs": {"value": 20, "unit": "px"}},
+        "paddingLeft":  {"xs": {"value": 20, "unit": "px"}},
+    }, [col])
+    return make_node("section", "About", None, {
+        "paddingTop":    {"xs": {"value": 20, "unit": "px"},
+                          "lg": {"value": 40, "unit": "px"}},
+        "paddingBottom": {"xs": {"value": 20, "unit": "px"},
+                          "lg": {"value": 40, "unit": "px"}},
+    }, [row])
+
+
+def _help_tab_groups(help_json: dict, warnings: list = None) -> list:
+    """`[(anchor, label, [v3 layouts])]` for the tabs the shop authored.
+
+    v3 lets the help centre be stored as tabs (`help.helpObjects[]`). They join
+    the same vertical menu as the standard topics, labelled by the tab's own
+    title (user, 2026-09-11: "เอาชื่อหัวของ section เป็นชื่อเมนูไปเลย"), so the
+    page reads as one list rather than the shop's content and v3's sitting in
+    two unrelated blocks.
+
+    Tabs with no `layouts` are v3's built-ins; they are handled by
+    `_help_topics_for`, not here.
+    """
+    groups = []
+    for obj in (help_json.get("helpObjects") or []):
+        if not isinstance(obj, dict) or not obj.get("layouts"):
+            continue
+        key = str(obj.get("key") or "").strip() or "tab"
+        label = (obj.get("title") or key).strip()
+        groups.append((_slug(key) or "tab%d" % (len(groups) + 1),
+                       label, obj["layouts"]))
+    return groups
+
+
+def _slug(text: str) -> str:
+    """A DOM-id-safe anchor from a v3 tab key."""
+    return re.sub(r"[^0-9A-Za-z_-]+", "_", text).strip("_").lower()
+
+
+_HELP_TAB_TO_TOPIC = {"how2pay": "how_to_pay", "how2track": "how_to_track"}
+
+
+def _help_topics_for(help_json: dict) -> list:
+    """Which standard topics v3 was showing this shop.
+
+    A shop that authored its own tabs showed exactly the built-in ones it left
+    in place; a shop with no tabs at all -- banner only, or nothing -- saw all
+    four.
+    """
+    tabs = [o for o in (help_json.get("helpObjects") or []) if isinstance(o, dict)]
+    if not tabs:
+        return [t for t, *_ in _HELP_TOPICS]
+    return [_HELP_TAB_TO_TOPIC[o["key"]] for o in tabs
+            if o.get("key") in _HELP_TAB_TO_TOPIC and not o.get("layouts")]
+
+
+def _build_help_page(help_json: dict, generate_pages: bool = True,
+                     warnings: list = None, linked: bool = True):
+    """The single `/help` page, or None.
+
+    v3's help page is **built-in content with an optional banner on top**: the
+    exported JSON holds the banner (and any tabs the shop authored), while the
+    four standard topics are rendered by v3 itself. Every one of the six real
+    files with `help.layouts` holds a banner and nothing else -- so converting
+    only what is in the file produced a help page with **no help on it**, which
+    is what happened until v1.34.
+
+    So the page is assembled, not just converted:
+
+      breadcrumb → the shop's banner (or the template's) → the four standard
+      topics, in the two-column sticky-nav block that is v3's default look.
+    """
+    authored = _help_layouts(help_json, warnings)
+    tabs     = _help_tab_groups(help_json, warnings)
+    topics   = _help_topics_for(help_json)
+    if not topics and not tabs:
+        return None
+    if not authored and (not generate_pages or not linked):
+        # Nothing of the shop's own, so the whole page would be invented. It
+        # obeys the same two rules as a generated showroom page: the switch has
+        # to allow it, and something has to link to it. v3 gave every shop a
+        # help page whether or not anything pointed at it, but an unlinked one
+        # spends the package's custom-page quota for nobody.
+        return None
+
+    page = convert_page({}, layouts=authored, path="/help", nickname="Help",
+                        warnings=warnings)
+    children = page["component"]["children"]
+
+    banner = list(children)
+    children[:] = [_help_breadcrumb_section()]
+    children.extend(banner or [_help_banner_section()])
+    entries = []
+    for anchor, label, layouts in tabs:
+        widgets = []
+        for layout in layouts:
+            try:
+                converted = convert_section(layout, warnings)
+            except ValueError:
+                converted = None
+            if converted is not None:
+                widgets.extend(_widgets_of(converted))
+        if widgets:
+            entries.append((anchor, label, None, widgets))
+    for topic, kind, label, icon, _extra in _HELP_TOPICS:
+        if topic in topics:
+            entries.append((topic, label, icon, [_help_topic_widget(topic)]))
+    children.append(_help_nav_and_body(entries))
+
+    if warnings is not None and not banner:
+        warnings.append({
+            "path": "/help", "kind": "page-created", "title": "Help",
+            "msg": "สร้างหน้าใหม่ให้: “ศูนย์ช่วยเหลือ” → /help — v3 มีหน้านี้ "
+                   "ให้สำเร็จรูป v4 ไม่มี จึงสร้างจากแม่แบบ "
+                   "(เมนูด้านข้าง + วิธีสั่งซื้อ/ชำระเงิน/ตรวจสอบสถานะ/คืนสินค้า)",
+        })
+    return page
 
 
 def _help_layouts(help_json: dict, warnings: list = None) -> list:
-    """The v3 layout list for the single combined `/help` page."""
+    """The shop's own help content: `help.layouts`, if any.
+
+    Tabs (`help.helpObjects[]`) are **not** here: they carry their own titles,
+    which become menu entries, so they are assembled with the standard topics in
+    `_help_tab_groups` / `_help_nav_and_body` rather than flattened into a
+    layout list.
+    """
     layouts = list(help_json.get("layouts") or [])
 
-    for obj in (help_json.get("helpObjects") or []):
-        if not isinstance(obj, dict):
-            continue
-        title = (obj.get("title") or "").strip()
-        own = obj.get("layouts") or []
-
-        if not own and obj.get("key") == "faqs":
-            # v3 seeds the built-in FAQ tab from the root of the help block, so
-            # a shop that never edited it still shows something. Only reached
-            # when the tab itself has no layouts -- an edited tab wins, and
-            # using both would render the same FAQ twice.
-            seed = help_json.get("FaqsSection") or help_json.get("FaqsContent")
-            if isinstance(seed, dict):
-                own = [{"name": ("FaqsSection" if help_json.get("FaqsSection")
-                                 else "FaqsContent"), "props": seed}]
-
-        if title:
-            layouts.append(_help_heading_layout(title))
-        if own:
-            layouts.extend(own)
-        elif warnings is not None and obj.get("key") in _HELP_BUILTIN_KEYS:
-            # Same dict shape as every other warning -- this one was a bare
-            # string until 2026-09-10, which made every consumer that reads
-            # `w["kind"]` blow up on it.
-            warnings.append({
-                "path": "/help", "kind": "warn",
-                "msg": f"หน้าช่วยเหลือ “{title or obj.get('key')}” — "
-                       f"v3 สร้างเนื้อหาให้เอง ไม่มีในไฟล์ "
-                       f"ต้องเขียนเนื้อหาใหม่ในหน้า /help",
-            })
     return layouts
 
 
@@ -11706,10 +12027,20 @@ def _convert_site(site_json: dict, warnings: list, generate_pages: bool) -> list
     # ── 2. v3 keys treated as custom (e.g. "help") ───────────────────────
     for key in SYSTEM_PAGES_AS_CUSTOM:
         value = site_json.get(key)
+        if key == "help":
+            # Not gated on the key existing: 36 of the 51 real files have no
+            # `help` block at all, and many of them still link to `/help` --
+            # v3 gave every shop the page whether or not it was ever edited.
+            page = _build_help_page(
+                value if isinstance(value, dict) else {},
+                generate_pages, warnings,
+                linked="/help" in _plain_links(site_json))
+            if page is not None:
+                results.append(page)
+            continue
         if not isinstance(value, dict):
             continue
-        layouts = (_help_layouts(value, warnings) if key == "help"
-                   else value.get("layouts") or [])
+        layouts = value.get("layouts") or []
         if not layouts:
             continue
         results.append(convert_page(
@@ -11957,7 +12288,7 @@ def main():
             sys.exit(1)
         theme_warnings: list = []
         pages  = convert_site(data, theme_warnings)
-        zones  = convert_zones(data)
+        zones  = convert_zones(data, theme_warnings)
         globals_ = convert_global(data, theme_warnings)
         result = {
             "nickname":    "Imported",
@@ -12012,7 +12343,8 @@ def main():
         if not isinstance(data, dict):
             print("❌  zones mode expects a JSON object at the top level.")
             sys.exit(1)
-        zones = convert_zones(data)
+        zone_warnings: list = []
+        zones = convert_zones(data, zone_warnings)
         if output_path:
             _write(zones, output_path)
             has_footer = zones.get("footer_zone") is not None
@@ -12021,6 +12353,8 @@ def main():
                   f"header_zone: ✗ (pending), free_zone: ✗ (pending))")
         else:
             print(json.dumps(zones, indent=2, ensure_ascii=False))
+        for w in zone_warnings:
+            print(f"⚠️   {w['msg']}", file=sys.stderr)
         return
 
     # ── pages (list of page objects, e.g. customRoutes) ───────────────────
