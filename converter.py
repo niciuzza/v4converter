@@ -23,7 +23,7 @@ import sys
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.34"
+__version__ = "1.36"
 LAST_UPDATED = "2026-09-11"
 
 # Short summary of what the converter handles — shown in the browser popup.
@@ -38,6 +38,15 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.36", "date": "2026-09-11", "items": [
+        "<b>เลิกสร้างหน้า <code>/contactus</code> เปล่า</b> — ร้านที่ไม่ได้เพิ่ม section เองใน v3 (38 จาก 51 ไฟล์ตัวอย่าง) เคยได้หน้าติดต่อที่ว่างเปล่า เพราะ v3 วาดฟอร์มให้เองและไฟล์ไม่มีอะไรเลย · ตอนนี้ไม่สร้างให้ ปล่อยให้ v4 ใช้หน้า default ของตัวเองซึ่งมีฟอร์มครบอยู่แล้ว",
+        "ร้านที่<b>เพิ่ม section เอง</b>ในหน้าติดต่อ (10 ร้าน) ได้ฟอร์มติดต่อ + ข้อมูลร้านของ v4 มาวางไว้ด้านบน แล้วต่อด้วยเนื้อหาของร้าน — เดิมเนื้อหาร้านมาแทนที่ทั้งหน้า ฟอร์มหายไปเลย",
+        "หน้า <code>/contactus</code> ตั้ง <code>module</code> เป็น <code>\"form\"</code> ให้ตรงกับ v4 (เดิมเป็น null)",
+        "จองชื่อ path <code>/wishlist</code> ไว้ — เป็นหน้าใหม่ของ v4 ที่ v3 ไม่มี ถ้าร้านบังเอิญมี custom page ชื่อเดียวกันจะได้ไม่ชนกัน",
+    ]},
+    {"version": "1.35", "date": "2026-09-11", "items": [
+        "ProductSection และ FeatureSection รองรับ <code>isFullScreen</code> ของ v3 แล้ว — section ที่ร้านตั้งให้เต็มความกว้างเคยออกมาเป็นกรอบปกติ (4 section ในไฟล์ตัวอย่าง) · อีก 8 builder แปลงค่านี้อยู่แล้ว สองตัวนี้เป็นที่ตกหล่น",
+    ]},
     {"version": "1.34", "date": "2026-09-11", "items": [
         "<b>แก้เนื้อหาหาย</b>: หน้าศูนย์ช่วยเหลือเคยออกมาเป็นหน้าเปล่าที่มีแต่แบนเนอร์ — เพราะ v3 เก็บแค่แบนเนอร์ไว้ในไฟล์ ส่วนเนื้อหาจริง (วิธีสั่งซื้อ / ชำระเงิน / ตรวจสอบสถานะ / เปลี่ยนคืนสินค้า) v3 สร้างให้เองตอนแสดงผล · ร้านที่มี help ในไฟล์ตัวอย่างเป็นแบบนี้ทุกร้าน",
         "ตอนนี้ประกอบหน้าให้ครบตามแม่แบบของ v4: breadcrumb → แบนเนอร์ของร้าน (ถ้าไม่มีใช้ของแม่แบบ) → เนื้อหาที่ร้านทำเอง → เมนูด้านข้างแบบ sticky พร้อม 4 หัวข้อมาตรฐาน",
@@ -2542,7 +2551,9 @@ def build_featuresection_section(props: dict) -> dict:
     md_pad        = padding.get("md") or {}
     class_tokens  = set((props.get("className") or "").split())
 
-    section_info = {}
+    # See the note in build_productsection_section: these two were the only
+    # builders not mapping v3's `isFullScreen` (v1.35).
+    section_info = {"isFullwidth": True} if props.get("isFullScreen") else {}
 
     bg_color = _section_bg_color(props)
     if bg_color:
@@ -2815,6 +2826,13 @@ def build_productsection_section(props: dict) -> dict:
         }
         section_info["isFullwidth"] = True
     else:
+        # v3's own full-width flag, which eight other builders already map.
+        # ProductSection and FeatureSection were the two that did not, so four
+        # real sections asked for full bleed and rendered boxed (v1.35). The
+        # `imageAlignBg` branch above sets it unconditionally, which is why the
+        # count is lower than the number of sections carrying the flag.
+        if props.get("isFullScreen"):
+            section_info["isFullwidth"] = True
         section_style = props.get("sectionStyle") or {}
         padding = section_style.get("padding") or {}
         sm_pad  = padding.get("sm") or {}
@@ -11505,6 +11523,55 @@ def _default_product_sections(_v3_page: dict) -> list:
 
 # ── /promotion ────────────────────────────────────────────────────────────────
 
+def _default_contactus_sections(_v3_page: dict) -> list:
+    """v4's own default `/contactus` content: the form beside the shop's
+    contact details.
+
+    v3 renders the contact form itself, so a shop's exported `contactus` holds
+    only whatever extra sections it added -- 38 of the 51 real files have
+    nothing there at all. Those shops no longer get a page (v4 builds its own
+    default); the ten with custom sections get this prepended so the form is not
+    lost behind their content.
+
+    v4's default has a third section after this one -- a FAQ accordion filled
+    with Lorem ipsum. Deliberately not reproduced: placeholder copy is worse
+    than nothing in a real shop, and the ten shops here already wrote their own
+    content. `WidgetForm`'s `formId` is likewise omitted; it is minted per shop,
+    and `build_contactus_section` has always emitted the widget bare.
+    """
+    def _col(span, widgets, **info):
+        return make_node("col", None, None,
+                         {"verticalAlign": "start",
+                          "span": {"xs": 12, "md": span, "lg": span}, **info},
+                         widgets)
+    gap = {"lg": {"value": 10, "unit": "px"}}
+    form_col = _col(6, [
+        make_node("widget", "WidgetHeading", None, {
+            "gap": dict(gap),
+            "title": {"text": "ติดต่อสอบถาม", "as": "h1",
+                      "typoStyle": "typo_heading_medium"},
+            "description": {
+                "text": "กรุณากรอกข้อมูลข้างล่างนี้ ทีมงานจะติดต่อกลับโดยเร็วที่สุด",
+                "typoStyle": "typo_paragraph_medium"},
+        }),
+        make_node("widget", "WidgetForm", None, {}),
+    ])
+    info_col = _col(6, [
+        make_node("widget", "WidgetHeading", None, {
+            "gap": dict(gap),
+            "title": {"text": "ข้อมูลร้านค้า", "as": "h1",
+                      "typoStyle": "typo_heading_medium"},
+            "description": {
+                "text": "หากต้องการสอบถามข้อมูลเพิ่มเติมหรือสั่งซื้อสินค้า "
+                        "อย่าลังเลที่จะติดต่อเรา",
+                "typoStyle": "typo_paragraph_medium"},
+        }),
+        make_node("widget", "WidgetContactInfo", None, {}),
+    ])
+    row = make_node("row", None, None, {}, [form_col, info_col])
+    return [make_node("section", None, None, {}, [row])]
+
+
 def _default_promotion_list_sections(_v3_page: dict) -> list:
     return [_simple_section([
         make_node("widget", "WidgetHeading", None, {
@@ -11585,6 +11652,7 @@ SYSTEM_PAGE_DEFAULTS: dict = {
     "product":          _default_product_sections,
     "promotion":        _default_promotion_list_sections,
     "blogsearch":       _default_search_sections,
+    "contactus":        _default_contactus_sections,
 }
 
 
@@ -11661,13 +11729,17 @@ V4_PAGES: list = [
     {"v3_key": "blogdetail", "path": "/blog/*",      "nickname": "Blog Detail : blog","module": "blog",       "component_kind": "PageBlogDetail",                                                                   "skip_if_empty": True},
     {"v3_key": "search",     "path": "/category/*",  "nickname": "Category",          "module": "ecommerce",  "component_kind": "PageEcommerceCategory",                                                          "skip_if_empty": True},
     {"v3_key": None,         "path": "/close",       "nickname": "Close",             "module": "ecommerce",  "component_kind": None,                                                                             "skip_if_empty": True},
-    {"v3_key": "contactus",  "path": "/contactus",   "nickname": "ContactUs",         "module": None,         "component_kind": None},
+    {"v3_key": "contactus",  "path": "/contactus",   "nickname": "ContactUs",         "module": "form",       "component_kind": None,                                                                             "skip_if_empty": True},
     {"v3_key": None,         "path": "/coupon",      "nickname": "Coupon List",       "module": "ecommerce",  "component_kind": None,                                                                             "skip_if_empty": True},
     {"v3_key": None,         "path": "/coupon/*",    "nickname": "Coupon Detail",     "module": "ecommerce",  "component_kind": None,                                                                             "skip_if_empty": True},
     {"v3_key": "product",    "path": "/product/*",   "nickname": "Product",           "module": "ecommerce",  "component_kind": "PageEcommerceProduct",                                                           "skip_if_empty": True},
     {"v3_key": "promotion",  "path": "/promotion",   "nickname": "Promotion List",    "module": "ecommerce",  "component_kind": None,                                                                             "skip_if_empty": True},
     {"v3_key": None,         "path": "/promotion/*", "nickname": "Promotion Detail",  "module": "ecommerce",  "component_kind": None,                                                                             "skip_if_empty": True},
     {"v3_key": "blogsearch", "path": "/search",      "nickname": "Search",            "module": None,         "component_kind": "PageSearch",      "modules": ["blog", "ecommerce"],                                      "skip_if_empty": True},
+    # v4-only, and v3 has nothing that maps to it. Listed purely to reserve the
+    # path: without a row here a v3 custom page at /wishlist would be emitted
+    # there and collide with the one v4 builds for itself (user, 2026-09-11).
+    {"v3_key": None,         "path": "/wishlist",    "nickname": "Wishlist",          "module": "core",       "component_kind": None,                                                                             "skip_if_empty": True},
 ]
 
 # v3's help centre stores its content two ways, and only one of them was read.
