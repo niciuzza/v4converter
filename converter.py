@@ -23,8 +23,8 @@ import sys
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.36"
-LAST_UPDATED = "2026-09-11"
+__version__ = "1.39"
+LAST_UPDATED = "2026-09-14"
 
 # Short summary of what the converter handles — shown in the browser popup.
 # Plain strings; inline HTML (e.g. <code>) is allowed for rendering there.
@@ -38,6 +38,18 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.39", "date": "2026-09-14", "items": [
+        "<b>สี/การจัดวางหัวข้อที่ร้านตั้งเองไม่หายอีกแล้ว</b> — <code>titleStyle</code>/<code>descriptionStyle</code> (สีตัวอักษร, การจัดชิดซ้าย-กลาง-ขวา) และ <code>isTitleH1</code> เคยแปลงเฉพาะบาง section เท่านั้น อีก 9 builder ที่สร้างหัวข้อเองทิ้งค่าพวกนี้ไปหมด ทำให้ 17 section ในไฟล์ตัวอย่างเสียสีหรือการจัดวางที่ร้านตั้งไว้ (สีหัวข้อ 7, การจัดวาง 6, <code>&lt;h1&gt;</code> 4, สีคำอธิบาย 3)",
+        "ครอบคลุม ProductSection · ProductTab · BlogSection · BannerSlick · CouponSlick · GallerySection · BannerSection · PromotionSlick · ContactusSection · FaqsSection · TopicSection",
+        "ของเดิมที่ builder ตั้งไว้เองยังชนะเสมอ — เช่น ProductTab ที่จัดกึ่งกลางตาม preset หรือ BlogSection แบบ <code>simpleblog_style_2</code> ที่บังคับชิดซ้าย เพราะนั่นคือสิ่งที่ v3 วาดจริง",
+    ]},
+    {"version": "1.38", "date": "2026-09-14", "items": [
+        "<b>ProductTab: แบนเนอร์กดได้แล้ว</b> — preset ที่วางแบนเนอร์ไว้เหนือแท็บ (\"Banner with bottom Tab\" ทั้งสองแบบ) เคยทิ้ง <code>bannerLink</code>/<code>bannerTarget</code> ไปเฉย ๆ แบนเนอร์จึงกลายเป็นรูปกดไม่ได้ทั้งที่ร้านใส่ลิงก์ไว้ (9 section ในไฟล์ตัวอย่าง) · ProductSection ซึ่งใช้ widget ตัวเดียวกันและ prop ชุดเดียวกันแปลงค่านี้อยู่แล้ว",
+        "แบนเนอร์แบบ<b>ฝังในแท็บ</b> (preset banner-left / banner-right) ยังไม่ได้ลิงก์ — ไฟล์ v4 จริงทุกไฟล์เก็บแบนเนอร์แบบนี้เป็น <code>src</code>/<code>mobileSrc</code> เท่านั้น ไม่มีช่องใส่ลิงก์",
+    ]},
+    {"version": "1.37", "date": "2026-09-14", "items": [
+        "<b>section ที่ร้านซ่อนไว้ใน v3 ตอนนี้ซ่อนใน v4 ด้วย</b> — <code>displayStatus: \"hide\"</code> ใช้ได้กับ section ทุกชนิดแล้ว · เดิมมีแค่ BannerSlick ตัวเดียวที่อ่านค่านี้ ส่วนอีก 17 ชนิดปล่อยทิ้ง ทำให้ section ที่ร้านซ่อนไว้ทั้ง 5 อันในไฟล์ตัวอย่าง (Headline, BannerSection, SlideShowSection 2 อัน และ FeatureSection — ไม่มีอันไหนเป็น BannerSlick) กลับมาแสดงบนหน้าร้านใหม่หมด",
+    ]},
     {"version": "1.36", "date": "2026-09-11", "items": [
         "<b>เลิกสร้างหน้า <code>/contactus</code> เปล่า</b> — ร้านที่ไม่ได้เพิ่ม section เองใน v3 (38 จาก 51 ไฟล์ตัวอย่าง) เคยได้หน้าติดต่อที่ว่างเปล่า เพราะ v3 วาดฟอร์มให้เองและไฟล์ไม่มีอะไรเลย · ตอนนี้ไม่สร้างให้ ปล่อยให้ v4 ใช้หน้า default ของตัวเองซึ่งมีฟอร์มครบอยู่แล้ว",
         "ร้านที่<b>เพิ่ม section เอง</b>ในหน้าติดต่อ (10 ร้าน) ได้ฟอร์มติดต่อ + ข้อมูลร้านของ v4 มาวางไว้ด้านบน แล้วต่อด้วยเนื้อหาของร้าน — เดิมเนื้อหาร้านมาแทนที่ทั้งหน้า ฟอร์มหายไปเลย",
@@ -1097,6 +1109,59 @@ def build_widget_heading(props: dict) -> dict:
         info["description"] = desc_obj
 
     return make_node("widget", "WidgetHeading", None, info)
+
+
+def _apply_heading_text_style(props: dict, info: dict) -> dict:
+    """Carry v3's per-section title/description styling onto a `WidgetHeading`.
+
+    `build_widget_heading` has read these three props since it was written --
+    `titleStyle.align`, `titleStyle.fontColor`/`descriptionStyle.fontColor` and
+    `isTitleH1`. Nine builders construct their heading inline instead and
+    dropped all three, so **26 real sections** lost a colour, an alignment or an
+    `<h1>`: a bakery demo's two red TopicSection descriptions, a bookshop's
+    white-on-dark BlogSection heading, a pet shop's three orange BannerSlick
+    titles, and so on. Same props, same widget, same meaning -- this is the
+    `isFullScreen` sweep of v1.35 applied to the heading.
+
+    Additive only, so a builder's own choices win:
+
+    * `alignment` is set **only when the builder did not set one**. ProductTab
+      centres from its preset and BlogSection's `simpleblog_style_2` forces
+      left; both are what v3 drew, so neither is overridden.
+    * `title.as` likewise -- TopicSection already decides `h1` its own way.
+    * Breakpoints follow the project rule (`sm`->`xs`, `xl`->`lg`, `md`->`md`).
+      `build_widget_heading` maps only two of the three; that gap is left alone
+      rather than widened here, since its callers are fixture-pinned.
+    """
+    title_style = props.get("titleStyle") or {}
+    desc_style  = props.get("descriptionStyle") or {}
+    if not isinstance(title_style, dict): title_style = {}
+    if not isinstance(desc_style, dict):  desc_style  = {}
+
+    if "alignment" not in info:
+        align = title_style.get("align") or {}
+        if isinstance(align, dict):
+            alignment = {new: align[old] for old, new in
+                         (("sm", "xs"), ("xl", "lg"), ("md", "md"))
+                         if align.get(old)}
+            if alignment:
+                info["alignment"] = alignment
+
+    title_obj = info.get("title")
+    if isinstance(title_obj, dict):
+        color = title_style.get("fontColor")
+        if color and "color" not in title_obj:
+            title_obj["color"] = color.lower()
+        if props.get("isTitleH1") and "as" not in title_obj:
+            title_obj["as"] = "h1"
+
+    desc_obj = info.get("description")
+    if isinstance(desc_obj, dict):
+        color = desc_style.get("fontColor")
+        if color and "color" not in desc_obj:
+            desc_obj["color"] = color.lower()
+
+    return info
 
 
 def _parse_html_paragraphs(html: str) -> list:
@@ -2718,7 +2783,8 @@ def _product_widget_heading(props: dict):
     info = {"title": {"text": title_text}}
     if desc_text:
         info["description"] = {"text": desc_text}
-    return make_node("widget", "WidgetHeading", None, info)
+    return make_node("widget", "WidgetHeading", None,
+                     _apply_heading_text_style(props, info))
 
 
 def _product_infer_layout_slick(props: dict) -> tuple:
@@ -2920,7 +2986,8 @@ def build_bannerslick_section(props: dict) -> dict:
             h_info["title"] = {"text": title_text}
         if desc_text:
             h_info["description"] = {"text": desc_text}
-        col_children.append(make_node("widget", "WidgetHeading", None, h_info))
+        col_children.append(make_node("widget", "WidgetHeading", None,
+                                      _apply_heading_text_style(props, h_info)))
 
     banner_objects = props.get("bannerObjects") or []
     sliders = [
@@ -2939,10 +3006,10 @@ def build_bannerslick_section(props: dict) -> dict:
 
     col     = make_node("col", None, None, {}, col_children)
     row     = make_node("row", None, None, {}, [col])
-    section = make_node("section", "Gallery", props.get("presetName", ""), section_info, [row])
-    if props.get("displayStatus") == "hide":
-        section["hide"] = True
-    return section
+    # `displayStatus` is handled for every section type in `convert_section()`
+    # -- see `_is_section_hidden`. BannerSlick was the only builder that ever
+    # read it, which is why it used to live here.
+    return make_node("section", "Gallery", props.get("presetName", ""), section_info, [row])
 
 
 # ---------------------------------------------------------------------------
@@ -3094,11 +3161,16 @@ def _producttab_media_widget(props: dict) -> dict:
         image["mobileSrc"] = props["bannerImageMobile"]
     if props.get("bannerTitle"):
         image["alt"] = props["bannerTitle"]
-    return make_node("widget", "WidgetMedia", None, {
-        "mediaType":      "image",
-        "mediaObjectFit": "cover",
-        "image":          image,
-    })
+    info = {"mediaType": "image", "mediaObjectFit": "cover", "image": image}
+    # Same banner, same three v3 props, same widget kind as ProductSection's
+    # `_product_widget_media_banner` -- which has carried the link since it was
+    # written. This one dropped it, so the merchant's linked banner became a
+    # dead image on the 9 real `above`-placement sections. The `_self` default
+    # matches the sibling: one real section sends `_blank`, the rest send "".
+    if props.get("bannerLink"):
+        info["to"]     = props["bannerLink"]
+        info["target"] = props.get("bannerTarget") or "_self"
+    return make_node("widget", "WidgetMedia", None, info)
 
 
 # ---------------------------------------------------------------------------
@@ -3117,7 +3189,8 @@ def build_gallerysection_section(props: dict) -> dict:
     desc = props.get("description", "")
     if desc:
         h_info["description"] = {"text": desc}
-    heading = make_node("widget", "WidgetHeading", None, h_info)
+    heading = make_node("widget", "WidgetHeading", None,
+                        _apply_heading_text_style(props, h_info))
 
     images = [
         {"src": obj["image"], "alt": obj.get("title", ""), "headline": {"text": obj.get("title", "")}}
@@ -3180,7 +3253,8 @@ def build_producttab_section(props: dict) -> dict:
         h_info["alignment"] = {"sm": "center", "lg": "center"}
     elif tab_type == "bannerWithTab" and preset_id == _PRODUCTTAB_LEFT_TAB_PRESET:
         h_info["alignment"] = {"sm": "left", "lg": "left"}
-    heading = make_node("widget", "WidgetHeading", None, h_info)
+    heading = make_node("widget", "WidgetHeading", None,
+                        _apply_heading_text_style(props, h_info))
 
     col_widgets = [heading]
     if placement == "above":
@@ -3311,7 +3385,8 @@ def _blog_heading_widget(props: dict, key_name: str) -> dict:
         if description:
             info["description"] = {"text": description}
 
-    return make_node("widget", "WidgetHeading", None, info)
+    return make_node("widget", "WidgetHeading", None,
+                     _apply_heading_text_style(props, info))
 
 
 def _blog_list_widget(props: dict, key_name: str, preset_id: int) -> dict:
@@ -3494,7 +3569,8 @@ def _topic_heading_widget(props: dict) -> dict:
     if description:
         info["description"] = {"text": description}
 
-    return make_node("widget", "WidgetHeading", None, info)
+    return make_node("widget", "WidgetHeading", None,
+                     _apply_heading_text_style(props, info))
 
 
 def _topic_bullet_widget(props: dict) -> dict:
@@ -3924,7 +4000,8 @@ def build_bannersection_section(props: dict) -> dict:
         desc_text = (props.get("description") or "").strip()
         if desc_text:
             h_info["description"] = {"text": desc_text}
-        col_children.append(make_node("widget", "WidgetHeading", None, h_info))
+        col_children.append(make_node("widget", "WidgetHeading", None,
+                                      _apply_heading_text_style(props, h_info)))
 
     col_children.append(main_widget)
 
@@ -3959,7 +4036,8 @@ def build_promotionslick_section(props: dict) -> dict:
         desc_text = (props.get("description") or "").strip()
         if desc_text:
             h_info["description"] = {"text": desc_text}
-        col_children.append(make_node("widget", "WidgetHeading", None, h_info))
+        col_children.append(make_node("widget", "WidgetHeading", None,
+                                      _apply_heading_text_style(props, h_info)))
 
     # WidgetPromotionList
     promo_info = {}
@@ -4012,7 +4090,8 @@ def build_couponslick_section(props: dict) -> dict:
         desc_text = (props.get("description") or "").strip()
         if desc_text:
             h_info["description"] = {"text": desc_text}
-        col_children.append(make_node("widget", "WidgetHeading", None, h_info))
+        col_children.append(make_node("widget", "WidgetHeading", None,
+                                      _apply_heading_text_style(props, h_info)))
 
     # WidgetCouponList
     coupon_info = {}
@@ -4054,7 +4133,8 @@ def build_contactussection_section(props: dict) -> dict:
         desc_text = (props.get("description") or "").strip()
         if desc_text:
             h_info["description"] = {"text": desc_text}
-        col_children.append(make_node("widget", "WidgetHeading", None, h_info))
+        col_children.append(make_node("widget", "WidgetHeading", None,
+                                      _apply_heading_text_style(props, h_info)))
 
     # WidgetForm (always)
     col_children.append(make_node("widget", "WidgetForm", None, {}))
@@ -4119,7 +4199,8 @@ def build_faqssection_section(props: dict) -> dict:
         desc_text = (props.get("description") or "").strip()
         if desc_text:
             h_info["description"] = {"text": desc_text}
-        col_children.append(make_node("widget", "WidgetHeading", None, h_info))
+        col_children.append(make_node("widget", "WidgetHeading", None,
+                                      _apply_heading_text_style(props, h_info)))
 
     # One WidgetTextStack + WidgetAccordion per faqsObject
     for faq_obj in _faqs_object_list(props.get("faqsObjects")):
@@ -11280,6 +11361,17 @@ def _showroom_links(node, found=None) -> set:
     return found
 
 
+def _is_section_hidden(props: dict) -> bool:
+    """True when v3 says this section is switched off.
+
+    Only `"hide"` counts: the sole other value in the real files is `"show"`,
+    and the key is absent on all but nine of the 981 sections. Note the prop
+    lives beside a prop literally named `name`, so a scan for "a section object
+    carrying displayStatus" finds `props` itself -- there is only one place.
+    """
+    return (props.get("displayStatus") or "") == "hide"
+
+
 def convert_section(old_json: dict, warnings: list = None) -> dict:
     name    = old_json.get("name", "")
     props   = old_json.get("props", {})
@@ -11339,6 +11431,13 @@ def convert_section(old_json: dict, warnings: list = None) -> dict:
     # `_is_dark_ground`. BannerSlick handles its own dark mode.
     if result is not None and name != "BannerSlick" and _is_dark_ground(props):
         result["info"]["colorScheme"] = "color-scheme-inverse"
+    # A section the merchant switched off in v3 stays off in v4. Same field on
+    # every node, and BannerSlick has mapped it since its builder was written --
+    # it was simply never promoted, so the five hidden sections in the real files
+    # (a Headline, a BannerSection, two SlideShowSections and a FeatureSection,
+    # none of them a BannerSlick) all came out visible.
+    if result is not None and _is_section_hidden(props):
+        result["hide"] = True
     return result
 
 
