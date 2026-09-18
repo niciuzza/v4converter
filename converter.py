@@ -11,6 +11,7 @@ import json
 import os
 import re
 import sys
+from urllib.parse import quote, unquote
 
 
 # ---------------------------------------------------------------------------
@@ -23,8 +24,8 @@ import sys
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.39"
-LAST_UPDATED = "2026-09-14"
+__version__ = "1.41"
+LAST_UPDATED = "2026-09-18"
 
 # Short summary of what the converter handles — shown in the browser popup.
 # Plain strings; inline HTML (e.g. <code>) is allowed for rendering there.
@@ -38,6 +39,14 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.41", "date": "2026-09-18", "items": [
+        "<b>ลิงก์ไปหน้าแท็กใช้รูปแบบของ v4 แล้ว</b> — <code>/search/tag/&lt;tag&gt;</code> และ <code>/product/tag/&lt;tag&gt;</code> (v3 เขียนสองแบบ หมายถึงหน้าเดียวกัน) เปลี่ยนเป็น <code>/search?tag=&lt;tag&gt;</code> · 48 ลิงก์ใน 6 ไฟล์ตัวอย่าง · v4 มีหน้านี้อยู่แล้ว v3 แค่เขียน URL คนละแบบ",
+        "แท็กภาษาไทยและแท็กที่มี<b>เว้นวรรค</b>เข้ารหัสให้ถูกต้อง — ร้านหนึ่งเขียนแท็กไทยทั้งแบบเข้ารหัสแล้วและแบบดิบปนกัน ทั้งสองแบบได้ผลลัพธ์เดียวกัน ไม่เข้ารหัสซ้ำซ้อน",
+    ]},
+    {"version": "1.40", "date": "2026-09-14", "items": [
+        "หน้า <code>/close</code> เปลี่ยน <code>module</code> จาก <code>ecommerce</code> เป็น <code>core</code> ให้ตรงกับ v4 — ยืนยันจาก export ของร้าน v4 เปล่าที่สร้างใหม่ (หน้านี้จองชื่อ path ไว้เฉย ๆ ไม่เคยสร้างจริง)",
+        "หน้าแรกส่ง <code>component.kind</code> เป็น <code>\"PageHome\"</code> ให้ตรงกับร้าน v4 เปล่า (เดิมเป็น null) — ไม่ใช่การแก้บั๊ก เพราะ <code>kind</code> ของ section เดียวกันเป็นคนละค่าได้",
+    ]},
     {"version": "1.39", "date": "2026-09-14", "items": [
         "<b>สี/การจัดวางหัวข้อที่ร้านตั้งเองไม่หายอีกแล้ว</b> — <code>titleStyle</code>/<code>descriptionStyle</code> (สีตัวอักษร, การจัดชิดซ้าย-กลาง-ขวา) และ <code>isTitleH1</code> เคยแปลงเฉพาะบาง section เท่านั้น อีก 9 builder ที่สร้างหัวข้อเองทิ้งค่าพวกนี้ไปหมด ทำให้ 17 section ในไฟล์ตัวอย่างเสียสีหรือการจัดวางที่ร้านตั้งไว้ (สีหัวข้อ 7, การจัดวาง 6, <code>&lt;h1&gt;</code> 4, สีคำอธิบาย 3)",
         "ครอบคลุม ProductSection · ProductTab · BlogSection · BannerSlick · CouponSlick · GallerySection · BannerSection · PromotionSlick · ContactusSection · FaqsSection · TopicSection",
@@ -10619,6 +10628,143 @@ def _apply_theme_radius(theme_id: str, root: dict) -> None:
             root[token] = {"value": spec[key], "unit": "px"}
 
 
+#: v3's card info padding, resolved to px (user, 2026-09-14).
+#:
+#: v3 writes this as a PERCENTAGE of card width -- 13 published themes say
+#: `5%`, one says `6%`, and 14 add a vertical `4%`. v4 has no `%` padding
+#: anywhere (`%` appears on widths, basis and radius only), so it has to become
+#: a number. The `%` resolves differently for every grid: at the `xl`
+#: breakpoint `5%` is 6.3px on a 6-up grid and 29px on a 2-up, median ~11px
+#: across the 59 real product sections -- and the column count is a PAGE
+#: setting (`productBoxNumber`), which a theme-level token cannot track.
+#:
+#: 10px was chosen to match `--productPadding`, v3's grid gutter, which is
+#: itself 10px (see `color-x_main.css`). It lands within 1-2px of the median
+#: for the common 4- and 5-up grids.
+#:
+#: v4 has ONE token for all four sides (no X/Y split exists anywhere in v4),
+#: and that turns out not to matter: v3's VERTICAL card padding is standing in
+#: for a gap it had no other way to express, and v4 has real gap tokens for it.
+#: See `_THEME_CARD_INFO_PADDING_ZERO`. So this value carries the horizontal
+#: only.
+_V3_CARD_INFO_PADDING = 10
+
+#: Themes whose card info padding is zero, so the default above must not
+#: overwrite it. All nine that write `padding-left/right: 0`.
+#:
+#: **Only the HORIZONTAL value decides membership, because v3's vertical
+#: padding is not padding at all** (user, 2026-09-14). v3 lays the card's info
+#: out with flex and mostly without `gap`, so it reaches for `padding-bottom`
+#: to space the rows -- six of these themes say `4%`, x_elite `8%/6%`. v4 has
+#: real gap tokens for that job (`cardProductInfoGap` 20px,
+#: `cardProductInfoTextGap` 8px, both untouched by this one), so the vertical
+#: is already handled and carrying v3's number across would double it up.
+#:
+#: That is what makes the one-token-for-four-sides shape harmless here: the
+#: value only ever has to express the horizontal.
+_THEME_CARD_INFO_PADDING_ZERO = {
+    "x_cha", "x_downtown", "x_eco", "x_elite", "x_optic", "x_periwinkle",
+    "x_petestate", "x_seat", "x_void",
+}
+
+
+def _apply_card_info_padding(theme_id: str, style: dict) -> None:
+    """Write `cardProductInfoPadding` into the theme's card block, in place.
+
+    Only `lg` is set. **`xs` is deliberately left at v4 Base's 20px** (user,
+    2026-09-14) -- v3's mobile column count comes from the app's grid, not from
+    the theme CSS or `productBoxNumber`, so what the `%` resolves to on a phone
+    is not derivable from anything in this repo. Guessing it was rejected in
+    favour of leaving Base's value alone.
+
+    ⚠️ The known cost, accepted with the decision: v3's padding GROWS with the
+    card, so it is smaller on mobile than on desktop (~7px vs ~11px). Leaving
+    `xs` at 20px inverts that -- v4 will show more padding on a phone than on a
+    desktop. Revisit if the mobile column count ever becomes knowable.
+
+    Only the horizontal is carried; v3's vertical padding is a stand-in for a
+    gap v4 expresses properly. See `_THEME_CARD_INFO_PADDING_ZERO`.
+
+    Card tokens are not per-scheme -- one `.element-card-product` for the whole
+    theme -- so there is nothing to fan out here, the same as
+    `_apply_theme_radius()`.
+    """
+    if theme_id in _THEME_CARD_INFO_PADDING_ZERO:
+        value = {"xs": {"value": 0, "unit": "px"}}
+    else:
+        value = {"lg": {"value": _V3_CARD_INFO_PADDING, "unit": "px"}}
+    style.setdefault(".element-card-product", {})["cardProductInfoPadding"] = value
+
+
+#: Per-theme product-card FRAME -- the card's own wrapper, `.productBox > div`
+#: in v3. Phase 7's second token group; field names confirmed by the plan
+#: (`~/.claude/plans/converter-glimmering-ember.md`) against
+#: `reference/v4-admin-samples/CardProductStyle.json`.
+#:
+#: **Only four themes style the card frame at all.** A nesting-aware scan of
+#: all 29 published themes' base-state CSS found card `border`/`border-radius`/
+#: `background` on the wrapper in these four and nowhere else -- everything
+#: else the scan turns up belongs to the badges (`.proTag`, `.status_text`),
+#: the add-to-cart button, or the info panel (`.productDescription`), none of
+#: which is this group.
+#:
+#: Colours: `#ffffff` is every one of these themes' `colorNeutralSubtlest`
+#: exactly, so it goes through the anchor. The two greys do not match an anchor
+#: (petfriendly's `#e6e6e6` against its `#e0e0e0` subtle; playground's
+#: `#e9e9e9` against `#e7e7e7`) and stay literal -- the same call as
+#: x_ceramicstore's `#999`.
+_THEME_CARD_FRAME = {
+    # `> div { background: --color_light; border-radius: 8px;
+    #          border: 1px solid --color_light75 }`
+    # `--color_light75` is NOT defined in this theme's palette -- it comes from
+    # the base palette (`color-x_main.css`) as `shade(10%)` of white, which the
+    # input-border table above already resolves to `#e6e6e6`.
+    "x_petfriendly": {"bg": "var(--color-neutral-subtlest)",
+                      "borderColor": "#e6e6e6", "borderWidth": 1, "radius": 8},
+    # `.productBox > div { border: 1px solid #e9e9e9;
+    #                      border-radius: var(--border-radius-md) }` = 20px.
+    # No card background: this theme's `--color_light` goes on
+    # `.productDescription`, which is the info panel, not the card.
+    "x_playground": {"borderColor": "#e9e9e9", "borderWidth": 1, "radius": 20},
+    # `> div { background: --color_light; border-radius: var(--border-radius-sm) }`
+    # = 2px. Its `border: 1px solid transparent` is deliberately NOT carried:
+    # it is a layout device holding space for `&:hover > div { border: 1px
+    # solid --color_light75 }`, and **v4 has no `cardProductHoverBorderColor`**
+    # (it has `cardProductHoverBgColor` and `...HoverBoxShadow*`, no border).
+    # With the hover unexpressible, a transparent rest border renders exactly
+    # like no border, so writing it would add a token and change nothing.
+    "x_oasis": {"bg": "var(--color-neutral-subtlest)", "radius": 2},
+    # `.productItem { border: none }` and `> div { border: none;
+    # background: --color_light }`. The width is stated rather than omitted for
+    # the reason given on x_ceramicstore's `quantityButtonBorderRadius`: v4-base
+    # carries no `cardProductBorderWidth`, so omitting it resolves to a v4
+    # component default that does not exist anywhere in this repo and cannot be
+    # checked from here. `0` keeps the outcome knowable.
+    "x_bakery": {"bg": "var(--color-neutral-subtlest)", "borderWidth": 0},
+}
+
+
+def _apply_card_frame(theme_id: str, style: dict) -> None:
+    """Write the theme's card frame into `.element-card-product`, in place.
+
+    Radius passes the floor test trivially -- v4-base's `cardProductBorderRadius`
+    is `0`, so any v3 radius is above it. See `_THEME_CARD_FRAME` for why only
+    four themes appear and what is deliberately left out.
+    """
+    spec = _THEME_CARD_FRAME.get(theme_id)
+    if not spec:
+        return
+    block = style.setdefault(".element-card-product", {})
+    if "bg" in spec:
+        block["cardProductBgColor"] = spec["bg"]
+    if "borderColor" in spec:
+        block["cardProductBorderColor"] = spec["borderColor"]
+    if "borderWidth" in spec:
+        block["cardProductBorderWidth"] = {"value": spec["borderWidth"], "unit": "px"}
+    if "radius" in spec:
+        block["cardProductBorderRadius"] = {"value": spec["radius"], "unit": "px"}
+
+
 def _build_main(theme_id: str) -> dict:
     """The v4 main color scheme `.color-scheme-main` for a theme, or `{}` if the theme
     has no per-theme main override. Only themes in `_THEME_MAIN_OVERRIDES` get the
@@ -10854,6 +11000,8 @@ def convert_theme(theme_id: str, warnings: list = None) -> dict:
         # this block, and assigning the registry's own dict here would let that
         # mutation persist into the module-level registry across calls.
         style[selector] = json.loads(json.dumps(override))
+    _apply_card_info_padding(theme_id, style)
+    _apply_card_frame(theme_id, style)
     _apply_borderless_arrows(style)
     _apply_input_border_color(theme_id, style)
     _apply_quantity_button_size(style)
@@ -11209,6 +11357,49 @@ def _shop_showroom_slug(link: str) -> str:
     return "" if slug in _SHOWROOM_BUILTIN_SLUGS else slug
 
 
+#: v3's two spellings of a tag listing. Both mean the same page, and v4 writes
+#: it one way: `/search?tag=<tag>` -- confirmed by v4's own reference nav in
+#: `v3/v4-example.json` (`/search?tag=editor_pick`) and by the user
+#: (2026-09-18). 48 links across 6 real files: 32 `/search/tag/`, 16
+#: `/product/tag/`. Anchored at the start so a tag whose own text contains
+#: "search/tag" cannot match; the leading slash is optional because at least
+#: one shop writes these without it, the same as the showroom paths.
+_TAG_LINK_RE = re.compile(r"^/?(?:search|product)/tag/(.+)$", re.IGNORECASE)
+
+
+def _rewrite_tag_link(link: str) -> str:
+    """`/search/tag/<tag>` or `/product/tag/<tag>` -> `/search?tag=<tag>`.
+
+    The tag arrives in three shapes across the real files and all three have to
+    land on the same thing:
+
+    * already percent-encoded (`%E0%B8%97...` on one shop's Thai tags),
+    * raw non-ASCII (the *same* shop also writes Thai unencoded), and
+    * raw with a **space** (`/product/tag/Dog Food`).
+
+    So it is decoded first and re-encoded once. Encoding the raw ones without
+    decoding would leave the already-encoded ones double-escaped (`%25E0%25B8`),
+    and copying them across verbatim would leave a literal space in a URL.
+    `safe=""` because this is a query *value*: `/` and `&` inside a tag have to
+    be escaped or they would end the parameter.
+    """
+    m = _TAG_LINK_RE.match(link.strip())
+    if not m:
+        return link
+    tag = m.group(1)
+    # A v3 tag path can carry its own query or fragment -- one real link is
+    # `/search/tag/matt-black?page=1`. That `?page=1` is NOT part of the tag,
+    # and encoding it into the value produced `tag=matt-black%3Fpage%3D1`, a
+    # tag nobody has. Split it off, encode only the tag, and re-attach the rest
+    # with `&` so the parameter survives instead of being dropped.
+    extra = ""
+    for sep, join in (("?", "&"), ("#", "#")):
+        if sep in tag:
+            tag, rest = tag.split(sep, 1)
+            extra = join + rest + extra
+    return "/search?tag=" + quote(unquote(tag), safe="") + extra
+
+
 def _rewrite_showroom_links(node, shop_made=None) -> set:
     """Rewrite every `to` in place.
 
@@ -11229,6 +11420,13 @@ def _rewrite_showroom_links(node, shop_made=None) -> set:
                 new = _rewrite_showroom_link(value)
                 if new != value:
                     node[key] = new
+            elif key == "to" and isinstance(value, str) and _TAG_LINK_RE.match(value.strip()):
+                # Tag listings: v4 has the page, v3 just spells the URL two
+                # other ways. Rewritten here rather than in its own pass so it
+                # reaches sections AND zones from the one call site -- menus
+                # were the half that got missed when the showroom rewrite was
+                # split across two passes (v1.33).
+                node[key] = _rewrite_tag_link(value)
             else:
                 _rewrite_showroom_links(value, shop_made)
     return shop_made
@@ -11822,12 +12020,24 @@ def convert_page(
 # ---------------------------------------------------------------------------
 V4_PAGES: list = [
     # v3 source          v4 path           v4 nickname              module           kind                     skip_if_empty
-    {"v3_key": "frontpage",  "path": "/",           "nickname": "Home",              "module": "core",       "component_kind": None},
+    # `PageHome` matches what a real blank v4 shop has
+    # (`v4-default/empty-slot.json`, supplied 2026-09-14), so it is the better
+    # value to send. It is NOT a correctness fix: **the same section can carry a
+    # different `kind`, and so can `nickname`** (user, 2026-09-14), which is why
+    # neither field is asserted against v4's export. `/close`'s `module` below
+    # came from the same file and IS the kind of field that has to agree.
+    # NO `skip_if_empty` on `/`, and that is deliberate. The rule it would
+    # invoke exists to protect v4's own default content -- but v4's home page
+    # has none (a blank shop's `/` is `PageHome` with `children: []`). A v3
+    # `frontpage` with no layouts was empty in v3 too, so empty in, empty out,
+    # and v4 still gets the home page it needs (user, 2026-09-14). Pinned by
+    # `test_an_empty_v3_frontpage_still_emits_an_empty_home_page`.
+    {"v3_key": "frontpage",  "path": "/",           "nickname": "Home",              "module": "core",       "component_kind": "PageHome"},
     {"v3_key": None,         "path": "/404",         "nickname": "Not Found",         "module": "core",       "component_kind": None,                                                                             "skip_if_empty": True},
     {"v3_key": "blog",       "path": "/blog",        "nickname": "Blog List : blog",  "module": "blog",       "component_kind": "PageBlogList",                                                                   "skip_if_empty": True},
     {"v3_key": "blogdetail", "path": "/blog/*",      "nickname": "Blog Detail : blog","module": "blog",       "component_kind": "PageBlogDetail",                                                                   "skip_if_empty": True},
     {"v3_key": "search",     "path": "/category/*",  "nickname": "Category",          "module": "ecommerce",  "component_kind": "PageEcommerceCategory",                                                          "skip_if_empty": True},
-    {"v3_key": None,         "path": "/close",       "nickname": "Close",             "module": "ecommerce",  "component_kind": None,                                                                             "skip_if_empty": True},
+    {"v3_key": None,         "path": "/close",       "nickname": "Close",             "module": "core",       "component_kind": None,                                                                             "skip_if_empty": True},
     {"v3_key": "contactus",  "path": "/contactus",   "nickname": "ContactUs",         "module": "form",       "component_kind": None,                                                                             "skip_if_empty": True},
     {"v3_key": None,         "path": "/coupon",      "nickname": "Coupon List",       "module": "ecommerce",  "component_kind": None,                                                                             "skip_if_empty": True},
     {"v3_key": None,         "path": "/coupon/*",    "nickname": "Coupon Detail",     "module": "ecommerce",  "component_kind": None,                                                                             "skip_if_empty": True},
