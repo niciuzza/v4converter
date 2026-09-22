@@ -24,7 +24,7 @@ from urllib.parse import quote, unquote
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.44"
+__version__ = "1.46"
 LAST_UPDATED = "2026-09-22"
 
 # Short summary of what the converter handles — shown in the browser popup.
@@ -39,6 +39,18 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.46", "date": "2026-09-22", "items": [
+        "<b>เลิกใส่ปุ่มช่องทางขายสีเทาให้ feature ที่ไม่ได้ขอ</b> — feature ที่ v3 ตั้ง <code>mediaType: \"none\"</code> (แปลว่า “ไม่มีรูป”) แต่<b>ไม่ได้ระบุช่องทาง</b> เคยกลายเป็นปุ่มพื้นเทา <code>#666666</code> พร้อมไอคอนลูกโลกสีขาว ซึ่ง v3 ไม่เคยวาด (6 ช่องใน 3 ไฟล์ตัวอย่าง) · ตอนนี้ออกมาเป็นข้อความล้วนเหมือนช่องอื่นในชุดเดียวกัน",
+        "feature ที่<b>ระบุช่องทางจริง</b> (facebook, line, shopee, lazada …) ยังได้ปุ่มสีประจำช่องทางเหมือนเดิม — รวมถึง <code>custom</code> ซึ่งเป็นช่องทาง “เว็บไซต์ของร้าน” ที่ v3 ตั้งใจให้เป็นปุ่มเทา",
+        "ชื่อช่องทางที่ระบบไม่รู้จักก็<b>ไม่เดาสีให้แล้ว</b> — FeatureList ใช้ได้หลายแบบ (สถิติ, กำแพงโลโก้, แถวไอคอน) การเดาว่าเป็นปุ่มช่องทางขายจึงไม่ปลอดภัย · ตารางครอบคลุมทุกชื่อที่มีในไฟล์จริงครบทั้ง 11 ชื่ออยู่แล้ว",
+    ]},
+    {"version": "1.45", "date": "2026-09-22", "items": [
+        "<b>dark mode ของ 11 ธีมไม่ใช่พื้นเข้ม — แก้ให้เป็นพื้นอ่อนตามจริงแล้ว</b> — ธีมกลุ่มนี้ตีความ <code>isDarkMode</code> ของเนื้อหาว่า “พื้นอ่อน + ตัวอักษรเข้ม” แต่ converter ใส่ <code>color-scheme-inverse</code> (พื้นเข้ม) ให้ทุกธีมเหมือนกันหมด ผลคือ<b>ตรงข้ามกับที่ v3 วาด</b> (4 ร้าน 10 section ในไฟล์ตัวอย่าง)",
+        "ตอนนี้ section พวกนี้ได้ <code>bgColor</code> เป็นสีอ่อนของธีมแทน — ใช้สีที่ร้านตั้งเองถ้ามี ถ้าไม่มีใช้สีของธีม",
+        "<b>หัวเว็บกับท้ายเว็บไม่เกี่ยว</b> — dark mode ของสองส่วนนี้เป็นพื้นเข้มจริงในทุกธีม ยังเหมือนเดิม",
+        "section ที่ร้าน<b>เลือกสีพื้นเข้มเอง</b> ยังเป็นพื้นเข้มเหมือนเดิม — ระบบแยกสองกรณีนี้ออกจากกัน",
+        "เข้าข่าย 11 ธีม — ดูรายชื่อได้ที่ <code>_THEME_CONTENT_DARKMODE_ALT</code> ใน converter",
+    ]},
     {"version": "1.44", "date": "2026-09-22", "items": [
         "<b>สไลด์โชว์เต็มจอที่ไม่มีข้อความ ไม่มีช่องว่างบน-ล่างแล้ว</b> — v3 ตัด padding แนวตั้งทิ้งทุกขนาดจอสำหรับสไลด์โชว์แบบนี้ แต่ไม่ได้เขียนลงไฟล์ v4 เลยใช้ค่า default 64/72/96px ทำให้มีแถบว่างที่ v3 ไม่เคยวาด (65 section ในไฟล์ตัวอย่าง) · เห็นชัดสุดบนมือถือ",
         "ถ้าร้านตั้งระยะห่างเองไว้ ยังใช้ของร้านเหมือนเดิม",
@@ -2490,9 +2502,31 @@ _CHANNEL_TABLE = {
 def _feat_item(obj: dict, feat_style: dict) -> dict:
     media_type = obj.get("mediaType", "image")
 
-    if media_type == "none":
-        channel = obj.get("buychannel", "custom")
-        bg_color, icon_name = _CHANNEL_TABLE.get(channel, ("#666666", "globe"))
+    # `mediaType: "none"` is v3's buy-channel item -- a coloured badge with the
+    # channel's icon -- but ONLY when the object names a channel the table
+    # knows. **FeatureList is a general-purpose widget** (stats, logo walls,
+    # icon rows, contact buttons), so a grey globe is never a safe guess for an
+    # entry the converter does not understand (user, 2026-09-22).
+    #
+    # Two ways that used to go wrong, both now falling through to the image
+    # branch below, which emits no media when there is no `src`:
+    #
+    # * **No `buychannel` at all** -- 6 features across 3 files. `.get(ch,
+    #   "custom")` invented the channel, producing a grey `#666666` globe badge
+    #   v3 never renders. Reported on a shop's About page, where the other
+    #   three entries in the same widget were plain text.
+    # * **A channel name the table does not know.** `.get(ch, ("#666666",
+    #   "globe"))` painted a badge for a channel nobody had mapped. The table
+    #   covers **every** `buychannel` in every real file -- all 11 of them -- so
+    #   this never fired, and if a new one ever appears, inventing a colour for
+    #   it is worse than leaving it as text.
+    #
+    # `custom` is a REAL table entry, not a fallback: v3 means "the shop's own
+    # website" by it and draws exactly that grey globe. One demo file carries
+    # all 11 side by side, `custom website` among them.
+    channel_style = _CHANNEL_TABLE.get(obj.get("buychannel") or "")
+    if media_type == "none" and channel_style:
+        bg_color, icon_name = channel_style
         item = {
             "bgColor":   bg_color,
             "title":     {"text": obj.get("title", "")},
@@ -12517,6 +12551,120 @@ def _path_from_title(title: str) -> str:
     return f"/{slug}" if slug else "/page"
 
 
+#: Themes whose CONTENT `darkMode` is a light alternative background, not an
+#: inverse. Value is where the colour comes from: a `currentColors` slot name,
+#: or a literal the palette hard-codes.
+#:
+#: v3's `isDarkMode` flag does not mean "dark" on every theme. These 11 define
+#:
+#:     --background_darkBG_style { background-color: <light>; color: <dark> }
+#:
+#: so a section with the flag renders **dark text on a pale ground**. The
+#: converter had one rule for every theme -- flag -> `color-scheme-inverse` --
+#: and on these it produced the opposite of what v3 draws. Reported on a
+#: sanitaryware shop's About page, cream in v3 and black in v4 (user,
+#: 2026-09-22). **4 real shops, 10 sections.**
+#:
+#: The theme half of the converter has always known: `_theme_scheme2_overrides()`
+#: derives exactly this list from the same CSS and gives those themes a
+#: `.color-scheme-main-2`. The section half did not -- the two output paths
+#: disagreed, which is the failure mode `handoff.md` warns about.
+#:
+#: **Embedded rather than derived.** `_theme_scheme2_overrides()` reads `v3/` at
+#: runtime, which is fine for theme mode (CLI-only). `convert_site` also runs in
+#: the browser through Pyodide, where only `converter.py` is loaded and there is
+#: no `v3/` to read -- so the answer has to be a literal here, the same call as
+#: `_THEME_TYPOGRAPHY`.
+#:
+#: v3's CSS is frozen (user, 2026-09-22), so this cannot go stale the way an
+#: embedded copy normally can. `tests/test_theme_alt_ground.py` still re-derives
+#: it from the palette CSS -- not as a drift guard but to prove the 11 entries
+#: and their hex values were read correctly rather than mistyped.
+#: `theme -> (currentColors slot, the theme palette's own value)`. The slot is
+#: used when the shop overrode the palette; the second is the fallback, and it
+#: is needed more often than it looks -- two of the four affected shops export
+#: `currentColors: []`, meaning "use the theme's colours". `None` for a slot
+#: means the palette hard-codes the colour and no shop override applies.
+_THEME_CONTENT_DARKMODE_ALT = {
+    "x_adventure":   ("colorBrandAlt",    "#f5f5f5"),
+    "x_bakery":      ("colorBrandAlt",    "#fdf0d5"),
+    "x_bluehorizon": ("colorBrandSubtle", "#f8fbfd"),
+    "x_cozy":        ("colorBrandSubtle", "#fefbf8"),
+    "x_cozy_fw":     ("colorBrandSubtle", "#fefbf8"),
+    "x_denim_fw":    ("colorBrandAlt",    "#f5f7f9"),
+    "x_luxurygold":  ("colorBrandSubtle", "#f8f5f0"),
+    "x_oasis":       (None,               "#f5f5f5"),
+    "x_petfriendly": ("colorBrandSubtle", "#eff7fb"),
+    "x_playground":  (None,               "#fffeea"),
+    "x_supercar":    ("colorBrandAlt",    "#e7e7e7"),
+}
+
+
+def _theme_alt_ground_color(site_json: dict):
+    """The pale background this shop's theme gives a `darkMode` content section.
+
+    The shop's own `currentColors` wins when it carries the slot; otherwise the
+    theme palette's value. `None` only when the theme is not one of the 11.
+    """
+    entry = _THEME_CONTENT_DARKMODE_ALT.get(site_json.get("currentTheme"))
+    if not entry:
+        return None
+    slot, fallback = entry
+    colors = site_json.get("currentColors")
+    if slot and isinstance(colors, list):
+        try:
+            value = colors[_THEME_COLOR_KEYS.index(slot)]
+        except (ValueError, IndexError):
+            value = None
+        if isinstance(value, str) and value.strip():
+            return value.lower()
+    # `currentColors: []` is a shop that never overrode the palette.
+    return fallback
+
+
+def _apply_theme_alt_ground(pages, site_json: dict) -> int:
+    """Re-point content sections off `color-scheme-inverse`, in place.
+
+    `bgColor` rather than `.color-scheme-main-2` (user, 2026-09-22): the scheme
+    is the tidier target, but it only exists if the theme the shop ends up on
+    defines one -- and a shop may be moved to a v4-native theme that has no
+    `main-2` at all. A literal background always lands.
+
+    **Pages only.** A footer's or header's `darkMode` IS a genuine inverse on
+    these themes (dark ground, light text) and must not be flipped -- the same
+    split `tools/dark_scheme_to_alt.py` was written to protect after a blunt
+    whole-file replace broke it on 10+ demo conversions.
+
+    A section that earned its inverse from a **hand-picked dark `bgColor`** is
+    left alone: `_section_bg_color` has already written that colour into
+    `info.bgColor`, so the presence of one means the scheme did not come from
+    the flag.
+    """
+    ground = _theme_alt_ground_color(site_json)
+    if not ground:
+        return 0
+    changed = 0
+
+    def walk(node):
+        nonlocal changed
+        if isinstance(node, list):
+            for item in node:
+                walk(item)
+        elif isinstance(node, dict):
+            info = node.get("info")
+            if (node.get("type") == "section" and isinstance(info, dict)
+                    and info.get("colorScheme") == "color-scheme-inverse"
+                    and "bgColor" not in info):
+                del info["colorScheme"]
+                info["bgColor"] = ground
+                changed += 1
+            for value in node.values():
+                walk(value)
+
+    walk(pages)
+    return changed
+
+
 def convert_site(site_json: dict, warnings: list = None,
                  generate_pages: bool = True) -> list:
     """Convert a full site JSON containing multiple pages.
@@ -12668,6 +12816,19 @@ def _convert_site(site_json: dict, warnings: list, generate_pages: bool) -> list
                        f"ให้สำเร็จรูป v4 ไม่มี จึงสร้างจากแม่แบบ "
                        f"(หัวข้อ + รายการสินค้า + ปุ่มดูทั้งหมด) ปรับแต่งต่อได้",
             })
+
+    # v3's `isDarkMode` is not "dark" on every theme -- see
+    # `_THEME_CONTENT_DARKMODE_ALT`. Pages only; zones keep their inverse.
+    flipped = _apply_theme_alt_ground(results, site_json)
+    if flipped and warnings is not None:
+        ground = _theme_alt_ground_color(site_json)
+        warnings.append({
+            "path": None, "kind": "warn",
+            "msg": f"ธีม “{site_json.get('currentTheme')}” ตีความ dark mode ของ"
+                   f"เนื้อหาเป็น<b>พื้นอ่อน</b> ไม่ใช่พื้นเข้ม — {flipped} section "
+                   f"จึงได้พื้น {ground} กับตัวอักษรสีเข้ม แทนที่จะเป็นพื้นเข้ม "
+                   f"(หัว/ท้ายเว็บไม่เกี่ยว ยังเป็นพื้นเข้มตามเดิม)",
+        })
 
     return results
 
