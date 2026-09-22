@@ -24,7 +24,7 @@ from urllib.parse import quote, unquote
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.43"
+__version__ = "1.44"
 LAST_UPDATED = "2026-09-22"
 
 # Short summary of what the converter handles — shown in the browser popup.
@@ -39,6 +39,12 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.44", "date": "2026-09-22", "items": [
+        "<b>สไลด์โชว์เต็มจอที่ไม่มีข้อความ ไม่มีช่องว่างบน-ล่างแล้ว</b> — v3 ตัด padding แนวตั้งทิ้งทุกขนาดจอสำหรับสไลด์โชว์แบบนี้ แต่ไม่ได้เขียนลงไฟล์ v4 เลยใช้ค่า default 64/72/96px ทำให้มีแถบว่างที่ v3 ไม่เคยวาด (65 section ในไฟล์ตัวอย่าง) · เห็นชัดสุดบนมือถือ",
+        "ถ้าร้านตั้งระยะห่างเองไว้ ยังใช้ของร้านเหมือนเดิม",
+        "ใช้เฉพาะ<b>สไลด์โชว์เต็มจอที่ไม่มีข้อความทับ</b> — แบบที่มีข้อความ หรือไม่เต็มจอ v3 ให้ค่าที่ต่ำกว่า default ของ v4 อยู่แล้ว จึงปล่อยให้ธีมจัดการ",
+        "<b>เลิกสร้าง breakpoint <code>md</code> จาก class ของ v3</b> — <code>py-md-2</code> เคยกลายเป็นค่า <code>md</code> แยกออกมา ตอนนี้ค่าไปอยู่ที่ <code>lg</code> อย่างเดียว (149 จาก 163 ค่าที่หายไปซ้ำกับ <code>xs</code>/<code>lg</code> อยู่แล้ว) · อีก 14 ค่าที่ต่างจริง จอแท็บเล็ตจะได้ค่าของมือถือแทน",
+    ]},
     {"version": "1.43", "date": "2026-09-22", "items": [
         "<b>ProductTab ที่ไม่ได้ตั้งหัวข้อ ได้ข้อความเริ่มต้นของ v3 แล้ว</b> — v3 วาดหัวข้อ “สินค้าขายดี / 5 อันดับแรกตามหมวดหมู่” ให้เองตอนแสดงผล แต่ไม่ได้เขียนลงไฟล์ ทำให้ที่ผ่านมาได้หัวข้อว่างเปล่า (18 section ในไฟล์ตัวอย่าง) · เป็นอาการเดียวกับหน้า <code>/help</code> และ <code>/contactus</code> ที่เคยแปลงออกมาว่าง",
         "ใช้เฉพาะตอนที่<b>ไม่ได้ตั้งทั้งสองช่อง</b> — ถ้าร้านลบข้อความออกเอง (ค่าว่าง ไม่ใช่ null) ยังเคารพตามเดิม",
@@ -918,10 +924,13 @@ def parse_classname2_padding(class2) -> tuple:
     `xs` and `lg` are v4's real cascading breakpoints, so both are resolved explicitly
     -- `lg` takes the most specific token available (xl > md > unprefixed) even when
     that token isn't itself an `-xl-` one (confirmed by the user, 2026-08-06: a `pt-0`
-    with no breakpoint infix must apply at every width, not just `xs`). `md` is NOT a
-    default/cascading breakpoint in v4 (confirmed by the user, 2026-08-06) -- it is
-    only ever written when className2 has a LITERAL `-md-` token for that side; it is
-    never synthesized from a cascade the way `lg` is.
+    with no breakpoint infix must apply at every width, not just `xs`).
+
+    **`md` is not written at all** (user, 2026-09-22). It never was synthesized
+    from a cascade -- v4's `md` is not a default breakpoint (user, 2026-08-06)
+    -- and a literal `-md-` token now only feeds `lg`, which is where v3's own
+    cascade carries it. 24 keys across 7 section types stopped being emitted;
+    the values survive at `lg`.
 
     Non-padding/unrecognized tokens (custom CSS hooks like "about_section") are
     ignored."""
@@ -943,8 +952,11 @@ def parse_classname2_padding(class2) -> tuple:
             continue
         if "xs" in bp_steps:
             out["xs"] = {"value": bp_steps["xs"] * 16, "unit": "px"}
-        if "md" in bp_steps:
-            out["md"] = {"value": bp_steps["md"] * 16, "unit": "px"}
+        # `md` is deliberately NOT written (user, 2026-09-22). A literal
+        # `-md-` token used to become an `md` key; it now only feeds `lg`
+        # below, which is where v3's own cascade takes it anyway. Parked
+        # rather than removed -- `_CLASSNAME2_BP` still maps the token, so
+        # restoring this is one line if the md breakpoint is wanted later.
         resolved = None
         for bp in ("xs", "md", "lg"):
             if bp in bp_steps:
@@ -2400,6 +2412,35 @@ def build_slideshow_section(props: dict) -> dict:
         if src.get("top")    is not None: pt[bp] = parse_size(src["top"])
         if src.get("bottom") is not None: pb[bp] = parse_size(src["bottom"])
     pt, pb = merge_classname2_padding(pt, pb, props.get("className2"))
+    # A slideshow with no text over it is `.onlySlideshow` in v3, and that
+    # class zeroes the container's VERTICAL padding at every width
+    # (`ContentSection.css:1095`). Only `>=1200px` puts it back, and only when
+    # the slideshow is not full-width:
+    #
+    #                              < 1200px    >= 1200px
+    #   with text over the image      40px        40px
+    #   .onlySlideshow                 0          80px    <- :1343
+    #   .onlySlideshow + fullwidth     0           0      <- :1347
+    #
+    # v3 says none of this in the JSON -- a shop that never touched the padding
+    # exports `{}` -- so v4 fell back to Base's 64/72/96px and the slideshow
+    # sat in a band of space v3 never drew. Reported on a phone, where the gap
+    # is most obvious (user, 2026-09-22).
+    #
+    # **Full-width only**, which is the row where v3 says zero at every width.
+    # `.onlySlideshow` on its own is 0 below 1200 and 80px above it, a split v4
+    # would have to spell out -- and `case5` here is exactly that shape,
+    # hand-corrected with no padding at all, so the designer leaves it to the
+    # theme. The 40px and 80px values are both below Base's padding for their
+    # breakpoint anyway (`feedback_v4_default_is_a_floor`).
+    if props.get("isShowSlideContent") is False and is_full_screen:
+        # `xs` and `lg` only -- v4 cascades a breakpoint upward until the next
+        # one overrides it, so `md` between two zeroes is noise (user,
+        # 2026-09-22). Same shape as `containerPaddingX` above.
+        for bp in ("xs", "lg"):
+            # v3's own JSON wins wherever the shop set a value by hand.
+            pt.setdefault(bp, {"value": 0, "unit": "px"})
+            pb.setdefault(bp, {"value": 0, "unit": "px"})
     if pt: section_info["paddingTop"]    = pt
     if pb: section_info["paddingBottom"] = pb
 
