@@ -24,7 +24,7 @@ from urllib.parse import quote, unquote
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.42"
+__version__ = "1.43"
 LAST_UPDATED = "2026-09-22"
 
 # Short summary of what the converter handles — shown in the browser popup.
@@ -39,6 +39,12 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.43", "date": "2026-09-22", "items": [
+        "<b>ProductTab ที่ไม่ได้ตั้งหัวข้อ ได้ข้อความเริ่มต้นของ v3 แล้ว</b> — v3 วาดหัวข้อ “สินค้าขายดี / 5 อันดับแรกตามหมวดหมู่” ให้เองตอนแสดงผล แต่ไม่ได้เขียนลงไฟล์ ทำให้ที่ผ่านมาได้หัวข้อว่างเปล่า (18 section ในไฟล์ตัวอย่าง) · เป็นอาการเดียวกับหน้า <code>/help</code> และ <code>/contactus</code> ที่เคยแปลงออกมาว่าง",
+        "ใช้เฉพาะตอนที่<b>ไม่ได้ตั้งทั้งสองช่อง</b> — ถ้าร้านลบข้อความออกเอง (ค่าว่าง ไม่ใช่ null) ยังเคารพตามเดิม",
+        "<b>ไม่มีหัวข้อเปล่าลอยอยู่เหนือเนื้อหาแล้ว</b> — section อื่นที่ v3 ไม่ได้ตั้งหัวข้อเลยเคยได้ <code>WidgetHeading</code> ที่ข้อความว่าง ทำให้มีบรรทัดว่างคั่น (Headline 9, GallerySection 1) · ProductSection กับ FeatureSection กันเรื่องนี้ไว้อยู่แล้ว ตอนนี้ใช้กฎเดียวกันทั้งหมด",
+        "<b>ยกเว้นเมื่อหัวข้อเปล่าเป็น widget ตัวสุดท้ายในคอลัมน์</b> — เก็บไว้เหมือนเดิม เพราะคอลัมน์ว่างแย่กว่าหัวข้อว่าง (2 section ในไฟล์ตัวอย่าง อันหนึ่งเป็นแถบเว้นระยะสูง 400px)",
+    ]},
     {"version": "1.42", "date": "2026-09-22", "items": [
         "<b>สไลด์โชว์แบบเต็มความกว้างไม่มีขอบซ้ายขวาแล้ว</b> — <code>isFullScreen</code> ของ SlideShowSection ตอนนี้ใส่ <code>containerPaddingX: 0</code> ให้ด้วย ตามที่ CSS ของ v3 ทำ (<code>.slideshow_section .container.fullwidth { padding-left: 0; padding-right: 0 }</code>) · เดิมใส่แค่ <code>isFullwidth</code> ซึ่งไม่ได้เอา padding ด้านข้างออก",
         "ใช้กับ <b>สไลด์โชว์เท่านั้น</b> — กฎของ v3 เจาะจงที่ <code>.slideshow_section</code> section ชนิดอื่นที่เต็มความกว้างไม่ได้รับผลนี้",
@@ -3264,6 +3270,24 @@ def build_gallerysection_section(props: dict) -> dict:
     return make_node("section", None, nick, section_info, [row])
 
 
+#: What v3 renders in a ProductTab's heading when the shop set neither a title
+#: nor a description (user, 2026-09-22). v3 fills these in at render time and
+#: never writes them into the export, so the JSON shows `null`/`null` and the
+#: heading looked empty -- the same shape as the `/help` and `/contactus` pages
+#: that converted to nothing (v1.34, v1.36).
+#:
+#: **ProductTab is the only section type with a default heading** (user,
+#: confirmed 2026-09-22). Every other builder leaves an absent title absent,
+#: which is what makes `_drop_empty_headings` safe for the rest: a blank
+#: heading elsewhere really is blank in v3 too, not a placeholder v3 fills in.
+#:
+#: **Both keys must be `null`.** `""` is the merchant clearing the field by
+#: hand, which v3 honours; the real files keep the two apart (18 sections at
+#: `null`/`null`, 15 at `title`/`""`, 7 at `title`/`null`).
+_PRODUCTTAB_DEFAULT_TITLE = "สินค้าขายดี"
+_PRODUCTTAB_DEFAULT_DESC  = "5 อันดับแรกตามหมวดหมู่"
+
+
 def build_producttab_section(props: dict) -> dict:
     tab_type  = props.get("tabProductType", "simple")
     preset_id = props.get("presetId", 1)
@@ -3283,8 +3307,12 @@ def build_producttab_section(props: dict) -> dict:
     if pt: section_info["paddingTop"]    = pt
     if pb: section_info["paddingBottom"] = pb
 
-    h_info = {"title": {"text": props.get("title", "")}}
-    desc = props.get("description", "")
+    title = props.get("title")
+    desc  = props.get("description")
+    if title is None and desc is None:
+        # v3 draws its own heading here -- see `_PRODUCTTAB_DEFAULT_TITLE`.
+        title, desc = _PRODUCTTAB_DEFAULT_TITLE, _PRODUCTTAB_DEFAULT_DESC
+    h_info = {"title": {"text": title or ""}}
     if desc:
         h_info["description"] = {"text": desc}
     if distribute == "center":
@@ -11588,6 +11616,62 @@ def _showroom_links(node, found=None) -> set:
     return found
 
 
+def _drop_empty_headings(section: dict) -> int:
+    """Remove `WidgetHeading`s that carry no text, in place. Returns the count.
+
+    v3 lets a section exist with no heading at all, and three builders wrote
+    one anyway: **ProductTab** (18 real sections), **Headline** (9) and
+    **GallerySection** (1) -- 28 widgets that render as a blank line above the
+    real content. ProductSection and FeatureSection already return `None` from
+    their heading helpers instead; this is the same rule for the rest, applied
+    once in `convert_section()` rather than patched into each builder.
+
+    **A heading is only dropped when its column keeps another widget.** Two
+    real Headline sections have nothing else -- one is a tall spacer band
+    (80/400px padding), one is genuinely empty -- and an empty column is a
+    worse thing to hand v4 than an empty heading.
+
+    Sections only, not zones: a header's or footer's empty heading has not been
+    looked at, and the three builders above are all content-side.
+    """
+    dropped = 0
+
+    def text(info, key):
+        return ((info.get(key) or {}).get("text") or "").strip()
+
+    def walk(node):
+        nonlocal dropped
+        if isinstance(node, list):
+            for item in node:
+                walk(item)
+            return
+        if not isinstance(node, dict):
+            return
+        children = node.get("children")
+        if isinstance(children, list):
+            if node.get("type") == "col":
+                def is_blank_heading(child):
+                    info = child.get("info") if isinstance(child, dict) else None
+                    return (isinstance(child, dict)
+                            and child.get("kind") == "WidgetHeading"
+                            and isinstance(info, dict)
+                            and not any(text(info, k)
+                                        for k in ("title", "description", "caption")))
+
+                blanks = [c for c in children if is_blank_heading(c)]
+                # Never empty the column: leave the last widget standing even
+                # when it is a blank heading.
+                if blanks and len(children) > len(blanks):
+                    node["children"] = [c for c in children if not is_blank_heading(c)]
+                    dropped += len(blanks)
+                    children = node["children"]
+            for child in children:
+                walk(child)
+
+    walk(section)
+    return dropped
+
+
 def _is_section_hidden(props: dict) -> bool:
     """True when v3 says this section is switched off.
 
@@ -11665,6 +11749,10 @@ def convert_section(old_json: dict, warnings: list = None) -> dict:
     # none of them a BannerSlick) all came out visible.
     if result is not None and _is_section_hidden(props):
         result["hide"] = True
+    # An empty heading renders as a blank line above the real content. See
+    # `_drop_empty_headings` for why this is a post-pass and not a builder fix.
+    if result is not None:
+        _drop_empty_headings(result)
     return result
 
 
