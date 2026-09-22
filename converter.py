@@ -24,8 +24,8 @@ from urllib.parse import quote, unquote
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.41"
-LAST_UPDATED = "2026-09-18"
+__version__ = "1.42"
+LAST_UPDATED = "2026-09-22"
 
 # Short summary of what the converter handles — shown in the browser popup.
 # Plain strings; inline HTML (e.g. <code>) is allowed for rendering there.
@@ -39,6 +39,10 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.42", "date": "2026-09-22", "items": [
+        "<b>สไลด์โชว์แบบเต็มความกว้างไม่มีขอบซ้ายขวาแล้ว</b> — <code>isFullScreen</code> ของ SlideShowSection ตอนนี้ใส่ <code>containerPaddingX: 0</code> ให้ด้วย ตามที่ CSS ของ v3 ทำ (<code>.slideshow_section .container.fullwidth { padding-left: 0; padding-right: 0 }</code>) · เดิมใส่แค่ <code>isFullwidth</code> ซึ่งไม่ได้เอา padding ด้านข้างออก",
+        "ใช้กับ <b>สไลด์โชว์เท่านั้น</b> — กฎของ v3 เจาะจงที่ <code>.slideshow_section</code> section ชนิดอื่นที่เต็มความกว้างไม่ได้รับผลนี้",
+    ]},
     {"version": "1.41", "date": "2026-09-18", "items": [
         "<b>ลิงก์ไปหน้าแท็กใช้รูปแบบของ v4 แล้ว</b> — <code>/search/tag/&lt;tag&gt;</code> และ <code>/product/tag/&lt;tag&gt;</code> (v3 เขียนสองแบบ หมายถึงหน้าเดียวกัน) เปลี่ยนเป็น <code>/search?tag=&lt;tag&gt;</code> · 48 ลิงก์ใน 6 ไฟล์ตัวอย่าง · v4 มีหน้านี้อยู่แล้ว v3 แค่เขียน URL คนละแบบ",
         "แท็กภาษาไทยและแท็กที่มี<b>เว้นวรรค</b>เข้ารหัสให้ถูกต้อง — ร้านหนึ่งเขียนแท็กไทยทั้งแบบเข้ารหัสแล้วและแบบดิบปนกัน ทั้งสองแบบได้ผลลัพธ์เดียวกัน ไม่เข้ารหัสซ้ำซ้อน",
@@ -2343,6 +2347,31 @@ def build_slideshow_section(props: dict) -> dict:
     is_full_screen = props.get("isFullScreen")
     if is_full_screen is not None:
         section_info["isFullwidth"] = bool(is_full_screen)
+    if is_full_screen:
+        # v3 zeroes the container's SIDE padding for a full-width slideshow,
+        # and only for a slideshow (`v3/styles/ContentSection.css:900`):
+        #
+        #   .contentFlexSection .slideshow_section .container.fullwidth {
+        #       padding-left: 0; padding-right: 0;        /* add 5jan23 */
+        #       .slideShowRowFlex { padding-left: 0; padding-right: 0 } }
+        #
+        # plus a `padding: 0` shorthand at :1347 for `.onlySlideshow` above
+        # 1200px. `IntroSection.css` also has `.container.fullwidth` rules but
+        # those are vertical padding -- a different thing.
+        #
+        # ⚠️ **The hand-corrected v4 files disagree, and the user chose v3
+        # anyway** (2026-09-22). No `Slider` section sets `containerPaddingX`
+        # in any of them -- 27 across seven files -- and four of this section's
+        # own fixtures were hand-corrected without it, two of those while
+        # setting vertical padding in detail. The 25 sections that DO carry it
+        # are MarqueeText / FeatureList / TextStack / Media, never a slider.
+        # So this may be a redundant zero on every slider; it costs one token,
+        # and v3's rule is explicit. **Delete this block and revert the four
+        # fixtures if a live render shows the sliders were already flush.**
+        section_info["containerPaddingX"] = {
+            "xs": {"value": 0, "unit": "px"},
+            "lg": {"value": 0, "unit": "px"},
+        }
 
     bg_color = _section_bg_color(props)
     if bg_color:
