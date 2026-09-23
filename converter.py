@@ -24,7 +24,7 @@ from urllib.parse import quote, unquote
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.48"
+__version__ = "1.49"
 LAST_UPDATED = "2026-09-23"
 
 # Short summary of what the converter handles — shown in the browser popup.
@@ -39,6 +39,12 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.49", "date": "2026-09-23", "items": [
+        "<b>จำนวนบทความต่อแถวใช้ค่าที่ร้านตั้งไว้แล้ว</b> — 3 จาก 5 รูปแบบเคยฮาร์ดโค้ดทิ้งค่าของ v3 · แบบ “รายการไฮไลต์” บังคับ 1 คอลัมน์ "
+        "ทั้งที่ 6 section ตั้งไว้ 2–3 และอีกแบบไม่ส่งค่าคอลัมน์เลยทั้งที่ 2 section ตั้งไว้ 4 · รวม 36 section ตอนนี้ตรงกับ v3 แล้ว",
+        "รูปแบบที่ v3 ไม่ได้ระบุจำนวนมา ยังใช้ค่าประจำรูปแบบนั้นเหมือนเดิม",
+        "แก้ breakpoint จาก <code>sm</code> เป็น <code>xs</code> ให้ตรงกับที่ v4 ใช้จริง",
+    ]},
     {"version": "1.48", "date": "2026-09-23", "items": [
         "<b>การ์ดบทความไม่มีพื้นดำทับข้อความแล้ว</b> — v3 มีแบบเดียวที่ข้อความวางทับรูป (<code>bg-image</code>) ที่เหลือรูปกับข้อความแยกกัน "
         "แต่บางธีมเปิด overlay ไว้เป็นค่าเริ่มต้น เลยทาพื้นเข้มรองข้อความที่ไม่ได้อยู่บนรูปเลย · ตอนนี้ระบุ <code>isOverlay: false</code> "
@@ -3539,6 +3545,30 @@ def _blog_heading_widget(props: dict, key_name: str) -> dict:
                      _apply_heading_text_style(props, info))
 
 
+def _blog_grid_cols(blog_in_row, blog_mobile_in_row, default=None):
+    """`layoutGridCols` from v3's per-row counts, or `default` when it says
+    nothing.
+
+    Three of the five preset branches used to hard-code this and drop v3's
+    numbers: `simpleblog_style_2` forced one column on **6 real sections** that
+    ask for 2 or 3, `hilightblog_style_1` emitted nothing at all while 2
+    sections ask for 4, and `hilightblog_style_2` pinned 2 (no real section
+    contradicts that one, but it goes through the same door now). Reported on a
+    shop whose About page shows two posts side by side in v3 and one per row in
+    v4 (user, 2026-09-23).
+
+    **`xs`, never `sm`.** The two working branches already said `xs`; the
+    hard-coded one said `sm`, and the only `sm` in any v4 file in this repo is
+    that output. Real files use `lg`+`xs` 110 times.
+    """
+    if blog_in_row is None:
+        return default
+    cols = {"lg": str(blog_in_row)}
+    if blog_mobile_in_row is not None:
+        cols["xs"] = str(blog_mobile_in_row)
+    return cols
+
+
 def _blog_list_widget(props: dict, key_name: str, preset_id: int) -> dict:
     """Build WidgetBlogList based on keyName + presetId layout variant."""
     blog_number        = props.get("blogNumber")
@@ -3556,8 +3586,9 @@ def _blog_list_widget(props: dict, key_name: str, preset_id: int) -> dict:
         # bg-image layout (BLA2)
         if blog_number is not None:
             info["blogNumber"] = blog_number
-        if blog_in_row is not None and blog_mobile_in_row is not None:
-            info["layoutGridCols"] = {"lg": str(blog_in_row), "xs": str(blog_mobile_in_row)}
+        cols = _blog_grid_cols(blog_in_row, blog_mobile_in_row)
+        if cols:
+            info["layoutGridCols"] = cols
         if is_mobile_scroll:
             info["layoutGrid"] = {"isOverflowX": True}
         info["isShowDate"]         = is_show_date
@@ -3584,11 +3615,13 @@ def _blog_list_widget(props: dict, key_name: str, preset_id: int) -> dict:
         info["isShowShortContent"] = True
         info["cardDirection"]     = {"sm": "column", "lg": "row"}
         info["cardMediaBasis"]    = {"value": 50, "unit": "%"}
-        info["layoutGridCols"]    = {"sm": "1", "lg": "1"}
+        info["layoutGridCols"]    = _blog_grid_cols(blog_in_row, blog_mobile_in_row,
+                                                    {"lg": "1", "xs": "1"})
 
     elif key_name == "hilightblog_style_2":
         # hilight 2-col row layout (BLA4)
-        info["layoutGridCols"] = {"lg": "2", "xs": "1"}
+        info["layoutGridCols"] = _blog_grid_cols(blog_in_row, blog_mobile_in_row,
+                                                 {"lg": "2", "xs": "1"})
         if is_mobile_scroll:
             info["layoutGrid"] = {"isOverflowX": True}
         info["isShowDate"]         = is_show_date
@@ -3606,6 +3639,9 @@ def _blog_list_widget(props: dict, key_name: str, preset_id: int) -> dict:
         info["isShowTag"]   = is_show_tag
         info["layoutCard"]  = {"cardInfoAlignment": "left", "variant": "full-image", "isShowMedia": True}
         info["cardDirection"] = {"sm": "column", "lg": "column"}
+        cols = _blog_grid_cols(blog_in_row, blog_mobile_in_row)
+        if cols:
+            info["layoutGridCols"] = cols
 
     else:
         # simpleblog_style_1 presetId=1 or unknown — full-image column layout (BLA6)
@@ -3614,8 +3650,9 @@ def _blog_list_widget(props: dict, key_name: str, preset_id: int) -> dict:
         info["cardDirection"] = {"sm": "column", "lg": "column"}
         if blog_number is not None:
             info["blogNumber"] = blog_number
-        if blog_in_row is not None and blog_mobile_in_row is not None:
-            info["layoutGridCols"] = {"lg": str(blog_in_row), "xs": str(blog_mobile_in_row)}
+        cols = _blog_grid_cols(blog_in_row, blog_mobile_in_row)
+        if cols:
+            info["layoutGridCols"] = cols
         if is_mobile_scroll:
             info["layoutGrid"] = {"isOverflowX": True}
         info["isShowTag"] = is_show_tag
