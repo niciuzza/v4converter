@@ -21,10 +21,13 @@ modify `converter.py`; it has its own version/changelog and its own web page
 (`mergecode.html`). No `__version__` bump, no reuse of the designer converter.
 
 Merge model (v4 = skeleton, v3 = content), controlled by `mode`:
-  - Top-level envelope: kept from v4 (slot `id`, `last_revision_id`, `theme_key`,
-    `nickname`, `css`, `unuse_configs`, …), EXCEPT `info` + `style` which are
-    deep-merged with v3's (v3 wins on conflicting keys, with a warning) —
-    unaffected by `mode`.
+  - Top-level envelope: kept from v4 (slot `id`, `last_revision_id`,
+    `nickname`, `css`, `unuse_configs`, …), EXCEPT `info` + `style`, which are
+    deep-merged with v3's (v3 wins on conflicting keys, with a warning), and
+    `theme_key`, which is taken from v3 outright when v3 carries one. All three
+    are unaffected by `mode`. The theme goes with the content: `info`/`style`
+    are written against whatever theme the conversion targeted, so keeping the
+    slot's `theme_key` would pair v3's colours with another theme's defaults.
   - Pages matched by top-level `path`:
       * match in v4, mode="append" (default) → append v3 page's
         `component.children` after v4's (content-deduped); keep v4 page
@@ -60,13 +63,31 @@ Usage:
 """
 import sys
 import json
+import collections
 import copy
 import re
 
-MERGE_VERSION = "1.4"
-MERGE_LAST_UPDATED = "2026-07-16"
+MERGE_VERSION = "1.6"
+MERGE_LAST_UPDATED = "2026-09-23"
 
 MERGE_CHANGELOG = [
+    {"version": "1.6", "date": "2026-09-23", "items": [
+        "<b>โหมดต่อท้าย: section ที่เป็นอันเดียวกับของร้านปลายทาง จะใช้ของร้านปลายทาง</b> — converter ใส่ section เริ่มต้นของ v4 "
+        "มาให้ในทุกหน้าระบบ (ฟอร์มติดต่อ, รายการบล็อก, หน้าสินค้า ฯลฯ) พอเอามารวมจึงซ้ำกับของที่ร้านมีอยู่แล้ว · "
+        "เดิมเทียบแบบเนื้อหาตรงกันทุกตัวอักษร ซึ่งไม่มีทางตรงเพราะของร้านมี id จริงอยู่ (เช่น <code>formId</code>) "
+        "ฟอร์มติดต่อจึงออกมาสองอัน",
+        "ตอนนี้ดูที่<b>โครงสร้าง</b>แทน — ชนิด section เดียวกันและมี widget ชุดเดียวกันเรียงเหมือนกัน ถือว่าเป็น section เดียวกัน "
+        "และ<b>เก็บของร้านปลายทางไว้</b> เพราะเป็นตัวที่มี id จริง",
+        "จับคู่แบบ <b>หนึ่งต่อหนึ่ง</b> — section ของร้านปลายทาง 1 อันดูดของที่เข้ามาได้แค่ 1 อัน ถ้าร้านมีหลาย section "
+        "ที่โครงเหมือนกัน จะไม่ถูกตัดทิ้งยกชุด",
+        "โหมดแทนที่และย้ายร้านไม่เกี่ยว — สองโหมดนั้นทิ้งของร้านปลายทางอยู่แล้ว",
+    ]},
+    {"version": "1.5", "date": "2026-09-23", "items": [
+        "<b>ใช้ธีมจากโค้ดที่แปลงมา ไม่ใช่ธีมของร้านปลายทาง</b> — <code>theme_key</code> เดิมเก็บของร้านปลายทางไว้ "
+        "ทั้งที่ <code>info</code>/<code>style</code> ด้านล่างมาจากโค้ดที่แปลงแล้ว ผลคือสีและ token ของ v3 "
+        "ไปจับคู่กับค่าเริ่มต้นของธีมอื่น · ตอนนี้ธีมไปพร้อมกับเนื้อหา",
+        "ถ้าโค้ดที่แปลงมาไม่ได้ระบุธีม (ว่างหรือไม่มี) จะไม่ไปแตะของร้านปลายทาง",
+    ]},
     {"version": "1.4", "date": "2026-07-16", "items": [
         "เพิ่มโหมด <b>ย้ายร้าน (migrate)</b> — ใช้ตอนย้ายเนื้อหาจาก v4 ร้านหนึ่งไปอีกร้านหนึ่ง (ไม่ใช่โค้ดจาก converter) "
         "เพราะโค้ดต้นทางแบบนี้จะติด id/ukey ของร้านเดิมมาทุกระดับ (page/zone/section/แถว/คอลัมน์/widget) — "
@@ -137,20 +158,66 @@ def _merge_info_style(v4_obj: dict, v3_obj: dict, warnings: list, path: str):
             warnings.append("⚠ %s: ใช้ค่าจาก v3 ทับของ v4 base" % sub)
 
 
+def _shape_key(node) -> str:
+    """A section's shape: its `kind` plus the kinds of every widget inside, in
+    order. Two sections with the same shape are the same section as far as the
+    merge is concerned, even when their settings differ."""
+    kinds = []
+
+    def walk(n):
+        if isinstance(n, list):
+            for x in n:
+                walk(x)
+        elif isinstance(n, dict):
+            if n.get("type") == "widget":
+                kinds.append(n.get("kind"))
+            for v in n.values():
+                walk(v)
+
+    walk(node)
+    return json.dumps([node.get("kind") if isinstance(node, dict) else None, kinds],
+                      ensure_ascii=False)
+
+
 def _append_deduped(kids: list, new_children: list):
-    """Append `new_children` onto `kids`, skipping any whose content already
-    exists in `kids` (compared ids-stripped). Returns (added, skipped)."""
+    """Append `new_children` onto `kids`, skipping duplicates. Returns
+    (added, same_content, same_shape).
+
+    Two passes, both keeping what the v4 slot already has:
+
+    1. **Identical content** (ids stripped) — the original rule.
+    2. **The same shape** — same section `kind`, same widget kinds in the same
+       order. The converter *prepends v4's own default sections* to every
+       system page (`SYSTEM_PAGE_DEFAULTS`), so a converted `/contactus`
+       carries a reproduction of the very form the slot already has. Those are
+       never byte-identical — the slot's copy has the shop's real `formId`, the
+       blog list its own `isShowDate`/`mediaRatio`, the product page fewer tab
+       labels — so pass 1 missed all of them and the form came out twice
+       (user, 2026-09-23). **The slot's copy wins: it is the one carrying the
+       real ids.**
+
+    Shape matching is **one-to-one**: each existing section can absorb at most
+    one incoming section. Without that, a page whose v4 side has a single
+    `(Standard, [WidgetHeading])` would swallow every heading-only section the
+    shop wrote.
+    """
     seen = {_content_key(c) for c in kids}
-    added = skipped = 0
+    shapes = collections.Counter(_shape_key(c) for c in kids)
+    added = same_content = same_shape = 0
     for c in new_children:
         key = _content_key(c)
         if key in seen:
-            skipped += 1
+            same_content += 1
+            continue
+        shape = _shape_key(c)
+        if shapes.get(shape):
+            shapes[shape] -= 1          # consumed; one-to-one
+            same_shape += 1
             continue
         kids.append(copy.deepcopy(c))
         seen.add(key)
         added += 1
-    return added, skipped
+    return added, same_content, same_shape
 
 
 def merge_v3_into_v4(v3: dict, v4: dict, mode: str = "append"):
@@ -159,7 +226,10 @@ def merge_v3_into_v4(v3: dict, v4: dict, mode: str = "append"):
     v4 is the skeleton (all ids/envelope kept); v3 supplies content.
     `mode`:
       - "append" (default) — v3 content is appended after v4's existing
-        content, content-deduped (matches historical behavior).
+        content, deduped two ways: identical content (ids stripped), and the
+        same SHAPE (same section kind + same widget kinds in order). The slot's
+        copy wins both times, because it is the one carrying the real ids.
+        Shape matching is one-to-one.
       - "replace" — for any page/zone that exists in BOTH v3 and v4, v4's
         existing children are discarded and replaced with v3's. Pages/zones
         that only exist in v4 (not in v3) are left untouched either way —
@@ -180,6 +250,25 @@ def merge_v3_into_v4(v3: dict, v4: dict, mode: str = "append"):
         warnings.append("โหมดย้ายร้าน: ตัด id/ukey เดิมของโค้ดต้นทางออกทั้งหมดก่อนรวม "
                         "(ทุกระดับ — page/zone/section/แถว/คอลัมน์/widget)")
     result = copy.deepcopy(v4)
+
+    # ---- theme_key: take the converted v3's, not the v4 slot's ------------
+    # The rest of the envelope stays v4's, but the theme is the one thing the
+    # CONTENT depends on: `info` and `style` below are merged from v3 with v3
+    # winning, and those are written against whatever theme the conversion
+    # targeted. Leaving the slot's `theme_key` in place pairs v3's colours and
+    # tokens with a different theme's defaults (user, 2026-09-23).
+    #
+    # Only when v3 actually carries one -- an empty or missing key is not a
+    # theme choice, and must not wipe the slot's.
+    v3_theme = v3.get("theme_key")
+    if isinstance(v3_theme, str) and v3_theme.strip():
+        v4_theme = result.get("theme_key")
+        result["theme_key"] = v3_theme
+        if v4_theme != v3_theme:
+            warnings.append("⚠ theme_key: ใช้ “%s” จากโค้ดที่แปลงมา แทน “%s” ของร้านปลายทาง "
+                            "— เพราะ info/style ด้านล่างก็มาจากโค้ดที่แปลงเหมือนกัน "
+                            "ถ้าคงธีมเดิมไว้ สีกับ token จะไม่เข้ากัน"
+                            % (v3_theme, v4_theme))
 
     # ---- Top-level info + style: merge v3's parent settings in (v3 wins) ----
     for key in ("info", "style"):
@@ -242,10 +331,15 @@ def merge_v3_into_v4(v3: dict, v4: dict, mode: str = "append"):
                 if not isinstance(kids, list):
                     kids = []
                     v4comp["children"] = kids
-                added, skipped = _append_deduped(kids, v3_children)
+                added, same_content, same_shape = _append_deduped(kids, v3_children)
                 msg = "หน้า %r: เพิ่ม %d section ต่อท้าย (คง id เดิม)" % (path, added)
-                if skipped:
-                    msg += " · ข้าม %d section ที่เนื้อหาซ้ำกับ v4" % skipped
+                if same_content or same_shape:
+                    if same_content:
+                        msg += " · ข้าม %d section ที่เนื้อหาซ้ำกับ v4" % same_content
+                    if same_shape:
+                        msg += (" · ข้าม %d section ที่เป็น section เดียวกับของ v4 "
+                                "(โครงเหมือนกัน ตั้งค่าต่างกัน) — ใช้ของ v4 เพราะมี id จริง"
+                                % same_shape)
                 warnings.append(msg)
         else:
             # v3-only → append as a NEW page (id/ukey = null)
@@ -278,10 +372,15 @@ def merge_v3_into_v4(v3: dict, v4: dict, mode: str = "append"):
                 if not isinstance(kids, list):
                     kids = []
                     v4zone["children"] = kids
-                added, skipped = _append_deduped(kids, v3_zchildren)
+                added, same_content, same_shape = _append_deduped(kids, v3_zchildren)
                 msg = "%s: เพิ่ม %d block ต่อท้าย (คง id เดิม)" % (zk, added)
-                if skipped:
-                    msg += " · ข้าม %d block ที่เนื้อหาซ้ำกับ v4" % skipped
+                if same_content or same_shape:
+                    if same_content:
+                        msg += " · ข้าม %d block ที่เนื้อหาซ้ำกับ v4" % same_content
+                    if same_shape:
+                        msg += (" · ข้าม %d block ที่เป็น block เดียวกับของ v4 "
+                                "(โครงเหมือนกัน ตั้งค่าต่างกัน) — ใช้ของ v4"
+                                % same_shape)
                 warnings.append(msg)
         else:
             result[zk] = copy.deepcopy(v3zone)

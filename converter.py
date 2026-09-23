@@ -24,8 +24,8 @@ from urllib.parse import quote, unquote
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.46"
-LAST_UPDATED = "2026-09-22"
+__version__ = "1.47"
+LAST_UPDATED = "2026-09-23"
 
 # Short summary of what the converter handles — shown in the browser popup.
 # Plain strings; inline HTML (e.g. <code>) is allowed for rendering there.
@@ -39,6 +39,9 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.47", "date": "2026-09-23", "items": [
+        "จองชื่อ path <code>/cookie_policy</code> และ <code>/privacy_policy</code> ไว้ — เป็นหน้าใหม่ของ v4 ที่ v3 ไม่มี ถ้าร้านบังเอิญมี custom page ชื่อเดียวกันจะได้ไม่ไปทับหน้าของ v4 (เหมือนที่ทำกับ <code>/wishlist</code>)",
+    ]},
     {"version": "1.46", "date": "2026-09-22", "items": [
         "<b>เลิกใส่ปุ่มช่องทางขายสีเทาให้ feature ที่ไม่ได้ขอ</b> — feature ที่ v3 ตั้ง <code>mediaType: \"none\"</code> (แปลว่า “ไม่มีรูป”) แต่<b>ไม่ได้ระบุช่องทาง</b> เคยกลายเป็นปุ่มพื้นเทา <code>#666666</code> พร้อมไอคอนลูกโลกสีขาว ซึ่ง v3 ไม่เคยวาด (6 ช่องใน 3 ไฟล์ตัวอย่าง) · ตอนนี้ออกมาเป็นข้อความล้วนเหมือนช่องอื่นในชุดเดียวกัน",
         "feature ที่<b>ระบุช่องทางจริง</b> (facebook, line, shopee, lazada …) ยังได้ปุ่มสีประจำช่องทางเหมือนเดิม — รวมถึง <code>custom</code> ซึ่งเป็นช่องทาง “เว็บไซต์ของร้าน” ที่ v3 ตั้งใจให้เป็นปุ่มเทา",
@@ -12231,6 +12234,12 @@ V4_PAGES: list = [
     {"v3_key": "search",     "path": "/category/*",  "nickname": "Category",          "module": "ecommerce",  "component_kind": "PageEcommerceCategory",                                                          "skip_if_empty": True},
     {"v3_key": None,         "path": "/close",       "nickname": "Close",             "module": "core",       "component_kind": None,                                                                             "skip_if_empty": True},
     {"v3_key": "contactus",  "path": "/contactus",   "nickname": "ContactUs",         "module": "form",       "component_kind": None,                                                                             "skip_if_empty": True},
+    # v4-only legal pages, supplied 2026-09-22 in a newer blank-shop export
+    # (`v4-default/slot1.json`). v3 has nothing that maps to either, so they are
+    # reserved and never emitted -- the point is that a v3 custom page sitting
+    # at one of these paths must not replace v4's own.
+    {"v3_key": None,         "path": "/cookie_policy",  "nickname": "Cookie Policy",  "module": "core",       "component_kind": None,                                                                          "skip_if_empty": True},
+    {"v3_key": None,         "path": "/privacy_policy", "nickname": "Privacy Policy", "module": "core",       "component_kind": None,                                                                          "skip_if_empty": True},
     {"v3_key": None,         "path": "/coupon",      "nickname": "Coupon List",       "module": "ecommerce",  "component_kind": None,                                                                             "skip_if_empty": True},
     {"v3_key": None,         "path": "/coupon/*",    "nickname": "Coupon Detail",     "module": "ecommerce",  "component_kind": None,                                                                             "skip_if_empty": True},
     {"v3_key": "product",    "path": "/product/*",   "nickname": "Product",           "module": "ecommerce",  "component_kind": "PageEcommerceProduct",                                                           "skip_if_empty": True},
