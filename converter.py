@@ -24,7 +24,7 @@ from urllib.parse import quote, unquote
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.47"
+__version__ = "1.48"
 LAST_UPDATED = "2026-09-23"
 
 # Short summary of what the converter handles — shown in the browser popup.
@@ -39,6 +39,12 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.48", "date": "2026-09-23", "items": [
+        "<b>การ์ดบทความไม่มีพื้นดำทับข้อความแล้ว</b> — v3 มีแบบเดียวที่ข้อความวางทับรูป (<code>bg-image</code>) ที่เหลือรูปกับข้อความแยกกัน "
+        "แต่บางธีมเปิด overlay ไว้เป็นค่าเริ่มต้น เลยทาพื้นเข้มรองข้อความที่ไม่ได้อยู่บนรูปเลย · ตอนนี้ระบุ <code>isOverlay: false</code> "
+        "ให้ชัดเมื่อ v3 ไม่ใช่แบบทับรูป (55 จาก 56 widget ในไฟล์ตัวอย่าง)",
+        "แบบที่ v3 ตั้งใจให้ข้อความทับรูปจริง ๆ ยังปล่อยให้ธีมจัดการเหมือนเดิม",
+    ]},
     {"version": "1.47", "date": "2026-09-23", "items": [
         "จองชื่อ path <code>/cookie_policy</code> และ <code>/privacy_policy</code> ไว้ — เป็นหน้าใหม่ของ v4 ที่ v3 ไม่มี ถ้าร้านบังเอิญมี custom page ชื่อเดียวกันจะได้ไม่ไปทับหน้าของ v4 (เหมือนที่ทำกับ <code>/wishlist</code>)",
     ]},
@@ -3615,6 +3621,20 @@ def _blog_list_widget(props: dict, key_name: str, preset_id: int) -> dict:
         info["isShowTag"] = is_show_tag
         if is_crop_image:
             info["mediaRatio"] = "1 / 1"
+
+    # Only `bg-image` puts the text ON the picture; every other v3 blog preset
+    # keeps the two apart -- above it, or beside it when `cardMediaBasis` is
+    # set. Say so, because a theme may turn the overlay on by default and then
+    # paint a dark scrim behind text that is not over any image: Kiara ships
+    # `info.Widget.BlogList.layoutCard.isOverlay: true`, which gave one shop's
+    # side-by-side blog cards a black block behind their text (user,
+    # 2026-09-23). v4-base leaves it off, so this changes nothing on Base.
+    #
+    # 55 of the 56 blog widgets in the real files are non-overlay; the one
+    # `bg-image` is left alone for the theme to style.
+    layout_card = info.get("layoutCard")
+    if isinstance(layout_card, dict) and layout_card.get("variant") != "bg-image":
+        layout_card["isOverlay"] = False
 
     return make_node("widget", "WidgetBlogList", None, info)
 
