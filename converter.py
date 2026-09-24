@@ -24,8 +24,8 @@ from urllib.parse import quote, unquote
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.49"
-LAST_UPDATED = "2026-09-23"
+__version__ = "1.52"
+LAST_UPDATED = "2026-09-24"
 
 # Short summary of what the converter handles — shown in the browser popup.
 # Plain strings; inline HTML (e.g. <code>) is allowed for rendering there.
@@ -39,79 +39,101 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
-    {"version": "1.49", "date": "2026-09-23", "items": [
+    {"version": "1.52", "type": "fix", "date": "2026-09-24", "items": [
+        "<b>การจัดวางบนมือถือของบทความและแท็บสินค้ากลับมาทำงาน</b> — เคยส่ง breakpoint ชื่อ <code>sm</code> "
+        "ซึ่ง v4 ไม่รู้จัก ค่าที่ตั้งไว้สำหรับจอเล็กจึงถูกข้ามไปทั้งหมด แล้วไปรับค่าของ <code>lg</code> แทน",
+        "บทความ: การ์ดที่ควรเรียงบน-ล่างบนมือถือกลายเป็นเรียงซ้าย-ขวา (55 section ในไฟล์ตัวอย่าง)",
+        "แท็บสินค้า: การจัดวางหัวข้อบนมือถือไม่มีผล",
+        "<b>ไม่ได้ไล่เปลี่ยน <code>sm</code> ทั้งไฟล์</b> — v4 ใช้ <code>sm</code> จริงในบางค่า "
+        "(เช่น การจัดวางข้อความ และการกระจายข้อมูลติดต่อใน footer) จึงเทียบทีละค่ากับไฟล์ต้นแบบของ v4 แล้วแก้เฉพาะที่ผิด",
+    ]},
+    {"version": "1.51", "type": "fix", "date": "2026-09-24", "items": [
+        "<b>การครอบรูปของบทความถูกต้องทุกรูปแบบแล้ว</b> — แบบ <code>bg-image</code> ใช้ <code>cardRatio</code> (เพราะรูปคือตัวการ์ดเอง) "
+        "ที่เหลือใช้ <code>mediaRatio</code> · ครอบ = <code>1 / 1</code> ไม่ครอบ = <code>auto</code>",
+        "<b>ตอนนี้ระบุค่าทั้งสองสถานะ</b> — เดิม “ไม่ครอบ” ไม่ส่งอะไรเลย เลยไปรับค่าของธีมซึ่งเป็น <code>4 / 3</code> "
+        "ทำให้รูปที่ควรคงสัดส่วนเดิมถูกครอบเป็น 4:3 (56 section ในไฟล์ตัวอย่าง)",
+        "เดิมผิด 3 แบบ: 2 รูปแบบไม่ส่งอะไรเลย (15 section) · 1 รูปแบบใช้ token ผิด · และไม่มีรูปแบบไหนรองรับ “ไม่ครอบ”",
+    ]},
+    {"version": "1.50", "type": "fix", "date": "2026-09-23", "items": [
+        "<b>ตัวกรองแท็กของบทความไม่หายแล้ว</b> — รูปแบบบทความมี 5 แบบ แต่มีแบบเดียวที่อ่านค่า <code>tag</code> "
+        "อีก 4 แบบทิ้ง ทำให้ section ที่ตั้งใจแสดงเฉพาะแท็กหนึ่ง กลายเป็นแสดงบทความทั้งร้าน (7 section ในไฟล์ตัวอย่าง)",
+        "<b>จำนวนบทความที่แสดง</b> (<code>blogNumber</code>) หายไปใน 2 รูปแบบ — 5 section ที่ตั้งไว้ 5–10 บทความได้ค่าเริ่มต้นของ v4 แทน",
+        "การเลื่อนแนวนอนบนมือถือหายไปใน 1 รูปแบบ (2 section)",
+        "ทั้งสามค่าย้ายออกมาเขียนที่เดียว รูปแบบใหม่ที่เพิ่มทีหลังจะไม่พลาดอีก",
+    ]},
+    {"version": "1.49", "type": "fix", "date": "2026-09-23", "items": [
         "<b>จำนวนบทความต่อแถวใช้ค่าที่ร้านตั้งไว้แล้ว</b> — 3 จาก 5 รูปแบบเคยฮาร์ดโค้ดทิ้งค่าของ v3 · แบบ “รายการไฮไลต์” บังคับ 1 คอลัมน์ "
         "ทั้งที่ 6 section ตั้งไว้ 2–3 และอีกแบบไม่ส่งค่าคอลัมน์เลยทั้งที่ 2 section ตั้งไว้ 4 · รวม 36 section ตอนนี้ตรงกับ v3 แล้ว",
         "รูปแบบที่ v3 ไม่ได้ระบุจำนวนมา ยังใช้ค่าประจำรูปแบบนั้นเหมือนเดิม",
         "แก้ breakpoint จาก <code>sm</code> เป็น <code>xs</code> ให้ตรงกับที่ v4 ใช้จริง",
     ]},
-    {"version": "1.48", "date": "2026-09-23", "items": [
+    {"version": "1.48", "type": "fix", "date": "2026-09-23", "items": [
         "<b>การ์ดบทความไม่มีพื้นดำทับข้อความแล้ว</b> — v3 มีแบบเดียวที่ข้อความวางทับรูป (<code>bg-image</code>) ที่เหลือรูปกับข้อความแยกกัน "
         "แต่บางธีมเปิด overlay ไว้เป็นค่าเริ่มต้น เลยทาพื้นเข้มรองข้อความที่ไม่ได้อยู่บนรูปเลย · ตอนนี้ระบุ <code>isOverlay: false</code> "
         "ให้ชัดเมื่อ v3 ไม่ใช่แบบทับรูป (55 จาก 56 widget ในไฟล์ตัวอย่าง)",
         "แบบที่ v3 ตั้งใจให้ข้อความทับรูปจริง ๆ ยังปล่อยให้ธีมจัดการเหมือนเดิม",
     ]},
-    {"version": "1.47", "date": "2026-09-23", "items": [
+    {"version": "1.47", "type": "fix", "date": "2026-09-23", "items": [
         "จองชื่อ path <code>/cookie_policy</code> และ <code>/privacy_policy</code> ไว้ — เป็นหน้าใหม่ของ v4 ที่ v3 ไม่มี ถ้าร้านบังเอิญมี custom page ชื่อเดียวกันจะได้ไม่ไปทับหน้าของ v4 (เหมือนที่ทำกับ <code>/wishlist</code>)",
     ]},
-    {"version": "1.46", "date": "2026-09-22", "items": [
+    {"version": "1.46", "type": "fix", "date": "2026-09-22", "items": [
         "<b>เลิกใส่ปุ่มช่องทางขายสีเทาให้ feature ที่ไม่ได้ขอ</b> — feature ที่ v3 ตั้ง <code>mediaType: \"none\"</code> (แปลว่า “ไม่มีรูป”) แต่<b>ไม่ได้ระบุช่องทาง</b> เคยกลายเป็นปุ่มพื้นเทา <code>#666666</code> พร้อมไอคอนลูกโลกสีขาว ซึ่ง v3 ไม่เคยวาด (6 ช่องใน 3 ไฟล์ตัวอย่าง) · ตอนนี้ออกมาเป็นข้อความล้วนเหมือนช่องอื่นในชุดเดียวกัน",
         "feature ที่<b>ระบุช่องทางจริง</b> (facebook, line, shopee, lazada …) ยังได้ปุ่มสีประจำช่องทางเหมือนเดิม — รวมถึง <code>custom</code> ซึ่งเป็นช่องทาง “เว็บไซต์ของร้าน” ที่ v3 ตั้งใจให้เป็นปุ่มเทา",
         "ชื่อช่องทางที่ระบบไม่รู้จักก็<b>ไม่เดาสีให้แล้ว</b> — FeatureList ใช้ได้หลายแบบ (สถิติ, กำแพงโลโก้, แถวไอคอน) การเดาว่าเป็นปุ่มช่องทางขายจึงไม่ปลอดภัย · ตารางครอบคลุมทุกชื่อที่มีในไฟล์จริงครบทั้ง 11 ชื่ออยู่แล้ว",
     ]},
-    {"version": "1.45", "date": "2026-09-22", "items": [
+    {"version": "1.45", "type": "fix", "date": "2026-09-22", "items": [
         "<b>dark mode ของ 11 ธีมไม่ใช่พื้นเข้ม — แก้ให้เป็นพื้นอ่อนตามจริงแล้ว</b> — ธีมกลุ่มนี้ตีความ <code>isDarkMode</code> ของเนื้อหาว่า “พื้นอ่อน + ตัวอักษรเข้ม” แต่ converter ใส่ <code>color-scheme-inverse</code> (พื้นเข้ม) ให้ทุกธีมเหมือนกันหมด ผลคือ<b>ตรงข้ามกับที่ v3 วาด</b> (4 ร้าน 10 section ในไฟล์ตัวอย่าง)",
         "ตอนนี้ section พวกนี้ได้ <code>bgColor</code> เป็นสีอ่อนของธีมแทน — ใช้สีที่ร้านตั้งเองถ้ามี ถ้าไม่มีใช้สีของธีม",
         "<b>หัวเว็บกับท้ายเว็บไม่เกี่ยว</b> — dark mode ของสองส่วนนี้เป็นพื้นเข้มจริงในทุกธีม ยังเหมือนเดิม",
         "section ที่ร้าน<b>เลือกสีพื้นเข้มเอง</b> ยังเป็นพื้นเข้มเหมือนเดิม — ระบบแยกสองกรณีนี้ออกจากกัน",
         "เข้าข่าย 11 ธีม — ดูรายชื่อได้ที่ <code>_THEME_CONTENT_DARKMODE_ALT</code> ใน converter",
     ]},
-    {"version": "1.44", "date": "2026-09-22", "items": [
+    {"version": "1.44", "type": "fix", "date": "2026-09-22", "items": [
         "<b>สไลด์โชว์เต็มจอที่ไม่มีข้อความ ไม่มีช่องว่างบน-ล่างแล้ว</b> — v3 ตัด padding แนวตั้งทิ้งทุกขนาดจอสำหรับสไลด์โชว์แบบนี้ แต่ไม่ได้เขียนลงไฟล์ v4 เลยใช้ค่า default 64/72/96px ทำให้มีแถบว่างที่ v3 ไม่เคยวาด (65 section ในไฟล์ตัวอย่าง) · เห็นชัดสุดบนมือถือ",
         "ถ้าร้านตั้งระยะห่างเองไว้ ยังใช้ของร้านเหมือนเดิม",
         "ใช้เฉพาะ<b>สไลด์โชว์เต็มจอที่ไม่มีข้อความทับ</b> — แบบที่มีข้อความ หรือไม่เต็มจอ v3 ให้ค่าที่ต่ำกว่า default ของ v4 อยู่แล้ว จึงปล่อยให้ธีมจัดการ",
         "<b>เลิกสร้าง breakpoint <code>md</code> จาก class ของ v3</b> — <code>py-md-2</code> เคยกลายเป็นค่า <code>md</code> แยกออกมา ตอนนี้ค่าไปอยู่ที่ <code>lg</code> อย่างเดียว (149 จาก 163 ค่าที่หายไปซ้ำกับ <code>xs</code>/<code>lg</code> อยู่แล้ว) · อีก 14 ค่าที่ต่างจริง จอแท็บเล็ตจะได้ค่าของมือถือแทน",
     ]},
-    {"version": "1.43", "date": "2026-09-22", "items": [
+    {"version": "1.43", "type": "fix", "date": "2026-09-22", "items": [
         "<b>ProductTab ที่ไม่ได้ตั้งหัวข้อ ได้ข้อความเริ่มต้นของ v3 แล้ว</b> — v3 วาดหัวข้อ “สินค้าขายดี / 5 อันดับแรกตามหมวดหมู่” ให้เองตอนแสดงผล แต่ไม่ได้เขียนลงไฟล์ ทำให้ที่ผ่านมาได้หัวข้อว่างเปล่า (18 section ในไฟล์ตัวอย่าง) · เป็นอาการเดียวกับหน้า <code>/help</code> และ <code>/contactus</code> ที่เคยแปลงออกมาว่าง",
         "ใช้เฉพาะตอนที่<b>ไม่ได้ตั้งทั้งสองช่อง</b> — ถ้าร้านลบข้อความออกเอง (ค่าว่าง ไม่ใช่ null) ยังเคารพตามเดิม",
         "<b>ไม่มีหัวข้อเปล่าลอยอยู่เหนือเนื้อหาแล้ว</b> — section อื่นที่ v3 ไม่ได้ตั้งหัวข้อเลยเคยได้ <code>WidgetHeading</code> ที่ข้อความว่าง ทำให้มีบรรทัดว่างคั่น (Headline 9, GallerySection 1) · ProductSection กับ FeatureSection กันเรื่องนี้ไว้อยู่แล้ว ตอนนี้ใช้กฎเดียวกันทั้งหมด",
         "<b>ยกเว้นเมื่อหัวข้อเปล่าเป็น widget ตัวสุดท้ายในคอลัมน์</b> — เก็บไว้เหมือนเดิม เพราะคอลัมน์ว่างแย่กว่าหัวข้อว่าง (2 section ในไฟล์ตัวอย่าง อันหนึ่งเป็นแถบเว้นระยะสูง 400px)",
     ]},
-    {"version": "1.42", "date": "2026-09-22", "items": [
+    {"version": "1.42", "type": "fix", "date": "2026-09-22", "items": [
         "<b>สไลด์โชว์แบบเต็มความกว้างไม่มีขอบซ้ายขวาแล้ว</b> — <code>isFullScreen</code> ของ SlideShowSection ตอนนี้ใส่ <code>containerPaddingX: 0</code> ให้ด้วย ตามที่ CSS ของ v3 ทำ (<code>.slideshow_section .container.fullwidth { padding-left: 0; padding-right: 0 }</code>) · เดิมใส่แค่ <code>isFullwidth</code> ซึ่งไม่ได้เอา padding ด้านข้างออก",
         "ใช้กับ <b>สไลด์โชว์เท่านั้น</b> — กฎของ v3 เจาะจงที่ <code>.slideshow_section</code> section ชนิดอื่นที่เต็มความกว้างไม่ได้รับผลนี้",
     ]},
-    {"version": "1.41", "date": "2026-09-18", "items": [
+    {"version": "1.41", "type": "fix", "date": "2026-09-18", "items": [
         "<b>ลิงก์ไปหน้าแท็กใช้รูปแบบของ v4 แล้ว</b> — <code>/search/tag/&lt;tag&gt;</code> และ <code>/product/tag/&lt;tag&gt;</code> (v3 เขียนสองแบบ หมายถึงหน้าเดียวกัน) เปลี่ยนเป็น <code>/search?tag=&lt;tag&gt;</code> · 48 ลิงก์ใน 6 ไฟล์ตัวอย่าง · v4 มีหน้านี้อยู่แล้ว v3 แค่เขียน URL คนละแบบ",
         "แท็กภาษาไทยและแท็กที่มี<b>เว้นวรรค</b>เข้ารหัสให้ถูกต้อง — ร้านหนึ่งเขียนแท็กไทยทั้งแบบเข้ารหัสแล้วและแบบดิบปนกัน ทั้งสองแบบได้ผลลัพธ์เดียวกัน ไม่เข้ารหัสซ้ำซ้อน",
     ]},
-    {"version": "1.40", "date": "2026-09-14", "items": [
+    {"version": "1.40", "type": "fix", "date": "2026-09-14", "items": [
         "หน้า <code>/close</code> เปลี่ยน <code>module</code> จาก <code>ecommerce</code> เป็น <code>core</code> ให้ตรงกับ v4 — ยืนยันจาก export ของร้าน v4 เปล่าที่สร้างใหม่ (หน้านี้จองชื่อ path ไว้เฉย ๆ ไม่เคยสร้างจริง)",
         "หน้าแรกส่ง <code>component.kind</code> เป็น <code>\"PageHome\"</code> ให้ตรงกับร้าน v4 เปล่า (เดิมเป็น null) — ไม่ใช่การแก้บั๊ก เพราะ <code>kind</code> ของ section เดียวกันเป็นคนละค่าได้",
     ]},
-    {"version": "1.39", "date": "2026-09-14", "items": [
+    {"version": "1.39", "type": "fix", "date": "2026-09-14", "items": [
         "<b>สี/การจัดวางหัวข้อที่ร้านตั้งเองไม่หายอีกแล้ว</b> — <code>titleStyle</code>/<code>descriptionStyle</code> (สีตัวอักษร, การจัดชิดซ้าย-กลาง-ขวา) และ <code>isTitleH1</code> เคยแปลงเฉพาะบาง section เท่านั้น อีก 9 builder ที่สร้างหัวข้อเองทิ้งค่าพวกนี้ไปหมด ทำให้ 17 section ในไฟล์ตัวอย่างเสียสีหรือการจัดวางที่ร้านตั้งไว้ (สีหัวข้อ 7, การจัดวาง 6, <code>&lt;h1&gt;</code> 4, สีคำอธิบาย 3)",
         "ครอบคลุม ProductSection · ProductTab · BlogSection · BannerSlick · CouponSlick · GallerySection · BannerSection · PromotionSlick · ContactusSection · FaqsSection · TopicSection",
         "ของเดิมที่ builder ตั้งไว้เองยังชนะเสมอ — เช่น ProductTab ที่จัดกึ่งกลางตาม preset หรือ BlogSection แบบ <code>simpleblog_style_2</code> ที่บังคับชิดซ้าย เพราะนั่นคือสิ่งที่ v3 วาดจริง",
     ]},
-    {"version": "1.38", "date": "2026-09-14", "items": [
+    {"version": "1.38", "type": "fix", "date": "2026-09-14", "items": [
         "<b>ProductTab: แบนเนอร์กดได้แล้ว</b> — preset ที่วางแบนเนอร์ไว้เหนือแท็บ (\"Banner with bottom Tab\" ทั้งสองแบบ) เคยทิ้ง <code>bannerLink</code>/<code>bannerTarget</code> ไปเฉย ๆ แบนเนอร์จึงกลายเป็นรูปกดไม่ได้ทั้งที่ร้านใส่ลิงก์ไว้ (9 section ในไฟล์ตัวอย่าง) · ProductSection ซึ่งใช้ widget ตัวเดียวกันและ prop ชุดเดียวกันแปลงค่านี้อยู่แล้ว",
         "แบนเนอร์แบบ<b>ฝังในแท็บ</b> (preset banner-left / banner-right) ยังไม่ได้ลิงก์ — ไฟล์ v4 จริงทุกไฟล์เก็บแบนเนอร์แบบนี้เป็น <code>src</code>/<code>mobileSrc</code> เท่านั้น ไม่มีช่องใส่ลิงก์",
     ]},
-    {"version": "1.37", "date": "2026-09-14", "items": [
+    {"version": "1.37", "type": "fix", "date": "2026-09-14", "items": [
         "<b>section ที่ร้านซ่อนไว้ใน v3 ตอนนี้ซ่อนใน v4 ด้วย</b> — <code>displayStatus: \"hide\"</code> ใช้ได้กับ section ทุกชนิดแล้ว · เดิมมีแค่ BannerSlick ตัวเดียวที่อ่านค่านี้ ส่วนอีก 17 ชนิดปล่อยทิ้ง ทำให้ section ที่ร้านซ่อนไว้ทั้ง 5 อันในไฟล์ตัวอย่าง (Headline, BannerSection, SlideShowSection 2 อัน และ FeatureSection — ไม่มีอันไหนเป็น BannerSlick) กลับมาแสดงบนหน้าร้านใหม่หมด",
     ]},
-    {"version": "1.36", "date": "2026-09-11", "items": [
+    {"version": "1.36", "type": "fix", "date": "2026-09-11", "items": [
         "<b>เลิกสร้างหน้า <code>/contactus</code> เปล่า</b> — ร้านที่ไม่ได้เพิ่ม section เองใน v3 (38 จาก 51 ไฟล์ตัวอย่าง) เคยได้หน้าติดต่อที่ว่างเปล่า เพราะ v3 วาดฟอร์มให้เองและไฟล์ไม่มีอะไรเลย · ตอนนี้ไม่สร้างให้ ปล่อยให้ v4 ใช้หน้า default ของตัวเองซึ่งมีฟอร์มครบอยู่แล้ว",
         "ร้านที่<b>เพิ่ม section เอง</b>ในหน้าติดต่อ (10 ร้าน) ได้ฟอร์มติดต่อ + ข้อมูลร้านของ v4 มาวางไว้ด้านบน แล้วต่อด้วยเนื้อหาของร้าน — เดิมเนื้อหาร้านมาแทนที่ทั้งหน้า ฟอร์มหายไปเลย",
         "หน้า <code>/contactus</code> ตั้ง <code>module</code> เป็น <code>\"form\"</code> ให้ตรงกับ v4 (เดิมเป็น null)",
         "จองชื่อ path <code>/wishlist</code> ไว้ — เป็นหน้าใหม่ของ v4 ที่ v3 ไม่มี ถ้าร้านบังเอิญมี custom page ชื่อเดียวกันจะได้ไม่ชนกัน",
     ]},
-    {"version": "1.35", "date": "2026-09-11", "items": [
+    {"version": "1.35", "type": "fix", "date": "2026-09-11", "items": [
         "ProductSection และ FeatureSection รองรับ <code>isFullScreen</code> ของ v3 แล้ว — section ที่ร้านตั้งให้เต็มความกว้างเคยออกมาเป็นกรอบปกติ (4 section ในไฟล์ตัวอย่าง) · อีก 8 builder แปลงค่านี้อยู่แล้ว สองตัวนี้เป็นที่ตกหล่น",
     ]},
-    {"version": "1.34", "date": "2026-09-11", "items": [
+    {"version": "1.34", "type": "fix", "date": "2026-09-11", "items": [
         "<b>แก้เนื้อหาหาย</b>: หน้าศูนย์ช่วยเหลือเคยออกมาเป็นหน้าเปล่าที่มีแต่แบนเนอร์ — เพราะ v3 เก็บแค่แบนเนอร์ไว้ในไฟล์ ส่วนเนื้อหาจริง (วิธีสั่งซื้อ / ชำระเงิน / ตรวจสอบสถานะ / เปลี่ยนคืนสินค้า) v3 สร้างให้เองตอนแสดงผล · ร้านที่มี help ในไฟล์ตัวอย่างเป็นแบบนี้ทุกร้าน",
         "ตอนนี้ประกอบหน้าให้ครบตามแม่แบบของ v4: breadcrumb → แบนเนอร์ของร้าน (ถ้าไม่มีใช้ของแม่แบบ) → เนื้อหาที่ร้านทำเอง → เมนูด้านข้างแบบ sticky พร้อม 4 หัวข้อมาตรฐาน",
         "ใช้ <code>WidgetHowToBuy</code> / <code>WidgetHowToPay</code> / <code>WidgetHowToTrack</code> / <code>WidgetHowToRefund</code> ของ v4 ซึ่งสร้างเนื้อหาให้เองเหมือน v3 — จึงไม่ต้องเขียนเนื้อหาใหม่แล้ว (v1.29 เคยเตือนว่าต้องเขียนเอง ซึ่งไม่จำเป็น) · ทั้งสี่ตัวใช้ <code>customId</code> เป็นจุดยึดลิงก์เหมือนกันหมด",
@@ -119,133 +141,133 @@ CHANGELOG = [
         "ใส่เฉพาะหัวข้อที่ v3 แสดงจริง — ร้านที่ทำแท็บเองได้เฉพาะแท็บมาตรฐานที่ยังเหลือไว้ ส่วนร้านที่ไม่ได้ทำแท็บได้ครบทั้ง 4",
         "ร้านที่ทำแท็บเองใน v3 ได้<b>เมนูด้านข้างอันเดียวกัน</b> โดยเอา<b>ชื่อแท็บมาเป็นชื่อเมนู</b> เรียงตามลำดับเดิมของ v3 แล้วต่อด้วยหัวข้อมาตรฐาน — เนื้อหาทั้งหมดอยู่ในคอลัมน์เดียวกัน อ่านเป็นลิสต์เดียว ไม่ได้แยกเป็นสองก้อน",
     ]},
-    {"version": "1.33", "date": "2026-09-11", "items": [
+    {"version": "1.33", "type": "fix", "date": "2026-09-11", "items": [
         "ลิงก์ showroom ที่<b>ร้านสร้างเอง</b> (ไม่ใช่ 4 อันสำเร็จรูปของ v3 เช่น <code>/showroom/featured</code>) <b>คงไว้เหมือนเดิม ไม่แปลง</b> — สินค้าในนั้นไม่ได้อยู่ในไฟล์ที่ส่งมา จึงสร้างหน้าให้ไม่ได้ และการคงรูปแบบ v3 ไว้ทำให้เห็นชัดว่าลิงก์นี้ยังกดไม่ได้ ถ้าเปลี่ยนเป็น <code>/featured</code> จะดูเหมือนใช้ได้แล้วทั้งที่ยังไม่มีหน้า",
         "ลิงก์พวกนี้ขึ้นในแถบแจ้งเตือนด้านบนพร้อม path ให้ไปสร้างหน้าเองแล้วแก้ลิงก์",
         "<b>แก้บั๊กสำคัญ</b>: ลิงก์ showroom ใน<b>เมนู header/footer</b> ไม่เคยถูกแปลงเลย — v1.30–v1.32 แปลงเฉพาะลิงก์ที่อยู่ในเนื้อหาหน้า ทำให้เมนูยังชี้ไป <code>/showroom/...</code> ทั้งที่หน้าปลายทางถูกสร้างไว้ให้แล้ว (14 ลิงก์ในไฟล์ตัวอย่าง) ตอนนี้แปลงทั้งสองทาง",
     ]},
-    {"version": "1.32", "date": "2026-09-10", "items": [
+    {"version": "1.32", "type": "feat", "date": "2026-09-10", "items": [
         "เพิ่มตัวเลือก <b>“สร้างหน้าที่ขาดให้”</b> ในแถบตั้งค่า — เอาติ๊กออกแล้ว converter จะ<b>ไม่สร้างหน้าใหม่ให้เลย</b> เหมาะกับร้านที่แพ็กเกจจำกัดจำนวน custom page เพราะหน้าที่สร้างให้ก็นับรวมในโควตาด้วย",
         "ทุกครั้งที่สร้างหน้าให้ จะขึ้น<b>แถบแจ้งเตือนแยกต่างหาก</b> (ไม่ได้ซ่อนอยู่ในรายการเตือนที่พับไว้) บอกว่าสร้างหน้าอะไร path ไหนบ้าง",
         "ถ้าปิดการสร้างหน้าไว้ ลิงก์ showroom จะ<b>คงเป็นของ v3 เหมือนเดิม</b> ไม่แก้ให้ พร้อมแสดงรายการลิงก์ทุกจุดที่ยังกดไม่ได้ ให้เอาไปไล่แก้เอง — ดีกว่าชี้ไปหน้าที่ไม่มีอยู่จริง",
         "แก้บั๊ก: คำเตือนของหน้าศูนย์ช่วยเหลือส่งออกมาเป็นข้อความเปล่า ๆ ไม่ใช่รูปแบบเดียวกับคำเตือนอื่น",
     ]},
-    {"version": "1.31", "date": "2026-09-10", "items": [
+    {"version": "1.31", "type": "feat", "date": "2026-09-10", "items": [
         "<code>/showroom/recommend</code> และ <code>/showroom/sale</code> แปลงเป็น <code>/recommend</code> และ <code>/sale</code> แล้ว พร้อม<b>สร้างหน้าให้ใหม่</b> — v3 มีสองหน้านี้ให้สำเร็จรูป v4 ไม่มี และไม่มีตัวกรองแบบ sort ที่ใช้แทนได้เหมือน new/hot",
         "หน้าที่สร้างให้ = หัวข้อ + <code>WidgetProductList</code> ที่กรองด้วย <code>showroom</code> (<code>RECOMMENDED</code>/<code>SALE</code>) + ปุ่ม VIEW ALL ไป <code>/category</code> — ปรับแต่งต่อได้ตามปกติ",
         "หัวข้อของหน้า<b>ดึงชื่อที่ร้านใช้ใน v3 มาเลย</b> — จากชื่อที่คั่นอยู่ในลิงก์ (<code>/showroom/สินค้าแนะนำ/recommend</code>) หรือจากชื่อเมนูที่ลิงก์มาหน้านี้ ถ้าไม่มีทั้งคู่จึงใช้ค่าเริ่มต้นภาษาอังกฤษ · ไม่ดึงจากข้อความบนปุ่ม เพราะเป็นคำชวนกด (เช่น \"SHOP NOW\") ไม่ใช่ชื่อหน้า",
         "สร้างเฉพาะเมื่อ<b>มีลิงก์ชี้มาจริง</b> ร้านที่ไม่เคยใช้ showroom จะไม่ได้หน้าเพิ่มมาเปล่า ๆ และถ้าร้านมีหน้าที่ path นั้นอยู่แล้ว ของร้านชนะ",
         "ขึ้นเตือนทุกครั้งที่สร้างหน้าใหม่ ให้เห็นว่าหน้านี้ converter สร้างให้ ไม่ได้มาจากของเดิม",
     ]},
-    {"version": "1.30", "date": "2026-09-10", "items": [
+    {"version": "1.30", "type": "feat", "date": "2026-09-10", "items": [
         "ลิงก์ <code>/showroom/new</code> และ <code>/showroom/hot</code> แปลงเป็นหน้าหมวดหมู่พร้อมตัวกรองแล้ว — <code>/category?filters=sort:newest</code> และ <code>/category?filters=sort:most_popular</code> ตามลำดับ (16 ลิงก์ในไฟล์ตัวอย่าง วัดจากผลลัพธ์ของการแปลงทั้งเว็บ) เดิมปล่อยผ่านและได้แค่คำเตือน",
         "รูปแบบที่มีชื่อไทยคั่น (เช่น <code>/showroom/สินค้ามาใหม่/new</code>) แปลงได้ด้วย — v3 ยอมให้ใส่ชื่อคั่นได้ ตัว slug จริงอยู่ท้ายสุดเสมอ",
         "<code>/showroom/recommend</code> และ <code>/showroom/sale</code> <b>ยังไม่แปลง</b> ปล่อยไว้เหมือนเดิมและยังเตือนอยู่ — ยังไม่มีปลายทางที่ยืนยันแล้ว และอาจต้องสร้างเป็นหน้าจริง (42 ลิงก์)",
     ]},
-    {"version": "1.29", "date": "2026-09-10", "items": [
+    {"version": "1.29", "type": "feat", "date": "2026-09-10", "items": [
         "หน้าศูนย์ช่วยเหลือ (<code>/help</code>) ที่เก็บเป็น<b>แท็บ</b> (<code>helpObjects</code>) แปลงได้แล้ว — เดิมอ่านแค่ <code>help.layouts</code> ร้านที่ใช้แบบแท็บจึงไม่ได้หน้านี้เลย เนื้อหาศูนย์ช่วยเหลือหายไปทั้งหมดแบบเงียบ ๆ",
         "รวมทุกแท็บไว้ใน<b>หน้าเดียว</b> เรียงตามลำดับเดิม โดยมีหัวข้อของแต่ละแท็บคั่นไว้",
         "แท็บที่ v3 สร้างเนื้อหาให้เอง (การชำระเงิน / วิธีตรวจสอบสถานะ) ไม่มีเนื้อหาในไฟล์เลย — เก็บหัวข้อไว้และ<b>ขึ้นเตือน</b>ว่าต้องเขียนเนื้อหาใหม่",
         "แท็บ FAQ ที่ยังไม่เคยแก้ ดึงเนื้อหาตั้งต้นที่ v3 เตรียมไว้ให้ (<code>help.FaqsSection</code>) มาแสดงแทน",
     ]},
-    {"version": "1.28", "date": "2026-09-10", "items": [
+    {"version": "1.28", "type": "fix", "date": "2026-09-10", "items": [
         "FaqsSection: พา <code>sectionStyle.padding</code> มาด้วยแล้ว — เดิมทิ้งทั้งหมด section เลยได้ระยะห่างค่าเริ่มต้นของ v4 แทนค่าที่ตั้งไว้จริง (เช่นตั้ง 80px/40px บน-ล่าง แล้วไม่มีผลเลย) เป็น section เดียวที่มี <code>sectionStyle</code> แต่ไม่เคยอ่าน · พา <code>bgColor</code> มาด้วยเช่นกัน",
         "รองรับ <code>FaqsContent</code> แล้ว — เป็นแบบเดียวกับ FaqsSection ที่ v3 ใช้ใน<b>ศูนย์ช่วยเหลือ</b> (help) ต่างกันแค่ <code>faqsObjects</code> เก็บเป็น object แยกตามหัวข้อแทนที่จะเป็นลิสต์ เดิมขึ้น \"Unknown section type\" แปลงไม่ได้เลย",
         "<code>topic</code> ของ FaqsContent ใช้เลือกเฉพาะหัวข้อที่ระบุ ส่วน <code>\"all\"</code> คือแสดงทุกหัวข้อ",
         "หมายเหตุ: อันนี้แปลงเฉพาะตัว <b>section</b> — ตัว<b>หน้า</b>ศูนย์ช่วยเหลือ v4 ยังไม่มีที่ให้ลง ต้องรอทำพร้อมหน้า default อื่น ๆ",
     ]},
-    {"version": "1.27", "date": "2026-09-08", "items": [
+    {"version": "1.27", "type": "fix", "date": "2026-09-08", "items": [
         "แก้บั๊ก: <code>contentBlocks</code> ที่มีช่องว่างเปล่า (<code>[]</code>) แทนที่จะเป็นบล็อกเนื้อหา ทำให้การแปลง<b>ทั้งไฟล์</b>ล้มทั้งหมด ไม่ได้ผลลัพธ์อะไรออกมาเลย — ตอนนี้ข้ามช่องว่างนั้นไปเฉย ๆ เนื้อหาที่เหลือแปลงได้ตามปกติ (เจอ 1 จุดในไฟล์ตัวอย่าง แต่จุดเดียวก็พอทำให้ทั้งร้านแปลงไม่ได้)",
     ]},
-    {"version": "1.26", "date": "2026-09-04", "items": [
+    {"version": "1.26", "type": "fix", "date": "2026-09-04", "items": [
         "ProductTab preset \"5. Banner with bottom Tab\" และ \"6. ... [center]\" วางแบนเนอร์ไว้<b>เหนือ</b>แท็บแล้ว — คำว่า bottom ในชื่อ preset หมายถึงตัวแท็บที่อยู่ล่าง ไม่ใช่แบนเนอร์ เดิม preset 5 ถูกส่งไปใช้ <code>template: \"banner-right\"</code> แบนเนอร์จึงไปอยู่ข้าง ๆ แท็บแทนที่จะอยู่บน (4 section ในไฟล์ตัวอย่าง)",
         "v4 ไม่มี template สำหรับแบนเนอร์บน จึงแยกออกมาเป็น <code>WidgetMedia</code> คั่นระหว่างหัวข้อกับแท็บ — รูปแบบเดียวกับที่ preset 6 ใช้อยู่แล้ว",
         "preset ของ <code>bannerWithTab</code> ที่ไม่รู้จัก ยึดตาม preset 6 (แบนเนอร์บน จัดกึ่งกลาง) แทนที่จะเป็น preset 7 — สามในสี่แบบของ bannerWithTab เป็นแบบแท็บล่าง",
     ]},
-    {"version": "1.25", "date": "2026-09-03", "items": [
+    {"version": "1.25", "type": "fix", "date": "2026-09-03", "items": [
         "Header เมนู <code>auto_category</code> ใช้ <code>WidgetCategoryList</code> แล้ว — เดิมทุก template ได้ <code>WidgetNavList</code> ที่ตั้ง <code>preset: \"category\"</code> เหมือนกันหมด ซึ่งเป็นตัวแทนชั่วคราวสมัยที่ยังไม่มี widget นี้ ทำให้เมกะเมนูออกมาเป็นลิสต์ข้อความแทนที่จะเป็นตารางการ์ดหมวดหมู่ (24 เมนูใน 49 header ของไฟล์ตัวอย่าง)",
         "แต่ละ template ได้หน้าตาต่างกันตามที่ v3 ตั้งใจ: <code>default</code> = ตารางการ์ดพร้อมรูป · <code>showTextListTemplate</code> = ตารางเดียวกันแต่ปิดรูป (<code>layoutCard.isShowMedia: false</code>) ตามชื่อ template · <code>custom</code> และเมนูที่ไม่ได้ระบุ template = ไม่ตั้งค่าอะไรเลย ปล่อยให้ v4 ใช้ค่าเริ่มต้นของตัวเอง",
         "<code>showTextTemplate</code> ยังใช้ <code>WidgetNavList</code> เหมือนเดิม — เป็น template เดียวที่กว้างแค่ <code>boxWidth</code> ตารางการ์ด 4 คอลัมน์ใส่ไม่ลง",
         "เมนูแบบ flyout (<code>showTextLevelTemplate</code>) ใส่ <code>flyoutTemplate: \"default\"</code> ให้แล้ว",
         "แก้บั๊ก: flyout เคยส่ง <code>category_id: \"0\"</code> ออกไป ทั้งที่ <code>cat_id: 0</code> ใน v3 แปลว่า \"ทุกหมวด\" ไม่ใช่หมวดเลข 0 — ฝั่งเมกะเมนูอ่านถูกมาตลอด ฝั่ง flyout ไม่ได้อ่าน (เจอ 3 จาก 6 flyout ในไฟล์ตัวอย่าง)",
     ]},
-    {"version": "1.24", "date": "2026-09-03", "items": [
+    {"version": "1.24", "type": "fix", "date": "2026-09-03", "items": [
         "Marquee (SlideTextSection): <code>paddingTop</code>/<code>paddingBottom</code> ใส่ค่าเท่ากันทั้ง <code>lg</code> และ <code>xs</code> แล้ว — เดิมใส่แค่ <code>lg</code> บนมือถือแถบวิ่งจึงได้ padding default ของ v4 แทนที่จะเป็น 0 ตามที่ตั้งใจ (<code>containerPaddingX</code> ในฟังก์ชันเดียวกันใส่ครบทั้งสองมาตลอด)",
         "ไม่ได้ทับค่าของร้าน — v3 ไม่เคยส่ง padding มาให้ section นี้เลย (0 จาก 20 ตัวในไฟล์ตัวอย่าง) ค่าทั้งหมดเป็นของ converter เอง",
     ]},
-    {"version": "1.23", "date": "2026-09-02", "items": [
+    {"version": "1.23", "type": "fix", "date": "2026-09-02", "items": [
         "ทุก section ใช้กฎเดียวกันแล้ว: ถ้าร้านเลือกสีพื้นเข้มเอง (ไม่ได้ติ๊ก dark mode) ตอนนี้ได้ <code>colorScheme: \"color-scheme-inverse\"</code> — เดิมดูแค่ธง <code>isDarkMode</code> ทำให้ 23 section ในไฟล์ตัวอย่างได้พื้นเข้มแต่ตัวอักษรยังเข้มอยู่ อ่านไม่ออก (เช่น พื้นดำล้วนและพื้นกรมท่า) — เป็นกฎเดียวกับที่ header ใช้มาตั้งแต่ v1.18",
         "Footer: พาสีพื้นที่ร้านตั้งเอง (<code>sectionStyle.bgColor</code>) มาด้วยแล้ว — เดิมทิ้งทั้งหมด ทำให้ 6 footer เสียสีที่ร้านเลือก โดยเฉพาะสีอ่อน (เช่น ชมพูและครีม) ที่ไม่เหลือร่องรอยเลยเพราะไม่ได้เปลี่ยน scheme ด้วย",
         "BlogSection และ ProductSection พาสีพื้นมาด้วยแล้วเช่นกัน (อีก 5 section builder ทำอยู่แล้ว)",
         "สีพื้นที่ v3 ส่งมาแบบไม่มี <code>#</code> นำหน้า (เช่น <code>f4f4f4</code>) เติม <code>#</code> ให้แล้ว — สีเดียวกันแต่เขียนคนละแบบ ถ้าไม่มี <code>#</code> v4 อ่านไม่ออก ส่วนค่าที่ไม่ใช่ hex เช่น <code>rgba(...)</code> ปล่อยผ่านเหมือนเดิม",
         "เครื่องมือแก้ HTML (htmlfix) เติม <code>#</code> ให้ค่าสีทุกคีย์ด้วยเช่นกัน ดู changelog ของ htmlfix v1.4",
     ]},
-    {"version": "1.22", "date": "2026-09-02", "items": [
+    {"version": "1.22", "type": "feat", "date": "2026-09-02", "items": [
         "เตือนเมื่อเจอลิงก์ไปหน้า <code>showroom</code> ของ v3 (<code>/showroom/recommend</code>, <code>/showroom/sale</code>, <code>/showroom/new</code>, <code>/showroom/hot</code> ฯลฯ) — v3 มีหน้าพวกนี้ให้สำเร็จรูป แต่ v4 เปลี่ยนไปใช้รูปแบบที่ปรับแต่งได้แทน จึงไม่มีหน้าปลายทาง ลิงก์ยังกดไม่ได้จนกว่าจะสร้างหน้ามารองรับ",
         "ลิงก์ showroom <b>ไม่ถูกแก้ค่า</b> ปล่อยไว้เหมือนเดิม เพราะยังไม่มีปลายทางที่ถูกต้องให้ชี้ไป — แค่เตือนให้เห็นเฉย ๆ (เดิมผ่านไปเงียบ ๆ ไม่มีอะไรบอกเลย ทั้งที่มี 80 ลิงก์กระจายอยู่ใน 34 จาก 50 ไฟล์ตัวอย่าง)",
     ]},
-    {"version": "1.21", "date": "2026-09-01", "items": [
+    {"version": "1.21", "type": "fix", "date": "2026-09-01", "items": [
         "ParagraphSection: <code>description</code> ที่เป็นเนื้อหาก้อนเดียวใต้หัวข้อ (ไม่มี contentBlocks ตามมาเลย) ย้ายไปเป็น <code>WidgetTextStack</code> แทนที่จะอยู่ในช่อง description ของ <code>WidgetHeading</code> — วัดจากข้อมูลจริง 66 section: กลุ่มที่มี description อย่างเดียวสั้นสุด 167 ตัวอักษร (median 207) คือเนื้อหาเต็ม ๆ ส่วนกลุ่มที่มีเนื้อหาอื่นตามมา median แค่ 26 ตัวอักษร คือหัวข้อรอง ซึ่งยังอยู่ใน heading เหมือนเดิม",
         "ParagraphSection: <b>แก้เนื้อหาหาย</b> — section ที่ไม่ได้ตั้ง <code>title</code> จะไม่มี <code>WidgetHeading</code> ทำให้ description ถูกทิ้งไปเงียบ ๆ ทั้งก้อน (เจอใน demo ธีม writenow: หายไป 249 ตัวอักษร เหลือแต่ brand info) ตอนนี้เนื้อหาไปอยู่ใน TextStack จึงไม่หายอีกแล้ว",
         "ParagraphSection: description ที่เป็น plain text และมีขึ้นบรรทัดใหม่ ถูกตัดเป็นย่อหน้าแยกกันแล้ว (เหมือนที่ฝั่ง HTML ทำอยู่) — <b>ยกเว้น</b>ถ้าจุดขึ้นบรรทัดนั้นอยู่ข้างใน HTML tag ที่ยังไม่ปิด จะยกมาทั้งก้อนไม่ตัด ไม่งั้น tag จะขาดครึ่ง (เช่นขึ้นบรรทัดกลาง <code>&lt;a&gt;</code> จะทำให้ลิงก์พัง)",
         "ParagraphSection: <code>bullets</code> นับเป็นเนื้อหาด้วย — ถ้าใต้หัวข้อมีลิสรายการตามมา description ยังถือเป็นหัวข้อรองและอยู่ใน heading",
     ]},
-    {"version": "1.20", "date": "2026-09-01", "items": [
+    {"version": "1.20", "type": "fix", "date": "2026-09-01", "items": [
         "Footer: คอลัมน์ในแถว <code>lg</code> เต็ม 12 พอดีทุกกรณีแล้ว — เดิมใช้ค่า span ตายตัวที่คัดลอกมาจาก template ซึ่งเป็นแบบเปิดครบทุก pane (brand 6 + อีก 6 คอลัมน์ละ 1) ร้านที่เปิดไม่ครบจึงได้แค่ 9 จาก 12 เหลือพื้นที่ว่างท้ายแถวเกือบหนึ่งในสี่ (41 จาก 47 footer ในไฟล์ตัวอย่างทั้งหมดเป็นแบบนี้)",
         "Footer: span ของ <code>lg</code> คิดจาก 12 ลบคอลัมน์ brand แล้วหารเท่า ๆ กันตามจำนวนคอลัมน์ที่เปิดจริง เศษที่เหลือไปอยู่คอลัมน์เนื้อหาแรก — เคสที่พบบ่อยที่สุด (เปิด 3 pane บน preset 1) ได้ span 2 เท่ากันทุกคอลัมน์",
         "Footer: คอลัมน์เนื้อหาไม่ต่ำกว่า span 2 — ถ้าหารแล้วได้น้อยกว่านั้น คอลัมน์ brand จะหดลงมาช่วย (ลงได้ถึง 3) เพื่อให้ลงตัวพอดี เช่น preset 1 ที่เปิด 4 pane ได้ <code>4,2,2,2,2</code> แทน <code>6,1,1,1,1</code> — span 1 กว้างแค่ ~8% ของแถว หัวข้ออย่าง \"ลิงก์แนะนำ\" จะตกบรรทัดทีละคำ",
         "Footer: ถ้าหด brand แล้วยังไม่พอ (เปิด 5-6 pane) จะไม่หด เพราะบีบ logo ให้เล็กลงแล้วแถวก็ยังตกอยู่ดี ปล่อยให้ตกบรรทัดแทน — เกิดกับ 2 จาก 47 footer ในไฟล์ตัวอย่าง ถ้าไม่สวยให้ปรับที่ design เอง",        "Footer: <code>xs</code>/<code>md</code> ไม่แตะ — สองขนาดนี้ตั้งใจให้เกิน 12 เพื่อให้ grid ตัดขึ้นบรรทัดใหม่ (v4 template จริงก็ทำแบบเดียวกัน)",
         "Footer: แก้บั๊กคอลัมน์ใช้ span dict ก้อนเดียวกันร่วมกัน ทำให้ทุกคอลัมน์ได้ค่าของคอลัมน์สุดท้าย",
     ]},
-    {"version": "1.19", "date": "2026-09-01", "items": [
+    {"version": "1.19", "type": "fix", "date": "2026-09-01", "items": [
         "SlideShow: สไลด์ที่ไม่มีข้อความทับบนรูป ตอนนี้ได้ <code>variant: \"full-image\"</code> แทน <code>\"bg-image\"</code> — <code>bg-image</code> ครอปรูปให้เต็มกรอบ (cover) ส่วน <code>full-image</code> แสดงรูปทั้งใบ (contain) ของเดิมดูแค่ <code>textPosition</code> เลยส่ง section ที่ปิด <code>isShowSlideContent</code> ไปเป็นแบบครอปทั้งหมด ทำให้ต้องมานั่งแก้เองทุกครั้ง (110 จาก 150 section ในไฟล์ตัวอย่างทั้งหมดเข้าข่ายนี้)",
         "SlideShow: <code>slideContentConfig.autoplaySpeed</code> ตอนนี้ตั้ง <code>isAutoplay</code> + <code>isLoop</code> + <code>autoplaySpeed</code> ให้แล้ว — เดิมไม่เคยอ่าน object นี้เลย สไลด์ที่ตั้งความเร็วไว้ใน v3 จึงนิ่งสนิทใน v4",
         "SlideShow: <code>slideAutoplaySpeed</code> (ตัวนอก) ก็ตั้ง <code>isAutoplay</code> + <code>isLoop</code> ด้วยเช่นกัน — เดิมใส่แค่ <code>autoplaySpeed</code> โดยไม่เปิด autoplay ค่าความเร็วเลยไม่มีผลอะไร",
         "SlideShow: <code>slideContentConfig.speed</code> ใช้เป็นค่าสำรองของ <code>speed</code> เมื่อ v3 ไม่ได้ส่ง <code>slideSpeed</code> มา",
         "SlideShow: กฎเดา \"ไม่มีลูกศรและไม่มี dot → autoplay\" ยังอยู่ แต่ลดเป็นลำดับท้ายสุด ค่าที่ v3 ระบุมาตรง ๆ ชนะเสมอ",
     ]},
-    {"version": "1.18", "date": "2026-08-17", "items": [
+    {"version": "1.18", "type": "fix", "date": "2026-08-17", "items": [
         "Header: header ที่ตั้งพื้นหลังสีเข้มไว้ใน <code>headerPane.sectionStyle.bgColor</code> ตอนนี้ได้ <code>colorScheme: \"color-scheme-inverse\"</code> แล้ว — เดิมดู <code>isDarkMode</code> อย่างเดียว ร้านที่เลือกสีพื้นเข้มเองในหน้า admin (ไม่ได้มาจาก preset ของธีม) เลยได้ <code>color-scheme-main</code> ซึ่งเป็นตัวอักษรสีเข้มบนพื้นเข้ม อ่านไม่ออก",
         "ParagraphSection layout <code>imageAlignBg</code> + 2 คอลัมน์: ย้าย padding ไปไว้ที่คอลัมน์เนื้อหาแทน section (section เป็น 0 ทั้งหมด + <code>paddingX: 0</code> + <code>isFullwidth</code>) — กฎเดียวกับที่ Headline ใช้มาตั้งแต่ 2026-08-06 แต่ ParagraphSection ยังไม่ได้ทำตาม ทำให้รูปครึ่งจอไม่ชนขอบ",
         "ParagraphSection layout <code>imageAlignBg</code> ที่ไม่มี <code>image</code>: <code>backgroundImage</code> กลายเป็น <code>WidgetMedia</code> ในคอลัมน์แทนที่จะเป็นพื้นหลังของคอลัมน์ — คอลัมน์ที่มีแต่พื้นหลังไม่มีลูกเลยไม่มีความสูง รูปจึงไม่ขึ้น",
         "Footer: เพิ่มสัญญาณอีก 2 อย่างนอกจาก <code>isDarkMode</code> — พื้นหลังสีเข้มใน <code>sectionStyle.bgColor</code> (ให้ตรงกับ header) และ <code>siteTitleStyle.fontColor</code> ที่เป็นสีอ่อน (ไม่มีใครใส่อักษรขาวบนพื้นสว่าง) ทั้งคู่ให้ <code>color-scheme-inverse</code>",
     ]},
-    {"version": "1.17", "date": "2026-08-11", "items": [
+    {"version": "1.17", "type": "fix", "date": "2026-08-11", "items": [
         "ProductTab: <code>button</code>/<code>buttonLink</code> ของ v3 ตอนนี้แปลงเป็น <code>isViewAllThisTab: true</code> บนตัว <code>WidgetProductTab</code> เอง และไม่สร้าง <code>WidgetButtonGroup</code> เพิ่มอีกแล้ว — เดิมได้ปุ่ม \"ดูสินค้าทั้งหมด\" ซ้ำ 2 ปุ่มในหน้าจริง เพราะ widget วาดปุ่มของตัวเองอยู่แล้ว",
     ]},
-    {"version": "1.16", "date": "2026-08-10", "items": [
+    {"version": "1.16", "type": "fix", "date": "2026-08-10", "items": [
         "FeatureSection: feature ที่มี <code>mediaType: \"video\"</code> อย่างน้อย 1 อัน ตั้ง <code>variant: \"full-image\"</code> แทน <code>\"fit-image\"</code> และไม่ใส่ <code>mediaRatio</code> เลยถ้าไม่มี <code>isCropImage</code> ระบุมา (เดิมใส่ <code>\"fit-image\"</code>/<code>mediaRatio: \"auto\"</code> เสมอไม่ว่าจะเป็น video หรือ image)",
     ]},
-    {"version": "1.15", "date": "2026-08-10", "items": [
+    {"version": "1.15", "type": "fix", "date": "2026-08-10", "items": [
         "ProductSection: <code>layoutType</code>/<code>isUseSlick</code> ที่ v3 ไม่ได้ระบุมา ตอนนี้ infer จากข้อมูลจริง (มี <code>bannerImage</code>/<code>bannerImageMobile</code> → ถือเป็น <code>bannerImage</code>, มี <code>hasArrows</code>/<code>hasDots</code>/<code>productSlidesToShow</code> → ถือเป็น slick) — เดิม preset เก่าที่ไม่ส่ง field พวกนี้มา explicit จะถูกทิ้งเงียบ ๆ ทั้งที่มีข้อมูล banner/slick ครบ",
         "ProductSection: ไม่ใส่ <code>WidgetHeading</code> เปล่าอีกต่อไปเมื่อ title/description ว่างทั้งคู่",
         "ProductSection: <code>productNumber</code>/<code>productSlidesToShow</code>/<code>slidesToScroll</code>/<code>slideAutoplaySpeed</code>/<code>slideSpeed</code> แปลงเป็น int แล้ว (เดิม v3 บางครั้งเก็บเป็น string เช่น <code>\"6\"</code> แล้ว pass-through ตรง ๆ)",
         "ProductSection: layout <code>bannerImage</code> + slick ตั้ง <code>span</code> ให้คอลัมน์ banner/product แล้ว (<code>lg:4/xs:12</code> และ <code>lg:8/xs:12</code>) — เดิมปล่อยว่างไม่มี responsive sizing เลย",
     ]},
-    {"version": "1.14", "date": "2026-08-05", "items": [
+    {"version": "1.14", "type": "fix", "date": "2026-08-05", "items": [
         "Headline/FeatureSection/ParagraphSection/TopicSection/SlideShowSection/ProductSection/ProductTab/BlogSection: อ่าน padding บน/ล่างจาก <code>className2</code> (utility class แบบ Bootstrap เช่น <code>pt-0 pb-3 pb-xl-5</code>) แล้วครบทุก section ที่มี field นี้ — เดิมไม่แปลงเลย ค่าจาก <code>sectionStyle.padding</code> ที่ตั้งจริงยังชนะเหมือนเดิม เติมเฉพาะจุดที่ไม่ได้ตั้ง",
         "Headline/FeatureSection/SlideShowSection: แก้ padding ที่เป็น <code>null</code> ใน <code>sectionStyle.padding</code> ไม่ให้ถูกตีความเป็น 0px อีกต่อไป (เดิมเข้าใจผิดว่า field มีอยู่ = ตั้งค่าจริง)",
         "Headline: layout <code>imageAlignBg</code> + 2 คอลัมน์ (ครึ่งนึงเป็นรูปพื้นหลังเต็ม) ย้าย padding ไปไว้ที่คอลัมน์เนื้อหาแทน section (section เป็น 0 ทั้งหมด) ไม่งั้นรูปจะไม่เต็มขอบ",
         "className2: แก้ให้ class ที่ไม่ระบุ breakpoint (เช่น <code>pt-0</code>) กำหนดค่าให้ครบ xs และ lg ตาม cascade จริงของ CSS แทนที่จะใส่แค่ xs ตัวเดียว (เดิมพลาดที่ค่า <code>pt-0</code> ไม่ครอบคลุมถึงจอใหญ่) — md ใส่เฉพาะตอนมี class เจาะจง <code>-md-</code> จริงเท่านั้น ไม่ synthesize ให้ เพราะ md ไม่ใช่ breakpoint default ใน v4",
         "FeatureSection: ไม่ใส่ <code>WidgetHeading</code> เปล่าอีกต่อไปเมื่อ v3 ไม่ได้ตั้ง title/description เลย (เดิมใส่มาเสมอแม้ไม่มีเนื้อหา)",
     ]},
-    {"version": "1.13", "date": "2026-08-04", "items": [
+    {"version": "1.13", "type": "fix", "date": "2026-08-04", "items": [
         "ProductSection: <code>layoutType: \"bannerImage\"</code> ที่ไม่ใช่ slick (แบนเนอร์ซ้าย/ขวา + สินค้า) ตอนนี้ใส่ปุ่ม <code>button</code>/<code>buttonLink</code> ด้วยแล้ว — เดิมหายไปเงียบ ๆ",
     ]},
-    {"version": "1.12", "date": "2026-07-13", "items": [
+    {"version": "1.12", "type": "feat", "date": "2026-07-13", "items": [
         "รองรับ <code>CustomHtmlSection</code> แล้ว (เดิมข้าม) — สร้าง section ที่มี <code>WidgetCustomHtml</code> ว่าง (<code>renderMode: inline</code>) + ตั้ง nickname จาก title",
         "เตือนทุกครั้งที่พบ Custom HTML ว่า <b>ต้องนำโค้ด HTML เดิมไปวางเองใน manage ของร้าน</b> (v4 เก็บ custom HTML แยกจากโครงหน้า — converter ไม่ฝัง HTML ให้)",
     ]},
-    {"version": "1.11", "date": "2026-07-09", "items": [
+    {"version": "1.11", "type": "fix", "date": "2026-07-09", "items": [
         "FeatureSection: เมื่อ <code>isCropImage: false</code> จะตั้ง <code>mediaRatio: \"auto\"</code> (ให้รูปคงอัตราส่วนเดิม) แทนการปล่อยว่าง; <code>true</code> ยังครอปเป็น <code>1 / 1</code> เหมือนเดิม",
     ]},
-    {"version": "1.10", "date": "2026-07-01", "items": [
+    {"version": "1.10", "type": "fix", "date": "2026-07-01", "items": [
         "ปิด quote ของ attribute ที่เปิดค้าง (เช่น <code>&lt;a href='http://x&gt;…</code>) — เติม quote ปิดก่อน <code>&gt;</code> ไม่ให้ browser กลืนเนื้อหาหลัง tag",
     ]},
-    {"version": "1.9", "date": "2026-06-29", "items": [
+    {"version": "1.9", "type": "fix", "date": "2026-06-29", "items": [
         "tag ที่ซ้อนปิดผิดลำดับ (<code>&lt;b&gt;&lt;i&gt;x&lt;/b&gt;</code>) แก้อัตโนมัติแล้ว — ปิด tag ตัวในก่อน (<code>&lt;b&gt;&lt;i&gt;x&lt;/i&gt;&lt;/b&gt;</code>) แทนการเตือนเฉย ๆ",
     ]},
-    {"version": "1.8", "date": "2026-06-29", "items": [
+    {"version": "1.8", "type": "feat", "date": "2026-06-29", "items": [
         "จัดระเบียบ HTML ละเอียดขึ้น: รวม void ที่มี close tag (<code>&lt;img&gt;&lt;/img&gt;</code> → <code>&lt;img&gt;</code>)",
         "ลบ close tag ที่ไม่มีคู่เปิด (เช่น <code>&lt;/span&gt;</code> ลอย ๆ)",
         "แก้ self-closed ของ tag ที่ไม่ใช่ void (<code>&lt;div/&gt;</code> → <code>&lt;div&gt;</code>)",
@@ -253,7 +275,7 @@ CHANGELOG = [
         "ล้างขยะจากการวางจาก MS Word (<code>&lt;o:p&gt;</code>, MsoNormal, mso-*)",
         "เตือนเมื่อ nesting ซ้อนผิดลำดับ (<code>&lt;b&gt;&lt;i&gt;…&lt;/b&gt;&lt;/i&gt;</code>) แทนที่จะใส่ tag ปิดเกิน",
     ]},
-    {"version": "1.7", "date": "2026-06-25", "items": [
+    {"version": "1.7", "type": "feat", "date": "2026-06-25", "items": [
         "เติม <code>:root</code> ให้ครบ: คำนวณเฉดสีแบรนด์/รอง/กลาง 5 ระดับจากสีที่ตั้งไว้",
         "จัดให้ <code>:root</code> อยู่บนสุดของ <code>style</code> เสมอ และเรียงชื่อสีตามตัวอักษร",
         "ค่าที่ตรงกับ v4-base อยู่แล้วจะไม่ใส่ซ้ำ — เก็บเฉพาะค่าที่ override จริง (สี status ใช้ค่า v4)",
@@ -261,28 +283,28 @@ CHANGELOG = [
         "ไม่ใส่ฟอนต์ที่เป็นค่าว่าง (เช่น <code>typoHeadingFontFamily: []</code>) ใน global setting",
         "ดึง typography ฐานราย theme (ขนาด/น้ำหนัก/line-height) ตาม <code>currentTheme</code> เฉพาะค่าที่ต่างจาก base",
     ]},
-    {"version": "1.6", "date": "2026-06-24", "items": [
+    {"version": "1.6", "type": "feat", "date": "2026-06-24", "items": [
         "เลือกได้ว่าจะรวมส่วนไหนในผลลัพธ์: เนื้อหา / สีธีม / ฟอนต์ธีม / ตั้งค่ารวม (จำค่าไว้ในเบราว์เซอร์)",
     ]},
-    {"version": "1.5", "date": "2026-06-24", "items": [
+    {"version": "1.5", "type": "feat", "date": "2026-06-24", "items": [
         "แปลง theme config: <code>currentColors</code> → สีแบรนด์ใน <code>:root</code>, <code>currentFonts</code> → ฟอนต์",
         "ฟอนต์นอกระบบ (Google font) จะถูกตัดออกพร้อมแจ้งเตือน — เพิ่มเองใน v4",
     ]},
-    {"version": "1.4", "date": "2026-06-24", "items": [
+    {"version": "1.4", "type": "fix", "date": "2026-06-24", "items": [
         "เลิกปิด <code>&lt;img&gt;</code> เป็น <code>&lt;img/&gt;</code> — ใช้รูปแบบ HTML5 ปกติ",
     ]},
-    {"version": "1.3", "date": "2026-06-23", "items": [
+    {"version": "1.3", "type": "feat", "date": "2026-06-23", "items": [
         "รองรับ Global component (info / style / free_zone)",
         "จัดระเบียบ HTML อัตโนมัติ: ปิด void tag (<code>&lt;br&gt;</code>, <code>&lt;hr&gt;</code>) และเตือน tag ที่ไม่ได้ปิด",
     ]},
-    {"version": "1.2", "date": "2026-06-15", "items": [
+    {"version": "1.2", "type": "feat", "date": "2026-06-15", "items": [
         "รองรับ Header section ครบ (sticky, mega menu, drawer, โหมดโปร่งใส)",
         "จัดการ system page (404, blog, promotion) + สงวน path ระบบของ v4",
     ]},
-    {"version": "1.1", "date": "2026-06-08", "items": [
+    {"version": "1.1", "type": "feat", "date": "2026-06-08", "items": [
         "รองรับ Footer zone และ Header zone",
     ]},
-    {"version": "1.0", "date": "2026-05-29", "items": [
+    {"version": "1.0", "type": "feat", "date": "2026-05-29", "items": [
         "ตัวแปลง v3 → v4 เวอร์ชันเสถียรแรก — รองรับ section และแปลงทั้งหน้า/ทั้งเว็บ",
     ]},
 ]
@@ -297,7 +319,7 @@ HTMLFIX_VERSION = "1.5"
 HTMLFIX_LAST_UPDATED = "2026-09-02"
 
 HTMLFIX_CHANGELOG = [
-    {"version": "1.5", "date": "2026-09-02", "items": [
+    {"version": "1.5", "type": "fix", "date": "2026-09-02", "items": [
         "แก้แท็กที่พิมพ์ผิดให้อัตโนมัติแล้ว เช่น <code>&lt;p'&gt;</code> → <code>&lt;p&gt;</code>, <code>&lt;//p&gt;</code> → <code>&lt;/p&gt;</code>, <code>&lt;/ p&gt;</code> → <code>&lt;/p&gt;</code>, <code>&lt; p&gt;</code> → <code>&lt;p&gt;</code> — เดิมผ่านไปเงียบ ๆ ไม่มีอะไรบอกเลย",
         "อ่านออกว่าเป็นแท็กเปิดหรือปิดจาก <code>/</code> ที่อยู่ระหว่าง <code>&lt;</code> กับชื่อแท็ก — ไม่มีอย่างอื่นในแท็กที่ใส่ <code>/</code> ตรงนั้นได้ จึงไม่ต้องเดา",
         "กรณีที่เสียหายที่สุดคือ <code>&lt; p&gt;</code> (มีช่องว่าง) เพราะตัวแยกแท็กไม่รู้จัก แท็กปิด <code>&lt;/p&gt;</code> เลยถูกมองว่าเกินแล้วโดนลบทิ้ง — ตอนนี้ซ่อมแท็กเปิดให้ แท็กปิดจึงรอด",
@@ -305,14 +327,14 @@ HTMLFIX_CHANGELOG = [
         "ข้อความปกติที่ใช้ <code>&lt;</code> <code>&gt;</code> เป็นเครื่องหมายเปรียบเทียบ (เช่น \"ราคา &lt; 100 บาท &gt; ส่งฟรี\") ไม่ถูกแตะ",
         "แก้บั๊ก: <code>&lt;a title=\"a&gt;b\"&gt;</code> ซึ่งเป็น HTML ที่ถูกต้อง เคยถูกขั้นตอนซ่อม quote ทำพังเป็น <code>&lt;a title=\"a\"&gt;b\"&gt;</code> เพราะเข้าใจผิดว่า quote ไม่ได้ปิด — ตอนนี้ดูก่อนว่ามี quote ปิดตามมามั้ย ส่วนการซ่อม <code>&lt;a href='http://x&gt;</code> ยังทำงานเหมือนเดิม",
     ]},
-    {"version": "1.4", "date": "2026-09-02", "items": [
+    {"version": "1.4", "type": "fix", "date": "2026-09-02", "items": [
         "สีที่เขียนไม่มี <code>#</code> นำหน้า (เช่น <code>f4f4f4</code>) เติม <code>#</code> ให้แล้ว — สีเดียวกันแต่เขียนคนละแบบ ถ้าไม่มี <code>#</code> v4 อ่านไม่ออก",
         "จับเฉพาะคีย์ที่เป็นสี (<code>bgColor</code>, <code>fontColor</code>, <code>borderColor</code> ฯลฯ) และเฉพาะค่าที่เป็นเลขฐานสิบหก 3 หรือ 6 หลักล้วน ๆ — <code>transparent</code>, <code>var(--color-*)</code>, ชื่อ <code>color-scheme-*</code> และชื่อสีอย่าง <code>white</code>/<code>red</code>/<code>maroon</code> ไม่ถูกแตะ (เช็คครบทั้ง 154 ชื่อสีของ CSS แล้ว)",
     ]},
-    {"version": "1.3", "date": "2026-07-01", "items": [
+    {"version": "1.3", "type": "fix", "date": "2026-07-01", "items": [
         "ปิด quote ของ attribute ที่เปิดค้าง (เช่น <code>&lt;a href='http://x&gt;aaa&lt;/a&gt;</code>) — เติม quote ปิดก่อน <code>&gt;</code> แทนที่จะปล่อยให้ browser กลืน <code>&gt;aaa&lt;/a&gt;</code> เข้าไปในค่า",
     ]},
-    {"version": "1.2", "date": "2026-06-29", "items": [
+    {"version": "1.2", "type": "fix", "date": "2026-06-29", "items": [
         "tag ซ้อนปิดผิดลำดับ แก้อัตโนมัติแล้ว (ปิดตัวในก่อน) — เลิกเตือนเฉย ๆ",
         "กล่องผลลัพธ์แก้มือได้ + ตรวจซ้ำสด ๆ ว่ายังมีจุดต้องแก้ไหม",
         "ค้นหาในกล่อง (⌕ / Ctrl-F, ▴▾ ก่อนหน้า/ถัดไป), ย่อระดับบนสุด (⊟) / ขยายทั้งหมด (⊞)",
@@ -320,10 +342,10 @@ HTMLFIX_CHANGELOG = [
         "ปุ่มคัดลอก: ถ้าแก้มือจะ “ตรวจและคัดลอก” (รัน fix ซ้ำ + apply กลับกล่องก่อน), ขนาดปุ่มไม่เด้ง",
         "รายการที่แก้: ตัด JSON path ออก แสดงบรรทัด + รายละเอียดแทน",
     ]},
-    {"version": "1.101", "date": "2026-06-29", "items": [
+    {"version": "1.101", "type": "fix", "date": "2026-06-29", "items": [
         "แก้บั๊ก: ไม่ตัด key ที่มีค่า <code>null</code> ออกอีกต่อไป — ผลลัพธ์คงโครงสร้าง JSON เดิมครบทุก key",
     ]},
-    {"version": "1.1", "date": "2026-06-29", "items": [
+    {"version": "1.1", "type": "feat", "date": "2026-06-29", "items": [
         "รวม void ที่มี close tag (<code>&lt;img&gt;&lt;/img&gt;</code> → <code>&lt;img&gt;</code>, <code>&lt;br&gt;&lt;/br&gt;</code> → <code>&lt;br/&gt;</code>)",
         "ลบ close tag ที่ไม่มีคู่เปิด (เช่น <code>&lt;/span&gt;</code> ลอย ๆ)",
         "แก้ self-closed ของ tag ที่ไม่ใช่ void (<code>&lt;div/&gt;</code> → <code>&lt;div&gt;</code>)",
@@ -331,7 +353,7 @@ HTMLFIX_CHANGELOG = [
         "ล้างขยะจากการวางจาก MS Word (<code>&lt;o:p&gt;</code>, MsoNormal, mso-*)",
         "เตือนเมื่อ nesting ซ้อนผิดลำดับ แทนที่จะใส่ tag ปิดเกิน",
     ]},
-    {"version": "1.0", "date": "2026-06-24", "items": [
+    {"version": "1.0", "type": "feat", "date": "2026-06-24", "items": [
         "เครื่องมือแก้ HTML ใน v4 JSON เวอร์ชันแรก — แยกออกจาก converter2v4",
         "ปิด void tag อัตโนมัติ (<code>&lt;br&gt;</code>, <code>&lt;hr&gt;</code>) + เตือน tag ที่ไม่ได้ปิด",
     ]},
@@ -3406,9 +3428,9 @@ def build_producttab_section(props: dict) -> dict:
     if desc:
         h_info["description"] = {"text": desc}
     if distribute == "center":
-        h_info["alignment"] = {"sm": "center", "lg": "center"}
+        h_info["alignment"] = {"xs": "center", "lg": "center"}
     elif tab_type == "bannerWithTab" and preset_id == _PRODUCTTAB_LEFT_TAB_PRESET:
-        h_info["alignment"] = {"sm": "left", "lg": "left"}
+        h_info["alignment"] = {"xs": "left", "lg": "left"}
     heading = make_node("widget", "WidgetHeading", None,
                         _apply_heading_text_style(props, h_info))
 
@@ -3584,22 +3606,14 @@ def _blog_list_widget(props: dict, key_name: str, preset_id: int) -> dict:
 
     if key_name == "simpleblog_style_1" and preset_id == 2:
         # bg-image layout (BLA2)
-        if blog_number is not None:
-            info["blogNumber"] = blog_number
         cols = _blog_grid_cols(blog_in_row, blog_mobile_in_row)
         if cols:
             info["layoutGridCols"] = cols
-        if is_mobile_scroll:
-            info["layoutGrid"] = {"isOverflowX": True}
         info["isShowDate"]         = is_show_date
         info["isShowTag"]          = is_show_tag
         info["layoutCard"]         = {"cardInfoAlignment": "left", "variant": "bg-image"}
         info["cardDirection"]      = {"lg": "column"}
         info["cardInfoDistribute"] = "flex-end"
-        if is_crop_image:
-            info["cardRatio"] = {"lg": "1 / 1"}
-        if tag:
-            info["apiOptions"] = {"filters": {"tags": tag}}
 
     elif key_name == "simpleblog_style_2":
         # highlight list layout with row direction (BLA3)
@@ -3608,12 +3622,10 @@ def _blog_list_widget(props: dict, key_name: str, preset_id: int) -> dict:
         if is_mobile_scroll:
             layout_grid["isOverflowX"] = True
         info["layoutGrid"] = layout_grid
-        if blog_number is not None:
-            info["blogNumber"] = blog_number
         info["isShowDate"]        = is_show_date
         info["layoutCard"]        = {"variant": "full-image", "cardInfoAlignment": "left", "isShowMedia": True}
         info["isShowShortContent"] = True
-        info["cardDirection"]     = {"sm": "column", "lg": "row"}
+        info["cardDirection"]     = {"xs": "column", "lg": "row"}
         info["cardMediaBasis"]    = {"value": 50, "unit": "%"}
         info["layoutGridCols"]    = _blog_grid_cols(blog_in_row, blog_mobile_in_row,
                                                     {"lg": "1", "xs": "1"})
@@ -3622,15 +3634,11 @@ def _blog_list_widget(props: dict, key_name: str, preset_id: int) -> dict:
         # hilight 2-col row layout (BLA4)
         info["layoutGridCols"] = _blog_grid_cols(blog_in_row, blog_mobile_in_row,
                                                  {"lg": "2", "xs": "1"})
-        if is_mobile_scroll:
-            info["layoutGrid"] = {"isOverflowX": True}
         info["isShowDate"]         = is_show_date
         info["isShowTag"]          = is_show_tag
         info["layoutCard"]         = {"cardInfoAlignment": "left", "variant": "full-image", "isShowMedia": True}
-        info["cardDirection"]      = {"sm": "column", "lg": "row"}
+        info["cardDirection"]      = {"xs": "column", "lg": "row"}
         info["cardInfoDistribute"] = "flex-start"
-        if is_crop_image:
-            info["cardRatio"] = {"lg": "1 / 1"}
         info["cardMediaBasis"] = {"lg": {"value": 50, "unit": "%"}}
 
     elif key_name == "hilightblog_style_1":
@@ -3638,7 +3646,7 @@ def _blog_list_widget(props: dict, key_name: str, preset_id: int) -> dict:
         info["isShowDate"]  = is_show_date
         info["isShowTag"]   = is_show_tag
         info["layoutCard"]  = {"cardInfoAlignment": "left", "variant": "full-image", "isShowMedia": True}
-        info["cardDirection"] = {"sm": "column", "lg": "column"}
+        info["cardDirection"] = {"xs": "column", "lg": "column"}
         cols = _blog_grid_cols(blog_in_row, blog_mobile_in_row)
         if cols:
             info["layoutGridCols"] = cols
@@ -3647,17 +3655,11 @@ def _blog_list_widget(props: dict, key_name: str, preset_id: int) -> dict:
         # simpleblog_style_1 presetId=1 or unknown — full-image column layout (BLA6)
         info["isShowDate"] = is_show_date
         info["layoutCard"] = {"cardInfoAlignment": "left", "variant": "full-image", "isShowMedia": True}
-        info["cardDirection"] = {"sm": "column", "lg": "column"}
-        if blog_number is not None:
-            info["blogNumber"] = blog_number
+        info["cardDirection"] = {"xs": "column", "lg": "column"}
         cols = _blog_grid_cols(blog_in_row, blog_mobile_in_row)
         if cols:
             info["layoutGridCols"] = cols
-        if is_mobile_scroll:
-            info["layoutGrid"] = {"isOverflowX": True}
         info["isShowTag"] = is_show_tag
-        if is_crop_image:
-            info["mediaRatio"] = "1 / 1"
 
     # Only `bg-image` puts the text ON the picture; every other v3 blog preset
     # keeps the two apart -- above it, or beside it when `cardMediaBasis` is
@@ -3669,6 +3671,48 @@ def _blog_list_widget(props: dict, key_name: str, preset_id: int) -> dict:
     #
     # 55 of the 56 blog widgets in the real files are non-overlay; the one
     # `bg-image` is left alone for the theme to style.
+    # ---- Settings every preset shares -------------------------------------
+    # These used to be written inside the branches and three of them were
+    # missing from some: `blogNumber` from both `hilightblog_*` (5 real
+    # sections, 5-10 posts each), `isMobileFreeScroll` from
+    # `hilightblog_style_1` (2), and **`tag` from four of the five** -- 7 real
+    # sections whose blog list is meant to show one tag and would have shown
+    # every post instead. Same shape as the `layoutGridCols` hard-coding fixed
+    # in v1.49; hoisted so a new preset cannot miss them (user, 2026-09-23).
+    if blog_number is not None:
+        info["blogNumber"] = blog_number
+    if is_mobile_scroll:
+        grid = info.setdefault("layoutGrid", {})
+        grid["isOverflowX"] = True
+    if tag:
+        info.setdefault("apiOptions", {}).setdefault("filters", {})["tags"] = tag
+
+    # `isCropImage` -> square, or the picture's own shape. **Which token depends
+    # on the variant** (user, 2026-09-24): a `bg-image` card has no separate
+    # media element -- the picture IS the card -- so its ratio is `cardRatio`;
+    # every other variant shows the picture as its own element, which is
+    # `mediaRatio`.
+    #
+    #                    crop ON        crop off
+    #   bg-image         cardRatio 1/1  cardRatio auto
+    #   everything else  mediaRatio 1/1 mediaRatio auto
+    #
+    # **Both states are written**, the same contract `_feat_list_widget` has
+    # had since v1.13: leaving `off` silent lets the theme's own ratio win, and
+    # v4-base sets `.widget-blog-list { mediaRatio: "4 / 3" }`, so "keep the
+    # picture's shape" was coming out as 4:3.
+    #
+    # Was wrong three ways before this: two of the five branches emitted
+    # nothing at all (15 real sections), `hilightblog_style_2` used `cardRatio`
+    # on a `full-image` card, and no branch handled `off`.
+    ratio = "1 / 1" if is_crop_image else "auto"
+    if (info.get("layoutCard") or {}).get("variant") == "bg-image":
+        # `cardRatio` is breakpoint-keyed in v4-base (`xs` 1/1, `lg` 3/4), so
+        # both are written -- setting only `lg` would leave `xs` on the theme.
+        info["cardRatio"] = {"xs": ratio, "lg": ratio}
+    else:
+        info["mediaRatio"] = ratio
+
     layout_card = info.get("layoutCard")
     if isinstance(layout_card, dict) and layout_card.get("variant") != "bg-image":
         layout_card["isOverlay"] = False

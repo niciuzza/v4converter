@@ -221,6 +221,12 @@
   .changelog-entry .cl-ver{display:flex;align-items:baseline;gap:8px;margin-bottom:5px}
   .changelog-entry .cl-tag{font-size:11px;font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--fg-strong)}
   .changelog-entry .cl-date{font-size:10.5px;font-family:'JetBrains Mono',monospace;color:var(--muted-2)}
+  /* Entry kind, from the backend's `type` on each changelog entry ("fix" /
+     "feat"). An entry without one simply gets no badge, so an older wrapper
+     paired with a newer converter.py degrades quietly. */
+  .changelog-entry .cl-kind{font-size:10px;font-weight:700;padding:1px 6px;border-radius:5px;letter-spacing:.02em}
+  .changelog-entry .cl-kind[data-kind="fix"]{color:var(--bad);background:var(--bad-soft);border:1px solid var(--bad-soft)}
+  .changelog-entry .cl-kind[data-kind="feat"]{color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent-soft)}
   .changelog-entry ul{margin:0;padding-left:16px;font-size:12.5px;line-height:1.55;color:var(--fg)}
   .changelog-entry li{margin:1px 0}
 
@@ -411,6 +417,12 @@
   document.getElementById("versionTag").textContent = "…";
   document.getElementById("versionTag").title = "ดูว่ามีอะไรใหม่";
 
+  // A changelog entry says whether it fixed something or added something.
+  // Unknown or missing `type` renders nothing rather than an empty badge.
+  const CL_KIND = { fix: "แก้บั๊ก", feat: "ของใหม่" };
+  const clKind = (t) => CL_KIND[t]
+    ? `<span class="cl-kind" data-kind="${t}">${CL_KIND[t]}</span>` : "";
+
   function renderInfo(meta) {
     const v = "v" + meta.version;
     document.title = `merge code ${v} — รวม v3 content ลง v4 base`;
@@ -433,7 +445,7 @@
     $("infoReadme").innerHTML = README.map(t => `<li>${t}</li>`).join("");
     $("infoChangelog").innerHTML = (meta.changelog || []).map(e => `
       <div class="changelog-entry">
-        <div class="cl-ver"><span class="cl-tag">v${e.version}</span><span class="cl-date">${e.date}</span></div>
+        <div class="cl-ver"><span class="cl-tag">v${e.version}</span>${clKind(e.type)}<span class="cl-date">${e.date}</span></div>
         <ul>${(e.items || []).map(i => `<li>${i}</li>`).join("")}</ul>
       </div>`).join("");
   }
