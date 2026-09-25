@@ -24,7 +24,7 @@ from urllib.parse import quote, unquote
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.52"
+__version__ = "1.53"
 LAST_UPDATED = "2026-09-24"
 
 # Short summary of what the converter handles — shown in the browser popup.
@@ -39,6 +39,19 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.53", "type": "fix", "date": "2026-09-24", "items": [
+        "<b>โลโก้ที่ร้านใส่เองใน section ไม่ถูกแทนด้วยโลโก้ร้านอีกแล้ว</b> — Headline และ ParagraphSection "
+        "ที่ใส่รูปโลโก้ไว้ เคยแปลงออกมาโดยไม่ส่งรูปไปเลย ซึ่ง v4 จะเติมโลโก้ของร้านให้แทน "
+        "จึงไม่ได้เห็นเป็นช่องว่าง แต่เห็นเป็น<b>รูปผิด</b>โดยไม่รู้ตัว",
+        "โดนทั้งหมด <b>33 จาก 33 section</b> ที่ส่งโลโก้มา ใน 13 ร้าน — มีร้านหนึ่งวางโลโก้ผู้ผลิตคนละยี่ห้อไว้ 4 จุด "
+        "ออกมาเป็นโลโก้ร้านตัวเองทั้ง 4 จุด",
+        "<b>ขนาดโลโก้บนมือถือกลับมาด้วย</b> — สอง section นี้เคยอ่าน <code>logoStyle</code> คนละครึ่ง "
+        "(อันหนึ่งอ่านเฉพาะค่าจอเล็ก อีกอันเฉพาะจอใหญ่) ตอนนี้อ่านเหมือนกันแล้ว "
+        "ร้านที่ตั้งโลโก้กว้าง 60% บนมือถือ กับ 17% บนจอใหญ่ เคยได้ 17% ทั้งสองจอ",
+        "<b>ตั้งเป็นโหมด custom ให้ด้วย</b> — v4 เลือกรูปจาก <code>imageMode</code> "
+        "(<code>light</code> = โลโก้สว่างของร้าน ซึ่งเป็นค่าเริ่มต้น · <code>dark</code> = โลโก้เข้ม · <code>custom</code> = รูปที่แนบมา) "
+        "v3 ที่แนบลิงก์โลโก้มาคือ custom เสมอ เพราะ v3 ไม่มีคู่สว่าง/เข้มให้เลือกอยู่แล้ว",
+    ]},
     {"version": "1.52", "type": "fix", "date": "2026-09-24", "items": [
         "<b>การจัดวางบนมือถือของบทความและแท็บสินค้ากลับมาทำงาน</b> — เคยส่ง breakpoint ชื่อ <code>sm</code> "
         "ซึ่ง v4 ไม่รู้จัก ค่าที่ตั้งไว้สำหรับจอเล็กจึงถูกข้ามไปทั้งหมด แล้วไปรับค่าของ <code>lg</code> แทน",
@@ -1120,36 +1133,72 @@ def make_node(node_type: str, kind, nickname, info: dict, children=None) -> dict
 # Widget builders
 # ---------------------------------------------------------------------------
 
-def build_widget_brand_info(props: dict) -> dict:
-    """
-    WidgetBrandInfo — from props.logo + props.logoStyle.
-    isShowTitle and isShowDescription are always false.
-    textAlign and mediaWidth are only set when the corresponding logoStyle values exist.
-    """
-    logo_style = props.get("logoStyle") or {}
-    align      = logo_style.get("align") or {}
-    size       = logo_style.get("size") or {}
+#: v3 logo breakpoint -> v4's, for `logoStyle.size` / `logoStyle.align`.
+#: `md` is deliberately absent: one section in every real file uses it, and v4
+#: cascades xs upward anyway.
+_LOGO_BREAKPOINTS = (("sm", "xs"), ("xl", "lg"))
 
-    info = {
-        "isShowTitle": False,
-        "isShowDescription": False,
-    }
 
-    # Only add textAlign when alignment values are explicitly set
-    text_align = {}
-    if "sm" in align:
-        text_align["xs"] = align["sm"]
-    if "xl" in align:
-        text_align["lg"] = align["xl"]
+def _brand_info_info(props: dict) -> dict:
+    """The `info` for a WidgetBrandInfo built from `props.logo` + `logoStyle`.
+
+    **The image is the point.** `WidgetBrandInfo` with no `image` falls back to
+    the shop's own logo (v4 Base defaults `isShowImage` to true), so a section
+    that put a *different* picture there — a brand badge, an "authorized
+    distributor" seal, a partner mark — silently became the shop logo on
+    import. That hit **33 of the 33** sections in the sample files that send a
+    logo, across 13 shops; one had four sections each showing a different
+    manufacturer's logo, all four replaced by its own (user, 2026-09-24).
+
+    The widget picks its picture with `imageMode`: `light` (the default, the
+    shop's light logo), `dark` (the shop's dark one), or `custom` (whatever
+    `image.src` points at). **v3 attaching a logo URL always means custom**
+    (user, 2026-09-24) — v3 has no notion of a light/dark pair here, the
+    merchant chose one specific file — so it is written explicitly rather than
+    left to the default. No real v4 export in this repo sets `imageMode` at
+    all, so the value comes from the v4 schema, not from a sample.
+
+    The header's equivalent is spelled differently: `brandImageMode` on
+    `WidgetHeaderLogo` and `drawerLogoMode` on the drawer, same three values —
+    see `_header_logo_info`.
+
+    Both callers used to read a different half of `logoStyle`: this one took
+    `size.sm.width` only, the Headline one took `size.xl` only. So a section
+    that sized its logo for both screens lost whichever half it asked its
+    builder for — one real shop sets 60% on mobile and 17% on desktop, and got
+    the 17% on both.
+    """
+    logo_style = props.get("logoStyle")
+    if not isinstance(logo_style, dict):        # v3 also writes null, or []
+        logo_style = {}
+    align = logo_style.get("align") or {}
+    size  = logo_style.get("size") or {}
+
+    info: dict = {"isShowTitle": False, "isShowDescription": False}
+
+    logo = (props.get("logo") or "").strip()
+    if logo:
+        info["isShowImage"] = True
+        info["imageMode"] = "custom"
+        info["image"] = {"src": logo}
+
+    text_align = {new: align[old] for old, new in _LOGO_BREAKPOINTS
+                  if align.get(old)}
     if text_align:
         info["textAlign"] = text_align
 
-    # Only add mediaWidth when size is explicitly set
-    sm_width = (size.get("sm") or {}).get("width")
-    if sm_width:
-        info["mediaWidth"] = {"xs": parse_size(sm_width)}
+    for field, dim in (("mediaWidth", "width"), ("mediaHeight", "height")):
+        got = {new: parse_size((size.get(old) or {}).get(dim))
+               for old, new in _LOGO_BREAKPOINTS
+               if (size.get(old) or {}).get(dim)}
+        if got:
+            info[field] = got
+    return info
 
-    return make_node("widget", "WidgetBrandInfo", None, info)
+
+def build_widget_brand_info(props: dict) -> dict:
+    """WidgetBrandInfo — from props.logo + props.logoStyle."""
+    return make_node("widget", "WidgetBrandInfo", None, _brand_info_info(props))
 
 
 def build_widget_heading(props: dict) -> dict:
@@ -1781,28 +1830,8 @@ def build_paragraph_section(props: dict) -> dict:
 # ---------------------------------------------------------------------------
 
 def _headline_brand_info(props: dict) -> dict:
-    logo_style = props.get("logoStyle") or {}
-    if isinstance(logo_style, list):
-        logo_style = {}
-
-    align = logo_style.get("align") or {}
-    size  = logo_style.get("size") or {}
-    xl_size = (size.get("xl") or {})
-
-    info = {"isShowTitle": False, "isShowDescription": False}
-
-    xl_h = xl_size.get("height")
-    if xl_h:
-        info["mediaHeight"] = {"lg": parse_size(xl_h)}
-
-    xl_w = xl_size.get("width")
-    if xl_w:
-        info["mediaWidth"] = {"lg": parse_size(xl_w)}
-
-    if "xl" in align:
-        info["textAlign"] = {"lg": align["xl"]}
-
-    return make_node("widget", "WidgetBrandInfo", None, info)
+    """Same widget, same rules as ParagraphSection's — see `_brand_info_info`."""
+    return make_node("widget", "WidgetBrandInfo", None, _brand_info_info(props))
 
 
 def _headline_heading(props: dict) -> dict:
