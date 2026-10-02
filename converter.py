@@ -7,6 +7,8 @@ Usage:
 
 import difflib
 import functools
+import itertools
+import math
 import json
 import os
 import re
@@ -24,8 +26,8 @@ from urllib.parse import quote, unquote
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.53"
-LAST_UPDATED = "2026-09-24"
+__version__ = "1.63"
+LAST_UPDATED = "2026-10-02"
 
 # Short summary of what the converter handles — shown in the browser popup.
 # Plain strings; inline HTML (e.g. <code>) is allowed for rendering there.
@@ -39,6 +41,121 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.63", "type": "fix", "date": "2026-10-02", "items": [
+        "<b>เลิกใช้ breakpoint ชื่อ <code>sm</code> ทั้งไฟล์แล้ว</b> — v4 ไม่ได้อ่านค่านี้ "
+        "ค่าที่เคยเขียนไว้ที่ <code>sm</code> จึงไม่มีผลบนมือถือเลย · กระทบ <code>textAlign</code> (72 จุด) "
+        "<code>webContactDistribute</code> (51) และความเร็วข้อความวิ่ง (21)",
+        "<b>การจัดวาง widget ระบุครบทั้งสองขนาดจอ</b> — <code>widgetAlignSelf</code> มาจาก builder หลายตัว "
+        "บางตัวอ่านเฉพาะค่าจอใหญ่ จึงไม่มีทางได้ค่าจอเล็กเลย",
+        "<b>ความสูงโลโก้ footer มีผลบนมือถือแล้ว</b> — v3 เขียน <code>60px</code> เฉย ๆ ไม่ได้ระบุขนาดจอ "
+        "แปลว่าใช้ทุกจอ แต่เดิมใส่ให้เฉพาะจอใหญ่ มือถือเลยไปรับขนาดของธีมแทน · "
+        "ค่าที่ไม่ระบุขนาดจอ จะใส่ให้ทั้งสองจอเสมอ",
+        "<b>แท็บสินค้าไม่แสดง 8 คอลัมน์แล้ว</b> — <code>productLimit</code> ของ v3 คือ<b>จำนวนสินค้า</b> "
+        "ไม่ใช่จำนวนคอลัมน์ แต่เดิมเอาไปใช้เป็นทั้งสองอย่าง · section ที่ขอสินค้า 8 ชิ้นจึงเรียง 8 ชิ้นต่อแถว "
+        "ตอนนี้เกิน 5 จะตัดเป็นสองแถวแทน (8 → 4 · 10 → 5 · 6 → 3) ส่วนจำนวนสินค้ายังเท่าเดิม",
+    ]},
+    {"version": "1.62", "type": "fix", "date": "2026-10-02", "items": [
+        "<b>ทั้ง section จัดวางตรงกันแล้ว ไม่ใช่แค่หัวข้อ</b> — v3 เขียนการจัดวางไว้แยกกัน 3 ที่ "
+        "(หัวข้อ / คำอธิบาย / ปุ่ม) แต่ตอนแปลงอ่านแค่ของหัวข้อ · บล็อกที่ร้านตั้งให้อยู่กึ่งกลางทั้งก้อน "
+        "จึงออกมาหัวข้อกลางแต่เนื้อหาชิดซ้าย",
+        "<b>เนื้อความ</b> (<code>WidgetTextStack</code>) รับการจัดวางจาก <code>descriptionStyle</code> แล้ว — "
+        "<b>66 section</b> ในไฟล์ตัวอย่าง",
+        "<b>โลโก้</b> (<code>WidgetBrandInfo</code>) ตามการจัดวางของหัวข้อ เมื่อ v3 ไม่ได้ตั้งของตัวเองมา — "
+        "มันวางอยู่เหนือหัวข้อในคอลัมน์เดียวกัน",
+    ]},
+    {"version": "1.61", "type": "fix", "date": "2026-10-02", "items": [
+        "<b>ชื่อขนาดตัวอักษรย้ายไปอยู่ในตำแหน่งที่ v4 อ่านจริง</b> — ต้องเขียน <code>typoStyle</code> "
+        "ไว้<b>ข้างใน</b> <code>title</code> / <code>description</code> / <code>caption</code> "
+        "ไม่ใช่เขียนเป็น <code>titleTypoStyle</code> ที่ตัว widget (ตำแหน่งหลังเป็นของธีม ไม่ใช่ของ widget เดี่ยว ๆ)",
+        "<b>การจัดวางหัวข้อระบุครบทั้งจอเล็กและจอใหญ่แล้ว</b> — v3 มักตั้งมาข้างเดียว ที่ผ่านมาส่งต่อตามนั้น "
+        "ทำให้หัวข้อจัดวางตามที่ตั้งบนจอหนึ่ง แต่อีกจอไปรับค่าของธีม · ค่าเดียวของ v3 มีผลทุกขนาดจออยู่แล้ว",
+    ]},
+    {"version": "1.60", "type": "feat", "date": "2026-10-01", "items": [
+        "<b>ขนาดตัวอักษรที่ร้านตั้งเอง ถูกแปลงเป็นระบบ typo ของ v4 แล้ว</b> — v4 ไม่ได้ให้ใส่ px ตรง ๆ "
+        "แต่ให้เลือกจากขนาดที่ตั้งไว้ 10 แบบ (หัวข้อ 5 · เนื้อความ 5) ตอนนี้แต่ละ section จะได้ขนาดที่ใกล้ของเดิมที่สุด",
+        "<b>ปรับขนาดในระบบให้เข้ากับร้านด้วย</b> — รวบขนาดทั้งหมดที่ร้านใช้ จัดกลุ่มอันที่ใกล้กันจนแยกไม่ออก "
+        "แล้วตั้งค่าในช่องนั้นเป็นค่ากลาง · ร้านที่ตั้งหัวข้อไว้ 80px ก็จะได้ 80px จริง ๆ ไม่ใช่ถูกบีบลงมา",
+        "<b>ร้านที่ตั้งไว้แค่ 1-2 จุด จะไม่ไปขยับขนาดในระบบ</b> — แค่เลือกช่องที่ใกล้ที่สุดให้ "
+        "เพราะไม่กี่จุดยังไม่พอจะรื้อสเกลที่ทั้งเว็บใช้ร่วมกัน",
+        "เขียนเฉพาะขนาดจอใหญ่ (<code>lg</code>) — ไม่มีร้านไหนตั้งขนาดสำหรับมือถือมาเลย ปล่อยให้ธีมจัดการต่อ · "
+        "ช่องที่ร้านไม่ได้ใช้ก็ไม่แตะ",
+    ]},
+    {"version": "1.59", "type": "fix", "date": "2026-09-29", "items": [
+        "<b>หัวข้อที่ร้านพิมพ์ไว้หลายบรรทัด ขึ้นบรรทัดใหม่จริง ๆ แล้ว</b> — v3 เก็บเป็นข้อความธรรมดาที่มีการขึ้นบรรทัด "
+        "แต่ HTML ยุบให้เหลือช่องว่าง หัวข้อ 3 บรรทัดจึงออกมาเรียงต่อกันเป็นบรรทัดเดียว (<b>23 หัวข้อ</b> ในไฟล์ตัวอย่าง)",
+        "<b>ทำเฉพาะหัวข้อ</b> — คำอธิบายกับเนื้อความไม่แตะ เพราะการขึ้นบรรทัดในนั้นอาจเป็นแค่การเคาะในช่องพิมพ์ "
+        "ไม่ใช่เจตนาจะเว้นบรรทัด · และหัวข้อที่มี HTML ติดมาอยู่แล้วก็ข้ามไป (4 จาก 23)",
+    ]},
+    {"version": "1.58", "type": "fix", "date": "2026-09-29", "items": [
+        "<b>สไลด์ที่มีหลายภาพวนกลับมาเริ่มใหม่แล้ว</b> — v3 ไม่ได้เขียนค่านี้ลง JSON เพราะ slick ของมันวนอยู่แล้วโดยปริยาย "
+        "พอแปลงมา v4 จึงหยุดค้างที่ภาพสุดท้าย · <b>82 section</b> ในไฟล์ตัวอย่างเป็นแบบนี้ "
+        "และมีอันหนึ่งที่เล่นอัตโนมัติแล้ววิ่งไปตันอยู่ตรงนั้น",
+        "<b>สไลด์เต็มความกว้างที่ไม่มีข้อความทับรูป ไม่มีช่องว่างบน-ล่างแล้ว</b> — เดิมเช็คแค่เงื่อนไขเดียว "
+        "(ปิดการแสดงเนื้อหาสไลด์) ซึ่งเป็นแค่ 1 ใน 3 วิธีที่ v3 บอกว่า “ไม่มีอะไรทับรูป” · "
+        "สไลด์ที่เปิดเนื้อหาไว้แต่ไม่ได้ตั้งตำแหน่งข้อความ และไม่มีสไลด์ไหนใส่ข้อความเลย ก็นับด้วย "
+        "(อีก <b>12 section</b>)",
+        "ตอนนี้ทั้งช่องว่างบน-ล่างและการครอปรูป <b>ใช้คำตอบเดียวกัน</b> จึงขัดกันเองไม่ได้อีก",
+    ]},
+    {"version": "1.57", "type": "fix", "date": "2026-09-28", "items": [
+        "<b>ไม่ใส่สีตัวอักษรลงในแต่ละ item ของ feature section แล้ว</b> — v3 ตั้งสีไว้<b>ครั้งเดียว</b>ที่ระดับ section "
+        "แต่ตอนแปลงถูกก๊อปไปแปะทุก item (87 จุด ใน 11 section) · v4 ไม่แสดงให้เห็นว่า item นั้นมีสีกำกับพิเศษอยู่ "
+        "ดีไซเนอร์จึงเห็นตัวอักษรที่ไม่ยอมเปลี่ยนตามธีมโดยไม่รู้สาเหตุ · <b>ตอนนี้ปล่อยให้ธีมจัดการไปก่อน</b> "
+        "(สีของปุ่มไม่ถูกแตะ)",
+        "<b>ปุ่มที่ค้างมาจาก v3 ไม่โผล่มาแล้ว</b> — v3 เก็บค่าเดิมไว้ใน JSON ต่อแม้จะถอดตัวเลือกออกจากหน้าตั้งค่าแล้ว "
+        "(เผื่อสลับ preset กลับ) ทำให้โลโก้แบรนด์ 1 ใน 15 อันกลายเป็นอันเดียวที่มีปุ่ม · "
+        "กฎคือ <b>ค่าที่มีแค่ส่วนน้อยถือไว้ ส่วนใหญ่ไม่มี = ค่าค้าง</b> ไม่ใช่สิ่งที่ร้านตั้งใจ · "
+        "แถวที่ทุก item มีปุ่มเหมือนกันไม่ถูกแตะ",
+        "ถ้าค่าที่ค้างอยู่<b>เป็นลิงก์</b> จะไม่ทิ้ง แต่เอามาเป็นลิงก์ของ item นั้นแทน — "
+        "เพราะร้านพิมพ์ปลายทางลงในช่อง<i>ข้อความบนปุ่ม</i> ไม่มีที่อื่นเก็บไว้เลย",
+    ]},
+    {"version": "1.56", "type": "fix", "date": "2026-09-28", "items": [
+        "<b>footer มีระยะห่างบน-ล่าง-ซ้าย-ขวาของตัวเองแล้ว</b> — เดิมไม่ได้ระบุอะไรเลย ปล่อยให้ธีมตัดสิน "
+        "ซึ่งมีธีมของ v4 ที่ตั้งค่าพวกนี้เป็น <code>0</code> ทั้งหมด พอแปลงไปลงธีมนั้น โลโก้ชนขอบบน "
+        "ข้อความ copyright ชนขอบล่าง และเนื้อหาชนขอบซ้าย-ขวา",
+        "ใช้<b>ค่ามาตรฐานของ v4</b> (บน-ล่าง 32/36/48px · ซ้าย-ขวา 20/40px) ไม่ได้ใช้ตัวเลขของ v3 "
+        "เพราะ v3 แบ่งหน้าจอเป็น 4 ช่วงแต่ v4 มี 3 ช่วง ถ้าดึงมาตรง ๆ ต้องเดาวิธีจับคู่แล้วทิ้งไปหนึ่งช่วง",
+        "เขียนไว้ที่<b>ตัว section ของ footer เอง</b> ไม่ใช่ที่ตั้งค่ารวมของเว็บ — เป็นระยะของ footer โดยเฉพาะ "
+        "และ header ก็เก็บค่าของตัวเองแบบเดียวกันอยู่แล้ว",
+        "<b>วิดีโอใน feature section ได้สัดส่วน 16:9 แล้ว</b> — เดิมไม่ได้ระบุอะไรเลย ซึ่งไม่ได้แปลว่า “ตามต้นฉบับ” "
+        "แต่ไปรับค่าของ v4 ซึ่งเป็น <code>3 / 4</code> (แนวตั้ง) คลิปจึงถูกบีบจนผิดรูป · "
+        "v3 ไม่มีตัวเลือกครอปให้วิดีโออยู่แล้ว และ v4 เองก็ใช้ 16:9 กับวิดีโอพื้นหลังบนจอใหญ่",
+    ]},
+    {"version": "1.55", "type": "fix", "date": "2026-09-28", "items": [
+        "<b>ข้อความกลับมาอยู่กึ่งกลางตามที่ v3 วาดไว้</b> — v3 จัดกึ่งกลางให้ผ่าน CSS ของตัวเอง "
+        "ไม่ได้เขียนลงไปใน JSON เลย ส่วน v4 ตั้งค่าเริ่มต้นเป็นชิดซ้าย เวลาแปลงมาจึงเลื่อนไปซ้ายทั้งหน้าโดยไม่มีอะไรฟ้อง",
+        "<b>ข้อความใต้รูปใน feature section</b> — v3 จัดกึ่งกลางทุกรูปแบบ (<code>.linkFeature</code>) "
+        "ตอนนี้ระบุ <code>cardInfoAlignment</code> ให้แล้ว <b>167 widget</b> · "
+        "ยกเว้นที่ v3 ยกเว้นเอง: รูปแบบ “หัวข้อคอลัมน์” และปุ่มช่องทางขาย · "
+        "ถ้า v3 เขียน <code>left</code>/<code>right</code> ติดมาใน class ก็ใช้ค่านั้น (10 section)",
+        "<b>หัวข้อของ section สไลด์</b> — v3 จัดกึ่งกลางเช่นกัน ตอนนี้ระบุให้แล้ว <b>52 section</b> "
+        "ที่มีหัวข้อแต่ไม่ได้ตั้งการจัดวางมาเอง · ร้านที่ตั้งมาเองยังใช้ค่าของร้านเหมือนเดิม",
+        "<b>อ่านการจัดวางจากธีม v3 ของร้านมาตั้งให้ที่ระดับเว็บด้วย</b> — <b>11 ธีม</b> เขียนกฎคลุมทั้งเว็บไว้ "
+        "(8 ธีมกึ่งกลาง · 3 ธีมชิดซ้าย) ธีมที่เป็นกึ่งกลางจะได้ <code>colHorizontalAlign</code> ที่ <code>:root</code> ของไฟล์ร้าน "
+        "<b>โดยไม่สนว่าปลายทางจะเป็นธีมอะไรใน v4</b> เพราะเป้าหมายคือให้หน้าตาใกล้ของเดิม ไม่ใช่ตามธีมใหม่ · "
+        "<b>ธีมที่เป็นชิดซ้ายก็เขียนลงไปตรง ๆ เหมือนกัน</b> — ไม่เว้นไว้เฉย ๆ ทั้งที่ตรงกับค่าเริ่มต้นของ v4 "
+        "เพราะการไม่เขียน<b>ไม่ได้แปลว่าได้ค่าเริ่มต้นของ v4</b> แต่แปลว่าได้ค่าของธีม v4 ที่ปลายทาง "
+        "ซึ่ง 8 จาก 13 ธีมตั้งหัวข้อเป็นกึ่งกลางไว้ · 6 ไฟล์ที่ v3 เป็นชิดซ้ายจะพลิกเป็นกึ่งกลางทันทีที่ย้ายธีม",
+        "<b>สไลด์ที่ไม่มีข้อความบนรูป ไม่ถูกครอปอีกแล้ว</b> — เดิมดูแค่ธงระดับ section "
+        "แต่บางรูปแบบ (เช่น “Slider with Text”) วางหัวข้อไว้<b>คนละคอลัมน์</b>กับรูป ไม่ได้ทับรูป "
+        "ตอนนี้ดูด้วยว่ามีสไลด์ไหนใส่ข้อความมาจริงมั้ย ถ้าไม่มีก็ใช้ <code>full-image</code> (เห็นรูปเต็มใบ) · "
+        "13 section เคยโดนครอปทิ้งโดยไม่จำเป็น",
+    ]},
+    {"version": "1.54", "type": "fix", "date": "2026-09-25", "items": [
+        "<b>จำนวนสินค้าต่อแถวของ widget สินค้าแบบสไลด์ ตรงกับ v3 แล้ว</b> — เคยอ่าน "
+        "<code>productSlidesToShow</code> ซึ่งทดสอบแล้วว่า<b>ไม่มีผลอะไรกับการแสดงผลจริงใน v3</b> "
+        "ตัวที่กำหนดจำนวนจริงคือ <code>productBoxNumber</code> · สอง field นี้ตรงกันใน 24 section "
+        "และต่างกัน 5 section (ซึ่ง <code>productSlidesToShow</code> มากกว่าอยู่ 1 เสมอ) ทั้ง 5 ที่เคยแสดงเกินมา 1 ชิ้น ตอนนี้ถูกแล้ว",
+        "<b>เลิกส่ง <code>layoutGridCols</code> ให้ widget สินค้าแบบสไลด์</b> — v4 ใช้ "
+        "<code>slidesPerView</code> ตัดสินว่าเห็นกี่ชิ้น ค่านี้จึงไม่มีผล แถมค้างเป็นตัวเลขที่ขัดกันเองอยู่ในไฟล์ "
+        "(59 section) · แบบตารางปกติยังส่งเหมือนเดิม",
+        "<b>รูปหมวดหมู่กลับมาเป็นวงกลมตามธีมเดิม</b> — <b>9 ธีมของ v3 ใส่ขอบมนให้รูปใน section "
+        "“หมวดหมู่แบบกำหนดเอง”</b> (5 ธีมเป็นวงกลมเต็ม) แต่ v4 ไม่มีขอบมนเป็นค่าเริ่มต้น "
+        "รูปที่เคยเป็นวงกลมจึงกลายเป็นสี่เหลี่ยมโดยไม่มี error อะไรฟ้อง (18 section ใน 12 ไฟล์)",
+        "ใส่ให้<b>เฉพาะ section หมวดหมู่เท่านั้น</b> ตามที่ CSS ของ v3 เขียนไว้ — feature section อื่นในหน้าเดียวกัน "
+        "(เช่น แถวไอคอนติดต่อเรา) ยังเป็นสี่เหลี่ยมเหมือนเดิม · และบังคับสัดส่วน <code>1 / 1</code> ให้ด้วยเมื่อเป็นวงกลม "
+        "ไม่งั้นขอบมนบนกรอบ 3:4 จะออกมาเป็น<b>วงรี</b>",
+        "วงกลมเขียนเป็น <code>999px</code> ไม่ใช่ <code>50%</code> (v4 ไม่ใช้ <code>%</code> กับ radius) และเขียนทั้ง <code>xs</code> และ <code>lg</code>",
+    ]},
     {"version": "1.53", "type": "fix", "date": "2026-09-24", "items": [
         "<b>โลโก้ที่ร้านใส่เองใน section ไม่ถูกแทนด้วยโลโก้ร้านอีกแล้ว</b> — Headline และ ParagraphSection "
         "ที่ใส่รูปโลโก้ไว้ เคยแปลงออกมาโดยไม่ส่งรูปไปเลย ซึ่ง v4 จะเติมโลโก้ของร้านให้แทน "
@@ -1083,6 +1200,20 @@ def convert_bg_position(position_str: str) -> str:
     return position_str
 
 
+def _both_breakpoints(align: dict) -> dict:
+    """Give an alignment both `xs` and `lg`, from whichever one v3 stated.
+
+    v3 states one far more often than two, and a lone value applies at every
+    width in v3's own cascade -- so passing it through as-is leaves the other
+    width to the theme (user, 2026-10-02). Same rule as
+    `_headings_state_both_breakpoints`, applied where the value is built.
+    """
+    if not align:
+        return {}
+    only = align.get("xs") or align.get("lg") or align.get("md")
+    return {**{bp: only for bp in ("xs", "lg")}, **align}
+
+
 def convert_text_align(content_style: dict) -> dict:
     """
     Normalize two old forms of text alignment into new breakpoint format.
@@ -1184,13 +1315,28 @@ def _brand_info_info(props: dict) -> dict:
 
     text_align = {new: align[old] for old, new in _LOGO_BREAKPOINTS
                   if align.get(old)}
+    if not text_align:
+        # v3 has no alignment of its own for the logo. It sits directly above
+        # the heading in the same column, so the section's title alignment is
+        # what it follows -- a shop that centres its heading means the logo
+        # too (user, on a distributor block, 2026-10-02).
+        text_align = convert_text_align(props.get("titleStyle"))
     if text_align:
-        info["textAlign"] = text_align
+        info["textAlign"] = _both_breakpoints(text_align)
 
     for field, dim in (("mediaWidth", "width"), ("mediaHeight", "height")):
         got = {new: parse_size((size.get(old) or {}).get(dim))
                for old, new in _LOGO_BREAKPOINTS
                if (size.get(old) or {}).get(dim)}
+        # v3 can also state the size with no breakpoint at all --
+        # `logoStyle: {"height": "60px"}`. A value that names no width applies
+        # at every width, so it is written at both rather than only at `lg`,
+        # where the phone would fall back to the theme (user, 2026-10-02).
+        # Only the bare form is filled out to both widths. A v3 value that
+        # names a breakpoint is left exactly where it was put.
+        if not got and logo_style.get(dim):
+            bare = parse_size(logo_style[dim])
+            got = {"xs": bare, "lg": dict(bare)}
         if got:
             info[field] = got
     return info
@@ -1583,9 +1729,14 @@ def build_content_widgets(props: dict) -> list:
                 items.append({"itemType": "image", "image": img})
         buffer.clear()
 
+        if not alignment and extra:
+            # These items are the section's `description`, moved here by
+            # `_resolve_description` -- so they take `descriptionStyle`'s
+            # alignment, which no contentBlock was carrying for them.
+            alignment = convert_text_align(props.get("descriptionStyle"))
         info = {"items": items}
         if alignment:
-            info["alignment"] = alignment
+            info["alignment"] = _both_breakpoints(alignment)
         widgets.append(make_node("widget", "WidgetTextStack", None, info))
 
     for block in props.get("contentBlocks") or []:
@@ -2159,6 +2310,35 @@ def build_headline_section(props: dict) -> dict:
 # Section builder: SlideShowSection → Slider
 # ---------------------------------------------------------------------------
 
+def _slideshow_has_overlay(props: dict) -> bool:
+    """Is anything actually sitting ON the slideshow's picture?
+
+    v3 answers this with a class -- a slideshow with nothing over it is
+    `.onlySlideshow` -- and the JSON says it three ways at once, all of which
+    have to agree:
+
+    * `isShowSlideContent: false` -- v3 hides slide content entirely;
+    * `textPosition: ""` -- the position says no overlay (absent means
+      `"middle"`, which is one);
+    * **no slide carries text of its own** -- the flags cannot tell an overlay
+      from a heading standing BESIDE the slider, which is what "Slider with
+      Text" does.
+
+    Two things hang off this, and they have to use the same answer: the
+    slider's `variant` (`bg-image` crops to fill, `full-image` shows the whole
+    picture) and the section's vertical padding, which v3 zeroes for
+    `.onlySlideshow`.
+    """
+    if not props.get("isShowSlideContent"):
+        return False
+    # absent = "middle" (an overlay position); "" = explicitly none
+    if "textPosition" in props and not (props.get("textPosition") or ""):
+        return False
+    return any((slide.get("title") or slide.get("desc") or "").strip()
+               for slide in (props.get("slideObjects") or [])
+               if isinstance(slide, dict))
+
+
 def _slideshow_heading(props: dict) -> dict:
     """WidgetHeading for SlideShowSection — section-level title/description."""
     title_style = props.get("titleStyle") or {}
@@ -2187,6 +2367,30 @@ def _slideshow_heading(props: dict) -> dict:
     for old_bp, new_bp in (("sm", "xs"), ("xl", "lg"), ("md", "md")):
         if old_bp in title_align:
             alignment[new_bp] = title_align[old_bp]
+    if not alignment:
+        # v3 centres a slideshow's own text -- `.slideshow_section` centres
+        # `.sub-headline`, `.field-text`, `.buttonAlign` and
+        # `.slideshowButtonArea` in ContentSection.css, and the only way out is
+        # the `header_left` preset, which no real file uses. v4 Base leaves the
+        # heading at `left`, so 52 real sections with heading text and no stated
+        # alignment were switching sides (user, 2026-09-28). A stated
+        # `titleStyle.align` still wins -- all five that state one are here.
+        #
+        # The shop's THEME outranks that, the same way it does in v3's cascade:
+        # three of the eleven themes in `_V3_THEME_HEADING_ALIGN` say the whole
+        # site reads left, and centring their headings would be the same bug in
+        # the other direction.
+        #
+        # `left` is WRITTEN OUT, not left to the default. The first cut omitted
+        # it on the floor rule -- v4 Base is `left` already -- and that was
+        # wrong: silence does not get you Base, it gets you **the v4 theme the
+        # shop lands on**, and 8 of the 13 native themes set
+        # `.widget-heading { alignment: center }`. Six real files are on a
+        # `left` v3 theme, so they would have flipped to centre on arrival
+        # (user, 2026-09-28). Same trap as v1.48 and v1.51.
+        default = _V3_THEME_HEADING_ALIGN.get(_V3_THEME_ID) or "center"
+        if "header_left" not in (props.get("className") or "").split():
+            alignment = {"xs": default, "lg": default}
     if alignment:
         info["alignment"] = alignment
 
@@ -2278,7 +2482,16 @@ def _slideshow_widget(props: dict) -> dict:
     # content-off slider to the cropping variant. Two thirds of all real
     # SlideShowSections (100 of 150 across every demo + shop v3 file in the
     # repo) were being converted that way.
-    variant = "bg-image" if (is_show_content and text_position != "") else "full-image"
+    #
+    # And the flags are not enough on their own: a section can have
+    # `isShowSlideContent: true` with a `textPosition` and still put nothing on
+    # the picture, because in several presets ("Slider with Text" above all) the
+    # heading lives in its own column BESIDE the slider. So the last word is
+    # whether any slide actually carries text of its own. Checked on the live
+    # render for both shapes -- a side-by-side slider and a full-width hero
+    # banner -- and both should be `full-image` (user, 2026-09-28). 13 real
+    # sections were being cropped on the strength of a flag alone.
+    variant = "bg-image" if _slideshow_has_overlay(props) else "full-image"
 
     # Build slide items
     sliders = []
@@ -2390,6 +2603,17 @@ def _slideshow_widget(props: dict) -> dict:
         config["autoplaySpeed"] = autoplay_speed
     elif not has_arrows and not has_dots:
         config["isAutoplay"] = True
+
+    # A slider with more than one picture loops. v3 never writes this down --
+    # its slick wraps by default -- so v4 got a slider that stopped dead on the
+    # last slide, and 82 real sections were doing it (user, 2026-09-28). One of
+    # them was already autoplaying into that dead end, which is the shape the
+    # autoplay block above calls out and this makes impossible.
+    #
+    # `> 1` because a single-slide "slider" has nothing to wrap to.
+    if len([s for s in (props.get("slideObjects") or [])
+            if isinstance(s, dict)]) > 1:
+        config["isLoop"] = True
 
     if has_fade:
         config["effect"] = "fade"
@@ -2511,7 +2735,13 @@ def build_slideshow_section(props: dict) -> dict:
     # hand-corrected with no padding at all, so the designer leaves it to the
     # theme. The 40px and 80px values are both below Base's padding for their
     # breakpoint anyway (`feedback_v4_default_is_a_floor`).
-    if props.get("isShowSlideContent") is False and is_full_screen:
+    # **The same question as the variant**, not a narrower one. This used to
+    # test `isShowSlideContent is False`, which is only one of the three ways
+    # v3 says "nothing is over the picture" -- a full-width slider with content
+    # ON but an empty `textPosition` and no text on any slide is `.onlySlideshow`
+    # too, and it kept Base's 64/72/96px band (user, on a brand page,
+    # 2026-09-28). 12 more real sections.
+    if not _slideshow_has_overlay(props) and is_full_screen:
         # `xs` and `lg` only -- v4 cascades a breakpoint upward until the next
         # one overrides it, so `md` between two zeroes is noise (user,
         # 2026-09-22). Same shape as `containerPaddingX` above.
@@ -2565,7 +2795,14 @@ _CHANNEL_TABLE = {
 }
 
 
-def _feat_item(obj: dict, feat_style: dict) -> dict:
+#: A `featureButton` value that is really a URL -- v3's field is the button's
+#: LABEL, so this is a merchant typing in the wrong box.
+def _looks_like_a_url(text) -> bool:
+    text = (text or "").strip()
+    return text.startswith("/") or text.startswith("http")
+
+
+def _feat_item(obj: dict, feat_style: dict, keep_button: bool = True) -> dict:
     media_type = obj.get("mediaType", "image")
 
     # `mediaType: "none"` is v3's buy-channel item -- a coloured badge with the
@@ -2633,19 +2870,41 @@ def _feat_item(obj: dict, feat_style: dict) -> dict:
         item["isShowMedia"] = True
         item["image"] = img_obj
 
+    # **No per-item text colour.** v3 states it ONCE, on the section
+    # (`featureStyle.title.fontColor`), and the converter used to fan that one
+    # value onto every item -- 87 copies across the 11 real sections that set
+    # one. v4's editor does not show that an item carries a custom colour, so
+    # the designer sees text that will not respond to the theme and no reason
+    # why (user, 2026-09-28).
+    #
+    # Dropped rather than moved: the widget-level home for it is not settled
+    # (no v4 file in this repo sets a text colour on a `WidgetFeatureList`, and
+    # `.color-scheme-*` may be the real answer). The user is finding that out;
+    # until then the theme decides, which is at least legible. `featureStyle`'s
+    # BUTTON colours are untouched -- a button's colours are v4's to edit.
     if obj.get("title"):
-        t_style  = feat_style.get("title") or {}
-        t_obj    = {"text": obj["title"]}
-        if t_style.get("fontColor"):
-            t_obj["color"] = t_style["fontColor"].lower()
-        item["title"] = t_obj
+        item["title"] = {"text": obj["title"]}
 
     if obj.get("desc"):
-        d_style = feat_style.get("description") or {}
-        d_obj   = {"text": obj["desc"]}
-        if d_style.get("fontColor"):
-            d_obj["color"] = d_style["fontColor"].lower()
-        item["description"] = d_obj
+        item["description"] = {"text": obj["desc"]}
+
+    # A button the rest of the row does not have is v3 leaving a value behind
+    # when a setting was taken out of its editor, not the shop asking for one
+    # -- `keep_button` is False then. See `_feat_list_widget`.
+    #
+    # When that stale value is itself a URL, it is the one thing worth keeping:
+    # the merchant typed a destination into the LABEL box, so the item has a
+    # link and nothing else records it (user, 2026-09-28). It becomes the
+    # item's own `to`, and `_rewrite_showroom_links` then puts it into v4's URL
+    # grammar like any other -- `/search/tag/VENZ` → `/search?tag=VENZ`.
+    if obj.get("featureButton") and not keep_button:
+        if not obj.get("link") and _looks_like_a_url(obj["featureButton"]):
+            item["to"] = obj["featureButton"].strip()
+        elif obj.get("link"):
+            item["to"] = obj["link"]
+        if item.get("to") and obj.get("target"):
+            item["target"] = obj["target"]
+        return item
 
     if obj.get("featureButton"):
         btn_style = feat_style.get("button") or {}
@@ -2678,7 +2937,23 @@ def _feat_list_widget(props: dict) -> dict:
     class_tokens = set((props.get("className") or "").split())
     is_buy_ch    = bool(props.get("buyChannel"))
 
-    features = [_feat_item(obj, feat_style) for obj in feat_objects]
+    # v3 keeps a setting's value in the JSON after the setting itself is taken
+    # out of the editor, so switching a preset back would restore it. The cost
+    # is that a value nobody can see any more still converts: one item in a row
+    # of 15 brand logos carried a `featureButton` and came out as the only card
+    # with a button on it (user, on a /brand page, 2026-09-28).
+    #
+    # The rule is the shape of the row, not the field: **a setting only a
+    # MINORITY of the items carry, where the majority carry none, is stale.**
+    # Measured across every real file -- 18 sections use `featureButton` and
+    # exactly ONE of them uses it on only some of its items, which is that
+    # page. A row where every item has a button is untouched.
+    buttoned = [o for o in feat_objects
+                if isinstance(o, dict) and o.get("featureButton")]
+    stale_buttons = 0 < len(buttoned) * 2 < len(feat_objects)
+
+    features = [_feat_item(obj, feat_style, keep_button=not stale_buttons)
+                for obj in feat_objects]
 
     lg_cols = str(props.get("featureNumberInRow", 1))
     xs_cols = str(props.get("featureNumberMobileInRow", 1))
@@ -2692,14 +2967,44 @@ def _feat_list_widget(props: dict) -> dict:
         "layoutGridCols": {"lg": lg_cols, "xs": xs_cols},
     }
 
-    # isCropImage on any feature crops to square (1/1); otherwise (non-video) the
-    # image keeps its natural ratio — emit "auto" explicitly so it doesn't inherit
-    # a template default. Video features have no crop concept of their own, so when
-    # nothing sets isCropImage, mediaRatio is simply omitted rather than defaulted.
-    if has_crop:
+    # isCropImage on any feature crops to square (1/1); otherwise the image keeps
+    # its natural ratio -- "auto" explicitly, so it does not inherit a template
+    # default.
+    #
+    # A video is neither, and it is checked FIRST: **a video has no crop in v3
+    # at all** (user, 2026-09-28), so an `isCropImage` sitting on some image
+    # beside it says nothing about the clip and must not decide its shape.
+    # Leaving `mediaRatio` off does not mean "natural" either -- v4 Base gives a
+    # feature list `3 / 4`, so a 16:9 clip was being squeezed into a portrait
+    # box (user, on an About page). `16 / 9` is the shape a video actually is,
+    # and it is what v4 itself assumes on a desktop background video
+    # (`sectionBgVideoAspectRatio`). No real section mixes the two today.
+    if has_video:
+        info["mediaRatio"] = "16 / 9"
+    elif has_crop:
         info["mediaRatio"] = "1 / 1"
-    elif not has_video:
+    else:
         info["mediaRatio"] = "auto"
+
+    # v3 centres the text under EVERY feature item -- `.feature_section
+    # .linkFeature { text-align: center }` in ContentSection.css, with no preset
+    # qualifier on it -- while v4 Base defaults `Layout.Card.cardInfoAlignment`
+    # to `left`. So 141 of the 179 real sections were quietly switching sides
+    # (user, 2026-09-28). Set first so the presets below still win:
+    #
+    #   * buyChannel is left on purpose (a row-direction button, text beside
+    #     the icon),
+    #   * `f_titlecolumn_section` is the one preset v3 itself excludes --
+    #     `@media (min-width: 750px) … .sub-headline-text { text-align: left }`
+    #     -- so it keeps reading its own `featureStyle` and is left out here.
+    #
+    # v3 also carries a plain `left` / `right` / `center` token in `className`
+    # for the sections that opt out -- `.contentFlexSection .left {text-align:
+    # left}` and its two siblings. Ten real sections use one, all of them
+    # FeatureSection, all `left` or `right`; that token wins over the default.
+    if "f_titlecolumn_section" not in class_tokens:
+        stated = class_tokens & {"left", "right", "center"}
+        info["cardInfoAlignment"] = stated.pop() if stated else "center"
 
     if is_buy_ch:
         info["cardDirection"]      = "row"
@@ -2715,6 +3020,28 @@ def _feat_list_widget(props: dict) -> dict:
         info["cardInfoDistribute"] = "center"
     elif "f_iconcontact_section" in class_tokens:
         info["cardInfoAlignment"] = "center"
+
+    # Nine v3 themes round the custom-category image, five of them into a full
+    # circle, and v4 rounds nothing by default -- so the conversion squared off a
+    # row of circles with no error to show for it (user, on a plaza shop,
+    # 2026-09-25). The value is the theme's, the target is this one widget.
+    radius = (_V3_CATEGORY_IMAGE_RADIUS.get(_V3_THEME_ID)
+              if "f_custom_category_section" in class_tokens else None)
+    if radius:
+        is_round = radius.endswith("%")          # v3's 50% / 100% = a circle
+        # **No `%` on a v4 radius** (user, 2026-09-25): a circle is `999px`, big
+        # enough to round anything this widget can be. Both breakpoints are
+        # written -- v4 Base keys nothing here, and a lone `xs` is the trap that
+        # bit `cardRatio` in v1.51.
+        size = parse_size("999px") if is_round else parse_size(radius)
+        info["mediaBorderRadius"] = {"xs": size, "lg": dict(size)}
+        # A full-round radius on v4's 3:4 media box draws an ELLIPSE. v3 squares
+        # the image itself (`width: 120px; height: 120px`), so it has to bring
+        # `1 / 1` with it -- and `has_crop` cannot be relied on to have done it,
+        # since most of these items never set `isCropImage`. A px radius is fine
+        # on any shape and must NOT force a ratio.
+        if is_round:
+            info["mediaRatio"] = "1 / 1"
 
     return make_node("widget", "WidgetFeatureList", None, info)
 
@@ -2925,7 +3252,17 @@ def _to_int(value, default=None):
 def _product_slide_config(props: dict, layout_type: str) -> dict:
     config = {}
 
-    slides_per_view = props.get("productSlidesToShow") or props.get("productBoxNumber") or 5
+    # `productBoxNumber`, NOT `productSlidesToShow`. The user tested both against
+    # v3's live render (2026-09-25): `productSlidesToShow` changes nothing on this
+    # widget -- the count that actually shows is `productBoxNumber`. The two agree
+    # on 24 of the 28 real slick sections and disagree on 4, where slidesToShow is
+    # always exactly one MORE (4/3, 5/4, 4/3, 5/4), which reads like v3 counting a
+    # half-visible peek slide. `productSlidesToShow` is still read as a *signal*
+    # that a section is a slider (see `_product_layout_type`), and as a last
+    # resort for the handful of sections that send it with no `productBoxNumber`
+    # at all -- there its number is the only one on offer.
+    slides_per_view = (props.get("productBoxNumber")
+                       or props.get("productSlidesToShow") or 5)
     config["slidesPerView"] = _to_int(slides_per_view, 5)
 
     has_pagination = props.get("hasDots", False)
@@ -3009,9 +3346,13 @@ def _product_widget_media_banner(props: dict) -> dict:
 def _product_widget_product_list(props: dict, layout_type: str, is_slick: bool) -> dict:
     product_box = props.get("productBoxNumber") or 5
 
-    cols = {"lg": str(product_box)}
-    if not (is_slick and layout_type != "none"):
-        cols["xs"] = "1"
+    # A slider takes its visible count from `slideConfig.slidesPerView`; v4 ignores
+    # `layoutGridCols` there, so writing one said 3 while the widget showed 4 and
+    # left the two disagreeing in the file (user, 2026-09-25). Grid layouts still
+    # get it.
+    cols = None
+    if not is_slick:
+        cols = {"lg": str(product_box), "xs": "1"}
 
     api_opts      = _product_api_options(props.get("apiOptions") or {})
     is_overflow_x = not (is_slick and layout_type != "none")
@@ -3023,11 +3364,12 @@ def _product_widget_product_list(props: dict, layout_type: str, is_slick: bool) 
         layout_grid["slideConfig"] = _product_slide_config(props, layout_type)
 
     info = {
-        "layoutGridCols": cols,
         "productNumber":  _to_int(props.get("productNumber"), 0),
         "apiOptions":     api_opts,
         "layoutGrid":     layout_grid,
     }
+    if cols is not None:
+        info = {"layoutGridCols": cols, **info}
 
     api_value = (props.get("apiOptions") or {}).get("value") or {}
     if api_value.get("is_showonlymain"):
@@ -3300,6 +3642,26 @@ def _producttab_layout(props: dict):
     return "default", "above", distribute
 
 
+#: Above this many columns a product grid is not a grid any more -- v3 never
+#: sets a ProductTab wider than 5 (user, 2026-10-02), and the real files agree:
+#: 39 of the 46 sections ask for 5 or fewer.
+_PRODUCTTAB_MAX_COLS = 5
+
+
+def _producttab_cols(product_limit: int) -> int:
+    """How many across, from v3's `productLimit`.
+
+    `productLimit` is **how many products to show**, and the converter used it
+    for the column count too -- so a section asking for 8 products came out 8
+    across, which on a phone is unreadable. Above the cap it becomes two rows:
+    8 → 4, 10 → 5, 6 → 3 (user gave the 8 → 4 case; halving is what makes it
+    land there and keeps every real value inside the cap).
+    """
+    if not isinstance(product_limit, int) or product_limit <= _PRODUCTTAB_MAX_COLS:
+        return product_limit
+    return round(product_limit / 2)
+
+
 def _producttab_widget(props: dict) -> dict:
     product_limit = props.get("productLimit", 4)
     template, placement, distribute = _producttab_layout(props)
@@ -3307,7 +3669,7 @@ def _producttab_widget(props: dict) -> dict:
     tabs = [_producttab_build_tab(t) for t in (props.get("tabProductObjects") or [])]
 
     tab_info = {
-        "layoutGridCols": {"lg": product_limit},
+        "layoutGridCols": {"lg": _producttab_cols(product_limit)},
         "template":       template,
         "tabs":           tabs,
         "productNumber":  product_limit,
@@ -3549,7 +3911,7 @@ def build_slidetextsection_section(props: dict) -> dict:
     widget_info = {
         "messages": [{"title": title_obj}],
         "marqueeTextDuration": {
-            "sm": {"value": dur_val, "unit": "s"},
+            "xs": {"value": dur_val, "unit": "s"},
             "lg": {"value": dur_val, "unit": "s"},
         },
     }
@@ -4545,7 +4907,11 @@ def _footer_brand_info(props: dict) -> dict:
             info["image"] = {"src": props["logo"]}
         height = (props.get("logoStyle") or {}).get("height")
         if height:
-            info["mediaHeight"] = {"lg": parse_size(height)}
+            # v3 states the footer logo's height with no breakpoint at all, so
+            # it applies at every width. Written at both, or the phone falls
+            # back to the theme's own logo size (user, 2026-10-02).
+            size = parse_size(height)
+            info["mediaHeight"] = {"xs": size, "lg": dict(size)}
     else:
         if props.get("title"):
             info["title"] = {"text": props["title"]}
@@ -4559,7 +4925,7 @@ def _footer_nav_list(navs: list, title: str) -> dict:
         "navs": navs,
         "title": {"text": title},
         "type": "list",
-        "textAlign": {"sm": "left", "lg": "left"},
+        "textAlign": {"xs": "left", "lg": "left"},
     })
 
 
@@ -4567,7 +4933,7 @@ def _footer_account_nav() -> dict:
     return make_node("widget", "WidgetNavList", None, {
         "preset": "account",
         "type": "list",
-        "textAlign": {"sm": "left", "lg": "left"},
+        "textAlign": {"xs": "left", "lg": "left"},
         "title": {"text": "บัญชีของฉัน"},
     })
 
@@ -4591,7 +4957,7 @@ def _footer_contact_info(props: dict, preset: int) -> dict:
     info: dict = {"contactTitle": "ติดต่อเรา"}
     if preset == 2:
         info["contactLinkVariant"] = "accent"
-    info["webContactDistribute"] = {"sm": "flex-start", "lg": "flex-start"}
+    info["webContactDistribute"] = {"xs": "flex-start", "lg": "flex-start"}
     info["isShowAddress"] = has_address
     info["isShowWebInfo"] = False
     info["isShowSocial"] = False
@@ -4921,6 +5287,35 @@ def _footer_preset3(props: dict) -> dict:
                      [row1, row2, _footer_copyright_row(props)])
 
 
+#  v4 Base's own footer padding, restated on the footer section.
+#:
+#: Normally a value equal to Base is not worth writing -- see the floor rule --
+#: but the floor is only a floor when nothing sits between it and the page. A
+#: v4 THEME does: `alphafit` sets all three of these to `0`, so a converted
+#: footer landed on it with its logo against the top edge, its copyright
+#: against the bottom, and its content against both sides (user, 2026-09-25).
+#:
+#: **v4 Base's numbers, not v3's** (user, 2026-09-28). v3 draws the footer at
+#: `30px 0 60px` under 1000px and `40px 0 10px` above it (`Global.css`,
+#: `.pageZone.footerLayout .detailArea`, and no theme overrides the vertical),
+#: but v3 has four breakpoints where v4 has three and the `lg` one would have
+#: to be dropped. Taking Base's numbers avoids inventing that mapping and
+#: lands on the platform's own standard. The horizontal is per-theme in v3
+#: (`--containerFooterPadding`, 20 themes override it) and is NOT carried here
+#: for the same reason.
+def _footer_padding() -> dict:
+    """A fresh copy each call -- these end up inside a mutable node."""
+    vertical = lambda: {"xs": {"value": 32, "unit": "px"},
+                        "md": {"value": 36, "unit": "px"},
+                        "lg": {"value": 48, "unit": "px"}}
+    return {
+        "footerPaddingTop":       vertical(),
+        "footerPaddingBottom":    vertical(),
+        "footerContainerPaddingX": {"xs": {"value": 20, "unit": "px"},
+                                    "lg": {"value": 40, "unit": "px"}},
+    }
+
+
 def build_footer_section(props: dict) -> dict:
     """Convert FooterSection props → v4 footer_zone node."""
     preset_id = props.get("presetId", 1)
@@ -4930,6 +5325,9 @@ def build_footer_section(props: dict) -> dict:
         section = _footer_preset3(props)
     else:
         section = _footer_preset1(props)
+    # On the section, not `:root` -- it is the footer's own spacing, and the
+    # header already carries `headerContainerPaddingX` the same way.
+    section["info"] = {**_footer_padding(), **(section.get("info") or {})}
     footer_zone = make_node("page", "footer", "Footer", {})
     footer_zone["children"] = [section]
     return footer_zone
@@ -10656,6 +11054,38 @@ def convert_global(site_json: dict, warnings: list = None, *,
         # Google fonts are dropped (see _resolve_font_family), so the manifest is
         # always empty; the key is still emitted to match the v4 shape.
         info["fontManifest"] = {}
+    # ── The theme's own site-wide heading alignment → :root ──
+    # Eleven v3 themes state a blanket rule on the bare `.headline`, which is
+    # the theme saying the whole site reads that way. It is written **whatever
+    # v4 theme the shop ends up on** (user, 2026-09-28), because the point is
+    # to reproduce the v3 site, not to agree with the new theme.
+    #
+    # **Both verdicts are written, `left` included.** An earlier cut skipped
+    # `left` on the floor rule -- it matches v4 Base's `{xs: "start"}` -- and
+    # that was wrong for the same reason everywhere else in this file: an
+    # omitted key does not fall through to Base, it falls through to the v4
+    # theme, and most native themes centre. `left` maps to `start`, which is
+    # this token's own vocabulary.
+    _ALIGN_TO_FLEX = {"center": "center", "left": "start", "right": "end"}
+    theme_align = _ALIGN_TO_FLEX.get(
+        _V3_THEME_HEADING_ALIGN.get(cfg.get("currentTheme")))
+    if theme_align:
+        root["colHorizontalAlign"] = {"xs": theme_align, "lg": theme_align}
+
+    # ── Typo slots the shop's own sizes earned ──
+    # A slot is written only when the shop states enough sizes to be re-cutting
+    # the scale and its group's size differs from Base; the rest are left for
+    # the theme. `lg` only -- see `_TYPO_BASE_LG`. The bold twin shares the
+    # block, so one entry sets both.
+    for (family, slot), size in sorted(_typo_plan(cfg).get("sizes", {}).items()):
+        name = f"typo_{family}_{slot}"
+        rem = round(size / 16, 4)
+        style[f".{name}, .{name}_bold"] = {
+            # a whole number stays an int, as v4's own files write it
+            "fontSize": {"lg": {"value": int(rem) if rem == int(rem) else rem,
+                                "unit": "rem"}}
+        }
+
     if root:
         # :root always sits at the top of style, above any component selectors.
         style = {":root": root, **style}
@@ -11590,6 +12020,230 @@ _SHOWROOM_SLUG_RE = re.compile(
 # length of one run; nothing else touches it, and Pyodide is single-threaded.
 _GENERATE_CUSTOM_PAGES = True
 
+# ---------------------------------------------------------------------------
+# Shop-level typography — fitting v4's ten typo slots to the sizes a shop
+# actually states.
+# ---------------------------------------------------------------------------
+#
+# v4 holds five heading sizes and five paragraph sizes; a widget picks one by
+# name (`titleTypoStyle`). v3 has no such scale -- a shop states a px size per
+# section, and its THEME states more per section class. So the conversion is a
+# fit, not a lift (user, 2026-10-01): collect the sizes the shop uses, group
+# the ones that are too close to tell apart, and hand each group the slot it
+# sits nearest -- moving that slot's size only when the shop gives enough
+# evidence to justify it.
+#
+# **`lg` only** (user, 2026-10-01). All 173 sizes in the real files are stated
+# at v3's `xl`, which is v4's `lg`; not one shop sets a mobile size. Writing an
+# `xs` would be inventing one, and the theme's own mobile rhythm is the better
+# answer.
+#
+# v4 Base's `lg` sizes, in px at a 16px root. These are the anchors a group is
+# measured against, and the floor a slot keeps when the shop says nothing.
+_TYPO_BASE_LG = {
+    "heading":   {"xsmall": 16, "small": 20, "medium": 28, "large": 38, "xlarge": 64},
+    "paragraph": {"xsmall": 12, "small": 14, "medium": 16, "large": 20, "xlarge": 24},
+}
+_TYPO_STEPS = ("xsmall", "small", "medium", "large", "xlarge")
+
+#: Below this many stated sizes a shop only picks slots -- it never moves one
+#: (user, 2026-10-01). One or two sections are not enough to re-cut a scale the
+#: whole site shares.
+_TYPO_MIN_EVIDENCE = 3
+
+
+def _typo_px(value):
+    """A v3 font size as px. v3's root is 62.5%, so its `rem` is 10px."""
+    if isinstance(value, (int, float)):
+        value = f"{value}px"
+    if not isinstance(value, str):
+        return None
+    match = re.match(r"([\d.]+)\s*(rem|px|em)?$", value.strip())
+    if not match:
+        return None
+    number = float(match.group(1))
+    unit = match.group(2) or "px"
+    size = round(number * 10) if unit in ("rem", "em") else round(number)
+    return size if 8 <= size <= 200 else None
+
+
+def _typo_sizes(site_json: dict) -> dict:
+    """Every font size the shop states by hand, counted, split by family.
+
+    Titles belong to the heading family and descriptions to the paragraph one,
+    which is how v4's own themes assign them.
+    """
+    found = {"heading": {}, "paragraph": {}}
+
+    def note(family, size):
+        if size:
+            found[family][size] = found[family].get(size, 0) + 1
+
+    def read_style(style, family):
+        if not isinstance(style, dict):
+            return
+        size = style.get("fontSize")
+        if isinstance(size, dict):
+            for value in size.values():
+                note(family, _typo_px(value))
+        else:
+            note(family, _typo_px(size))
+
+    def walk(node):
+        if isinstance(node, dict):
+            name = node.get("name")
+            if isinstance(name, str) and name in SECTION_BUILDERS:
+                props = node.get("props") or {}
+                read_style(props.get("titleStyle"), "heading")
+                read_style(props.get("descriptionStyle"), "paragraph")
+                return
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+
+    walk(site_json)
+    return found
+
+
+def _typo_group(counts: dict, limit: int = 5) -> list:
+    """Collapse sizes until `limit` groups remain, closest RATIO pair first.
+
+    Ratio, not px: v4's own scale is near-linear through the body sizes and
+    close to exponential through the headings, so 2px is a real difference at
+    14px and noise at 60px. Each group's size is its weighted mean, rounded --
+    the whole number nearest the middle of what the shop actually used.
+    """
+    groups = [[size] for size in sorted(counts)]
+    while len(groups) > limit:
+        tightest = min(range(len(groups) - 1),
+                       key=lambda i: max(groups[i + 1]) / max(groups[i]))
+        groups[tightest] = groups[tightest] + groups[tightest + 1]
+        del groups[tightest + 1]
+    out = []
+    for group in groups:
+        weight = sum(counts[size] for size in group)
+        centre = round(sum(size * counts[size] for size in group) / weight)
+        out.append({"centre": centre, "sizes": group, "weight": weight})
+    return out
+
+
+def _typo_assign(groups: list, family: str) -> list:
+    """Give each group a slot: the ordered set of slots with the least error.
+
+    Ordered and distinct, so the names keep meaning -- a shop's smallest text
+    cannot land in `xlarge`. Greedy nearest-slot does not work: it spends a
+    middle slot early and then has nowhere to put the three sizes above it.
+    With at most five groups the search is a handful of combinations.
+    """
+    base = _TYPO_BASE_LG[family]
+    best = None
+    for combo in itertools.combinations(_TYPO_STEPS, len(groups)):
+        error = sum(g["weight"] * abs(math.log(g["centre"] / base[slot]))
+                    for g, slot in zip(groups, combo))
+        if best is None or error < best[0]:
+            best = (error, combo)
+    return [dict(g, slot=slot) for g, slot in zip(groups, best[1])]
+
+
+def _typo_plan(site_json: dict) -> dict:
+    """What this shop's typography becomes: slot per size, and sizes to move.
+
+    `lookup[(family, px)]` is the slot name a widget stating that size should
+    pick. `sizes[(family, slot)]` is a slot whose size the shop earned the
+    right to change -- absent when Base already matches, or when the shop
+    states too few sizes to be re-cutting a scale at all.
+    """
+    plan = {"lookup": {}, "sizes": {}}
+    for family, counts in _typo_sizes(site_json).items():
+        if not counts:
+            continue
+        groups = _typo_assign(_typo_group(counts), family)
+        enough = sum(counts.values()) >= _TYPO_MIN_EVIDENCE
+        for group in groups:
+            for size in group["sizes"]:
+                plan["lookup"][(family, size)] = group["slot"]
+            base = _TYPO_BASE_LG[family][group["slot"]]
+            if enough and group["centre"] != base:
+                plan["sizes"][(family, group["slot"])] = group["centre"]
+    return plan
+
+
+# The plan for the site being converted, set by `convert_site` for one run --
+# the same lifetime and the same reason as `_V3_THEME_ID` below.
+_TYPO_PLAN = None
+
+# The shop's v3 theme id (`currentTheme`), for the handful of rules whose answer
+# lives in the theme's CSS rather than in the section's own props. Set by
+# `convert_site` for the length of one run, exactly like the flag above; `None`
+# in single-section mode, where no theme is on offer and those rules stay quiet.
+_V3_THEME_ID = None
+
+#: What the shop's v3 THEME says about heading alignment, site-wide.
+#:
+#: Most themes say nothing and leave it to the section stylesheets (slideshow
+#: centres, product is left -- see `_slideshow_heading` and `_feat_list_widget`).
+#: These eleven state a blanket rule on the bare `.headline` / `.headline-text`
+#: with no section qualifier, which is the theme saying "the whole site reads
+#: this way" -- so it outranks the per-section default, exactly as it does in
+#: v3's own cascade.
+#:
+#: Derived with `tools/scan_nested_css.py` over `v3/themes/theme-*.partial.css`:
+#: a `text-align` on `.headline`/`.headline-text` whose selector carries no
+#: section-level qualifier. A page-level scope (`.frontPage`, `.frontBodyZone`)
+#: still counts -- it is the shop's own front page either way.
+#:
+#: **Embedded** for the usual reason: `convert_site` runs in the browser with no
+#: `v3/` to read (as `_THEME_CONTENT_DARKMODE_ALT`, v1.45).
+#:
+#: `left` entries are kept even though they match v4 Base's default, because
+#: they still have to *suppress* the centring default the section stylesheets
+#: would otherwise give a slideshow heading.
+_V3_THEME_HEADING_ALIGN = {
+    "x_bluehorizon":  "center",   # .headline / .headline-text
+    "x_borsa":        "center",
+    "x_ceramicstore": "center",
+    "x_denim_fw":     "left",     # .frontBodyZone .headline, .headline-text
+    "x_downtown":     "center",
+    "x_elite":        "center",   # h2.headline / .headline-text
+    "x_futuristic":   "left",     # .headline-text (+ .darkMode)
+    "x_oasis":        "left",     # .frontPage .headline, .headline-text
+    "x_optic":        "center",
+    "x_pottery":      "center",
+    "x_void":         "center",   # .frontPage h2.headline
+}
+
+#: v3 themes that round the custom-category feature image, and the radius their
+#: own CSS gives it:
+#:
+#:     .f_custom_category_section ... img { border-radius: <value> }
+#:
+#: Read off `v3/themes/theme-<id>.partial.css` with `tools/scan_nested_css.py`
+#: (the rule is nested, so a flat regex misses it); the two `var()` values
+#: resolve from the theme's own palette partial -- `--border-radius: 2px` and
+#: `--radius-md: 8px`.
+#:
+#: **Embedded, not derived.** `convert_site` runs in the browser through Pyodide
+#: with no `v3/` to read, the same reason `_THEME_CONTENT_DARKMODE_ALT` is
+#: embedded (v1.45). v3's CSS is frozen, so it cannot go stale.
+#:
+#: Scope matters and is narrow: every one of these rules is written against
+#: `.f_custom_category_section` alone. A shop's OTHER feature sections -- the
+#: icon-contact row most of all -- are square in v3 and must stay square, which
+#: is why this is a per-widget value and not a `.widget-feature-list` block.
+_V3_CATEGORY_IMAGE_RADIUS = {
+    "x_bluehorizon": "2px",    # var(--border-radius)
+    "x_cozy":        "8px",    # var(--radius-md)
+    "x_cozy_fw":     "8px",    # var(--radius-md)
+    "x_mystorage":   "100%",
+    "x_optic":       "50%",
+    "x_orderly":     "100%",
+    "x_plaza":       "50%",
+    "x_wichittra":   "50%",
+    "x_writenow":    "50%",
+}
+
 
 def _rewrite_showroom_link(link: str) -> str:
     """`/showroom/<...>/<slug>` → the v4 category URL, when the slug is known.
@@ -11824,6 +12478,161 @@ def _showroom_links(node, found=None) -> set:
     return found
 
 
+#: Any HTML tag. A title that already carries markup is left alone -- v3 stores
+#: those with their own `<div>`/`<p>`, and the newlines in them are source
+#: whitespace, not line breaks the merchant asked for.
+_ANY_TAG_RE = re.compile(r"<[a-zA-Z/!]")
+
+
+def _headings_keep_line_breaks(section: dict) -> int:
+    """Turn a heading TITLE's newlines into `<br/>`, in place. Returns the count.
+
+    v3 stores a multi-line heading as plain text with `\n` in it, and HTML
+    collapses that to a space -- so a title the shop wrote on three lines came
+    out on one (user, on a brand page, 2026-09-29). **23 real titles.**
+
+    `<br/>` is the right target, not a guess: one shop's v3 title already
+    carries `<br/>` (with `isTitleHtml`), the converter passes it through, and
+    the hand-corrected v4 export keeps it byte for byte -- so v4 renders it.
+
+    **Titles only.** A `description` or a `TextStack` item is prose, where a
+    newline is as likely to be soft wrapping in the admin box as an intended
+    break; hardening those into `<br/>` could look worse than the space does.
+    Body copy already has a better mechanism -- v1.21 splits a plain-text
+    description into separate paragraphs -- and the hand-corrected exports
+    leave `\n` in descriptions alone, which is the designer answering the same
+    question. 48 of the 71 newlines in the output are deliberately left.
+
+    A title that already contains markup is skipped: 4 of the 23 are `<div>` or
+    `<p>` blocks whose newlines are source formatting.
+    """
+    count = 0
+
+    def walk(node):
+        nonlocal count
+        if isinstance(node, dict):
+            if node.get("kind") == "WidgetHeading":
+                title = (node.get("info") or {}).get("title")
+                if isinstance(title, dict) and isinstance(title.get("text"), str):
+                    text = title["text"]
+                    if "\n" in text and not _ANY_TAG_RE.search(text):
+                        # Collapse the whitespace around the break too, or the
+                        # rendered line starts with a stray space.
+                        title["text"] = re.sub(r"[ \t]*\n[ \t]*", "<br/>",
+                                               text.strip())
+                        count += 1
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+
+    walk(section)
+    return count
+
+
+def _apply_typo_slots(section: dict, props: dict) -> int:
+    """Name the typo slot a heading should use, from the size v3 states.
+
+    `titleStyle.fontSize` / `descriptionStyle.fontSize` are per-section px
+    values; `_TYPO_PLAN` has already decided which of v4's ten slots each one
+    belongs to for this shop. The title takes the `_bold` twin, as every v4
+    native theme does for a heading.
+
+    Only the `WidgetHeading`s built from these props are touched, and only
+    when the shop actually stated a size -- a section that said nothing keeps
+    whatever the theme gives it.
+    """
+    pairs = []
+    for key, family, part in (("titleStyle", "heading", "title"),
+                              ("descriptionStyle", "paragraph", "description"),
+                              ("captionStyle", "paragraph", "caption")):
+        style = props.get(key)
+        if not isinstance(style, dict):
+            continue
+        size = style.get("fontSize")
+        values = list(size.values()) if isinstance(size, dict) else [size]
+        for value in values:
+            px_value = _typo_px(value)
+            slot = _TYPO_PLAN["lookup"].get((family, px_value)) if px_value else None
+            if slot:
+                pairs.append((part, f"typo_{family}_{slot}"))
+                break
+    if not pairs:
+        return 0
+
+    count = 0
+
+    def walk(node):
+        nonlocal count
+        if isinstance(node, dict):
+            if node.get("kind") == "WidgetHeading":
+                info = node.setdefault("info", {})
+                for part, name in pairs:
+                    # `typoStyle` sits INSIDE the part it styles -- `title`,
+                    # `description`, `caption` -- not as a `titleTypoStyle` on
+                    # the widget (user, 2026-10-02). The widget-level spelling
+                    # is the THEME's, in `info.Widget.Heading`; an instance
+                    # says it on the part.
+                    target = info.get(part)
+                    if isinstance(target, dict) and "typoStyle" not in target:
+                        target["typoStyle"] = name
+                        count += 1
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+
+    walk(section)
+    return count
+
+
+#: Alignment keys that must name both widths. `alignment` is a heading's text
+#: alignment; `widgetAlignSelf` places the widget itself, and eight builders
+#: compute one -- several reading only `xl`/`md`, so they could never produce
+#: an `xs` at all.
+_BOTH_BREAKPOINT_KEYS = ("alignment", "widgetAlignSelf")
+
+
+def _headings_state_both_breakpoints(section: dict) -> int:
+    """Alignment keys name `xs` AND `lg`, in place.
+
+    v3 states one breakpoint far more often than two -- `titleStyle.align.xl`
+    alone, or `.sm` alone -- and the converter passed that straight through,
+    leaving a widget aligned at one width and inheriting the theme at the
+    other. Both are written now (user, 2026-10-02); a single v3 value applies
+    at every width in v3's own cascade anyway.
+
+    A post-pass, because the builders that construct these are spread across
+    the file and some cannot reach `xs` from the breakpoints they read.
+    """
+    count = 0
+
+    def walk(node):
+        nonlocal count
+        if isinstance(node, dict):
+            if node.get("type") == "widget":
+                info = node.get("info") or {}
+                for key in _BOTH_BREAKPOINT_KEYS:
+                    align = info.get(key)
+                    if not isinstance(align, dict) or not align:
+                        continue
+                    only = align.get("xs") or align.get("lg") or align.get("md")
+                    for bp in ("xs", "lg"):
+                        if bp not in align:
+                            align[bp] = only
+                            count += 1
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+
+    walk(section)
+    return count
+
+
 def _drop_empty_headings(section: dict) -> int:
     """Remove `WidgetHeading`s that carry no text, in place. Returns the count.
 
@@ -11961,6 +12770,18 @@ def convert_section(old_json: dict, warnings: list = None) -> dict:
     # `_drop_empty_headings` for why this is a post-pass and not a builder fix.
     if result is not None:
         _drop_empty_headings(result)
+    # A heading v3 wrote on three lines renders on one, because HTML collapses
+    # the newlines. Cross-cutting, so a post-pass like the one above.
+    if result is not None:
+        _headings_keep_line_breaks(result)
+    # The size the shop typed becomes a slot NAME on the widget, not a number:
+    # v4 sets type by picking one of ten named sizes, and a number pinned here
+    # would ignore the theme for ever. See `_typo_plan`.
+    if result is not None and _TYPO_PLAN:
+        _apply_typo_slots(result, props)
+    # A heading aligned at one width only inherits the theme at the other.
+    if result is not None:
+        _headings_state_both_breakpoints(result)
     return result
 
 
@@ -12819,13 +13640,19 @@ def convert_site(site_json: dict, warnings: list = None,
     With it off the showroom links stay exactly as v3 wrote them and each one is
     reported as `kind: "dead-link"` instead (user, 2026-09-10).
     """
-    global _GENERATE_CUSTOM_PAGES
+    global _GENERATE_CUSTOM_PAGES, _V3_THEME_ID, _TYPO_PLAN
     _previous = _GENERATE_CUSTOM_PAGES
+    _previous_theme = _V3_THEME_ID
+    _previous_typo = _TYPO_PLAN
     _GENERATE_CUSTOM_PAGES = generate_pages
+    _V3_THEME_ID = site_json.get("currentTheme")
+    _TYPO_PLAN = _typo_plan(site_json)
     try:
         return _convert_site(site_json, warnings, generate_pages)
     finally:
         _GENERATE_CUSTOM_PAGES = _previous
+        _V3_THEME_ID = _previous_theme
+        _TYPO_PLAN = _previous_typo
 
 
 def _convert_site(site_json: dict, warnings: list, generate_pages: bool) -> list:
