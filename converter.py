@@ -26,7 +26,7 @@ from urllib.parse import quote, unquote
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.64"
+__version__ = "1.67"
 LAST_UPDATED = "2026-10-02"
 
 # Short summary of what the converter handles — shown in the browser popup.
@@ -41,6 +41,37 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.67", "type": "fix", "date": "2026-10-02", "items": [
+        "<b>ปุ่มใน section สไลด์อยู่กึ่งกลางแล้ว</b> — v3 จัดกึ่งกลางให้ผ่าน CSS เหมือนหัวข้อ "
+        "แต่ไม่ได้เขียนลงไฟล์ · ตั้งที่ตัว widget เลย ไม่ไปแตะคอลัมน์หรือค่ารวม",
+        "<b>แถวโลโก้แบรนด์ไม่มีคำบรรยายใต้รูปแล้ว</b> — v3 มีสวิตช์ <code>isShowFeatureContent</code> "
+        "สำหรับบอกว่า “เอาแค่รูป ไม่เอาข้อความ” ซึ่งไม่เคยถูกอ่านเลย · <b>16 section</b> จึงมีข้อความโผล่มาใต้รูปทุกอัน "
+        "ทั้งที่ v3 ไม่ได้วาด · ชื่อยังอยู่ในรูปแบบ alt ของรูปเหมือนเดิม",
+        "<b>เมกะเมนูหมวดหมู่เรียง 6 คอลัมน์ตาม v3</b> — เดิมฮาร์ดโค้ดไว้ 4 ซึ่งไม่ได้อ้างอิงอะไรทั้งจาก v3 และ v4 · "
+        "v3 ล็อกความกว้างการ์ดไว้ที่ <code>16.66%</code> (= 1/6) ในเลย์เอาต์นี้ จำนวน 6 จึงเป็นค่าของตัวเลย์เอาต์เอง ไม่ใช่ของร้านใดร้านหนึ่ง",
+    ]},
+    {"version": "1.66", "type": "fix", "date": "2026-10-02", "items": [
+        "<b>header ที่ธีมทาสีไว้ ได้ชุดสีสว่างบนพื้นเข้มแล้ว</b> — <b>6 ธีมของ v3</b> ทาพื้น header "
+        "ด้วยสีแบรนด์และตั้งตัวอักษรในนั้นเป็นสีอ่อนผ่าน CSS ของธีมเอง แต่ <b>ไฟล์ของร้านไม่ได้บอกอะไรเลย</b> "
+        "(<code>bgColor: null</code>) เวลาแปลงจึงได้ตัวอักษรเข้มบนพื้นสีแบรนด์",
+        "ร้านที่ตั้งพื้นหลัง header เองยังใช้ค่าของร้าน · และร้านที่เปลี่ยนสีแบรนด์เป็นสีอ่อนจะไม่ถูกพลิก "
+        "(มีร้านหนึ่งตั้งเป็นสีขาว)",
+    ]},
+    {"version": "1.65", "type": "fix", "date": "2026-10-02", "items": [
+        "<b>หัวข้อ section จัดกึ่งกลางทุกแบบแล้ว</b> — เดิมให้เฉพาะ section สไลด์ "
+        "ในหน้าจริงจึงมีหัวข้อเดียวจาก 7 อันที่อยู่กึ่งกลาง · ส่วนที่ตั้งค่าไว้เองหรือธีมสั่งชิดซ้าย ยังเป็นไปตามนั้น",
+        "<b>ปุ่มและ widget ที่จัดวางไว้ ขยับจริงแล้ว</b> — <code>widgetAlignSelf</code> เป็นค่าแบบ flex "
+        "ต้องใช้คำว่า <code>flex-start</code> / <code>flex-end</code> แต่เดิมส่งคำว่า <code>left</code> / "
+        "<code>right</code> ของ v3 ไปตรง ๆ (107 จาก 180 ค่า) ซึ่งไม่มีผลอะไรเลย",
+        "<b>ไอคอนในแถวติดต่อเราเล็กลงเท่าของเดิม</b> — v3 กำหนดไว้ <code>60px</code> ใน CSS ของตัวเอง "
+        "v4 ไม่มีค่านี้ รูปจึงออกมาตามขนาดไฟล์จริง ใหญ่เกินไปมาก",
+        "<b>รูปหมวดหมู่ทรงกลมไม่มีพื้นสี่เหลี่ยมรองแล้ว</b> — การ์ดของ v4 ทาสีพื้นไว้เสมอ "
+        "ร้านที่มีรูปทรงกลมจะได้ <code>bgColor: transparent</code> ที่ตั้งค่ารวม",
+        "<b>header ไม่ชิดขอบจออีกแล้ว</b> — เดิมใส่ระยะขอบ = 0 ให้ทุกร้านมาตั้งแต่ต้น โดยไม่มีเหตุผลบันทึกไว้ "
+        "ตอนนี้ใส่เฉพาะ header ที่ v3 ตั้งเป็นเต็มความกว้างจริง (6 จาก 20 ร้านไม่ได้ตั้ง และอีก 7 ไม่ได้บอก)",
+        "แท็บสินค้าแบบมีแบนเนอร์ด้านข้าง ระบุสัดส่วนแบนเนอร์เป็น <code>auto</code> เสมอ · "
+        "และ breakpoint ที่สามซึ่งซ้ำกับเพื่อนบ้านถูกตัดออก (17 ค่า)",
+    ]},
     {"version": "1.64", "type": "fix", "date": "2026-10-02", "items": [
         "<b>ระยะห่างของ footer เขียนชื่อให้ถูกแล้ว</b> — ที่ตัว section ต้องใช้ <code>paddingTop</code> / "
         "<code>paddingBottom</code> / <code>containerPaddingX</code> <b>ไม่ต้องมีคำว่า footer นำหน้า</b> "
@@ -1203,6 +1234,21 @@ def convert_bg_position(position_str: str) -> str:
             return f"{parts[1]} {parts[0]}"
         return position_str
     return position_str
+
+
+#: `widgetAlignSelf` is a flex property, so `left`/`right` do nothing there --
+#: v4's own files only ever use `flex-start`, `flex-end` and `center`. The
+#: converter was emitting v3's raw words on 107 of the 180 real values, so
+#: those widgets simply did not move (user, 2026-10-02).
+_FLEX_ALIGN = {"left": "flex-start", "right": "flex-end", "center": "center",
+               "start": "flex-start", "end": "flex-end"}
+
+
+def _as_flex_align(align: dict) -> dict:
+    """v3's `left`/`right` → the flex words `widgetAlignSelf` actually reads."""
+    if not isinstance(align, dict):
+        return align
+    return {bp: _FLEX_ALIGN.get(value, value) for bp, value in align.items()}
 
 
 def _both_breakpoints(align: dict) -> dict:
@@ -2451,8 +2497,14 @@ def _slideshow_outer_button(props: dict):
     for old_bp, new_bp in (("sm", "xs"), ("xl", "lg"), ("md", "md")):
         if old_bp in align:
             widget_align[new_bp] = align[old_bp]
-    if widget_align:
-        info["widgetAlignSelf"] = widget_align
+    if not widget_align:
+        # v3 centres a slideshow's button the same way it centres its heading
+        # -- `.slideshow_section .buttonAlign` and `.slideshowButtonArea` are
+        # both `text-align: center` in ContentSection.css -- and says nothing
+        # about it in the JSON, so the button sat left (user, 2026-10-02).
+        # Written on the widget, not the column, so it changes nothing else.
+        widget_align = {"xs": "center", "lg": "center"}
+    info["widgetAlignSelf"] = widget_align
 
     return make_node("widget", "WidgetButtonGroup", None, info)
 
@@ -2807,7 +2859,8 @@ def _looks_like_a_url(text) -> bool:
     return text.startswith("/") or text.startswith("http")
 
 
-def _feat_item(obj: dict, feat_style: dict, keep_button: bool = True) -> dict:
+def _feat_item(obj: dict, feat_style: dict, keep_button: bool = True,
+               media_only: bool = False) -> dict:
     media_type = obj.get("mediaType", "image")
 
     # `mediaType: "none"` is v3's buy-channel item -- a coloured badge with the
@@ -2887,10 +2940,10 @@ def _feat_item(obj: dict, feat_style: dict, keep_button: bool = True) -> dict:
     # `.color-scheme-*` may be the real answer). The user is finding that out;
     # until then the theme decides, which is at least legible. `featureStyle`'s
     # BUTTON colours are untouched -- a button's colours are v4's to edit.
-    if obj.get("title"):
+    if obj.get("title") and not media_only:
         item["title"] = {"text": obj["title"]}
 
-    if obj.get("desc"):
+    if obj.get("desc") and not media_only:
         item["description"] = {"text": obj["desc"]}
 
     # A button the rest of the row does not have is v3 leaving a value behind
@@ -2957,7 +3010,14 @@ def _feat_list_widget(props: dict) -> dict:
                 if isinstance(o, dict) and o.get("featureButton")]
     stale_buttons = 0 < len(buttoned) * 2 < len(feat_objects)
 
-    features = [_feat_item(obj, feat_style, keep_button=not stale_buttons)
+    # v3's own switch for "show the picture, not the words" -- a logo wall sets
+    # it, and the converter never read it, so 16 real sections came out with a
+    # caption under every logo that v3 does not draw (user, on a brand page,
+    # 2026-10-02). The title still becomes the image's `alt`.
+    media_only = props.get("isShowFeatureContent") is False
+
+    features = [_feat_item(obj, feat_style, keep_button=not stale_buttons,
+                           media_only=media_only)
                 for obj in feat_objects]
 
     lg_cols = str(props.get("featureNumberInRow", 1))
@@ -3025,6 +3085,14 @@ def _feat_list_widget(props: dict) -> dict:
         info["cardInfoDistribute"] = "center"
     elif "f_iconcontact_section" in class_tokens:
         info["cardInfoAlignment"] = "center"
+        # v3 sizes this preset's icon in its own stylesheet --
+        # `.feature_section.f_iconcontact_section .sub-headline-image
+        # { width: 60px }` (ContentSection.css), platform-wide and in no
+        # theme. v4 has no such default, so the icons came out at their
+        # natural file size, several times too large (user, 2026-10-02).
+        icon = {"value": 60, "unit": "px"}
+        info["mediaWidth"] = {"xs": dict(icon), "lg": dict(icon)}
+        info["mediaHeight"] = {"xs": dict(icon), "lg": dict(icon)}
 
     # Nine v3 themes round the custom-category image, five of them into a full
     # circle, and v4 rounds nothing by default -- so the conversion squared off a
@@ -3679,6 +3747,12 @@ def _producttab_widget(props: dict) -> dict:
         "tabs":           tabs,
         "productNumber":  product_limit,
     }
+
+    # A side-banner template always states the banner column's ratio. v3 sizes
+    # that column from the image itself, and v4's own default crops it to a
+    # fixed shape, so `auto` is what reproduces v3 (user, 2026-10-02).
+    if template in ("banner-left", "banner-right"):
+        tab_info["tabsBannerLeftRatio"] = {"xs": "auto", "lg": "auto"}
 
     # v3's `button`/`buttonLink` on a ProductTab is its built-in "view all"
     # link, not a free-standing CTA -- v4's ProductTab has that natively as
@@ -5452,7 +5526,13 @@ def _mega_dc_category_list(cat_id=None, style="cards") -> dict:
         info = {
             "maxHierarchyNumber": 1,
             "layoutCard": {"cardInfoAlignment": "left", "variant": "full-image"},
-            "layoutGridCols": {"xs": "2", "lg": "4"},
+            # Six across, not four: v3 fixes this layout's card width at
+            # **16.66%** (= 1/6), so the count is structural -- the same for
+            # every shop on this mega-menu template -- rather than something
+            # read off one render. v3's JSON says nothing about it and v4's
+            # own files leave `layoutGridCols` unset, so neither platform
+            # supplies it and the number has to be stated (user, 2026-10-02).
+            "layoutGridCols": {"xs": "2", "lg": "6"},
         }
         if style == "text":
             # `showTextListTemplate` -- the name is the spec: same card grid,
@@ -5583,6 +5663,20 @@ def _is_dark_hex(color: str) -> bool:
         return False
 
 
+def _shop_brand_is_light() -> bool:
+    """Has the shop overridden its brand colour to something light?
+
+    The themes in `_V3_THEME_INVERSE_HEADER` put light text on the brand
+    colour, so they assume it is dark. A shop that set a light one (one real
+    file uses `#FFFFFF`) must not be given an inverse header on that basis.
+    `None` brand -- the shop never touched the palette -- means the theme's own
+    colour, which is dark by the theme author's own choice.
+    """
+    colors = (_V3_SITE_COLORS or [])
+    brand = colors[0] if colors and isinstance(colors[0], str) else ""
+    return bool(brand.strip()) and not _is_dark_hex(brand)
+
+
 def _header_extra_section_info(props: dict) -> dict:
     info = {}
     if props.get("isFullScreen"):
@@ -5598,6 +5692,12 @@ def _header_extra_section_info(props: dict) -> dict:
     # (found 2026-08-17 on a real shop with a `#4a7956` header). The background
     # is the thing actually being rendered, so it decides.
     is_dark = bool(pane.get("isDarkMode")) or _is_dark_hex(bg_color)
+    # A third signal, and the only one that is not in the JSON at all: the
+    # theme paints the header itself. Used only when the shop states no
+    # background of its own -- one real shop on such a theme overrode it to
+    # white, and its own value has to win.
+    if not bg_color and not is_dark and _V3_THEME_ID in _V3_THEME_INVERSE_HEADER:
+        is_dark = not _shop_brand_is_light()
     height_preset = pane.get("heightPresetId")
     _HEIGHTS = {1: 60, 2: 70, 3: 80, 4: 90}
 
@@ -5819,9 +5919,19 @@ def _searchbox_section(search_box: dict) -> dict:
     return make_node("section", "header", "searchBox-default", section_info, [row])
 
 
-def _header_section(nickname: str, row: dict, extra_info: dict = None, include_padding_x: bool = True) -> dict:
+def _header_section(nickname: str, row: dict, extra_info: dict = None,
+                    include_padding_x: bool = True, full_screen: bool = False) -> dict:
+    """One header section.
+
+    **The zero side padding is only for a full-width header** (user,
+    2026-10-02). It had been written on every header since the first header
+    commit (2026-06-09) with no recorded reason, so a shop whose v3 header is
+    `isFullScreen: false` -- 6 of the 20 real files, with 7 more not saying --
+    came out flush to both edges, worst on a phone, and beat whatever side
+    padding the v4 theme had. The matching rule for a slideshow is v1.42's.
+    """
     info = {}
-    if include_padding_x:
+    if include_padding_x and full_screen:
         info["headerContainerPaddingX"] = {"xs": {"value": 0, "unit": "px"}, "lg": {"value": 0, "unit": "px"}}
     if extra_info:
         info.update(extra_info)
@@ -5864,7 +5974,8 @@ def _header_preset1(props: dict) -> dict:
     return _header_section("SimpleHeader1",
                            make_node("row", None, None, {}, [logo_nav_col, action_col]),
                            _header_extra_section_info(props),
-                           include_padding_x=not props.get("isBgTransparent"))
+                           include_padding_x=not props.get("isBgTransparent"),
+                           full_screen=bool(props.get("isFullScreen")))
 
 
 def _header_preset2(props: dict) -> dict:
@@ -5900,7 +6011,8 @@ def _header_preset2(props: dict) -> dict:
     return _header_section("SimpleHeader2",
                            make_node("row", None, None, {}, [logo_col, nav_col, action_col]),
                            _header_extra_section_info(props),
-                           include_padding_x=not props.get("isBgTransparent"))
+                           include_padding_x=not props.get("isBgTransparent"),
+                           full_screen=bool(props.get("isFullScreen")))
 
 
 def _header_preset3(props: dict) -> dict:
@@ -5940,7 +6052,8 @@ def _header_preset3(props: dict) -> dict:
     return _header_section("SimpleHeader3",
                            make_node("row", None, None, {}, [logo_col, content_col]),
                            _header_extra_section_info(props),
-                           include_padding_x=not props.get("isBgTransparent"))
+                           include_padding_x=not props.get("isBgTransparent"),
+                           full_screen=bool(props.get("isFullScreen")))
 
 
 def _header_preset4(props: dict) -> dict:
@@ -5974,7 +6087,8 @@ def _header_preset4(props: dict) -> dict:
     return _header_section("SimpleHeader4",
                            make_node("row", None, None, {}, [nav_col, logo_col, action_col]),
                            _header_extra_section_info(props),
-                           include_padding_x=not props.get("isBgTransparent"))
+                           include_padding_x=not props.get("isBgTransparent"),
+                           full_screen=bool(props.get("isFullScreen")))
 
 
 def _build_header_main_section(props: dict) -> dict:
@@ -11081,6 +11195,16 @@ def convert_global(site_json: dict, warnings: list = None, *,
     if theme_align:
         root["colHorizontalAlign"] = {"xs": theme_align, "lg": theme_align}
 
+    # ── A rounded feature image needs a transparent card ground ──
+    # v4's feature card always paints `--bg-color` behind its media, so a
+    # circular image sits on a visible square (user, 2026-10-02). Written only
+    # when some section in the shop actually rounds one -- `.widget-feature-list`
+    # is shop-wide, and a card that is meant to show its ground should keep it.
+    if any(_V3_CATEGORY_IMAGE_RADIUS.get(cfg.get("currentTheme"))
+           for _ in [0]) and _shop_rounds_a_feature_image(cfg):
+        style[".widget-feature-list"] = {
+            **style.get(".widget-feature-list", {}), "bgColor": "transparent"}
+
     # ── Typo slots the shop's own sizes earned ──
     # A slot is written only when the shop states enough sizes to be re-cutting
     # the scale and its group's size differs from Base; the rest are left for
@@ -11816,7 +11940,23 @@ def convert_zones(site_json: dict, warnings: list = None) -> dict:
     most showroom links are**: 14 of them survived v1.30-v1.32 untouched in the
     zones while the pages they pointed at were being generated (found
     2026-09-11).
+
+    Sets the same one-run theme context `convert_site` does -- the header's
+    colour scheme needs the theme id, and `convert_zones` is called on its own
+    in site mode, after `convert_site` has already cleared it.
     """
+    global _V3_THEME_ID, _V3_SITE_COLORS
+    _previous_theme, _previous_colors = _V3_THEME_ID, _V3_SITE_COLORS
+    if isinstance(site_json, dict):
+        _V3_THEME_ID = site_json.get("currentTheme")
+        _V3_SITE_COLORS = site_json.get("currentColors")
+    try:
+        return _convert_zones(site_json, warnings)
+    finally:
+        _V3_THEME_ID, _V3_SITE_COLORS = _previous_theme, _previous_colors
+
+
+def _convert_zones(site_json: dict, warnings: list = None) -> dict:
     result: dict = {
         "header_zone": None,
         "footer_zone": None,
@@ -12061,6 +12201,33 @@ _TYPO_STEPS = ("xsmall", "small", "medium", "large", "xlarge")
 _TYPO_MIN_EVIDENCE = 3
 
 
+def _shop_rounds_a_feature_image(site_json: dict) -> bool:
+    """Does any section in this shop get a rounded custom-category image?
+
+    Only then is the card's ground worth turning off -- see `convert_global`.
+    """
+    found = [False]
+
+    def walk(node):
+        if found[0]:
+            return
+        if isinstance(node, dict):
+            name = node.get("name")
+            if isinstance(name, str) and name in SECTION_BUILDERS:
+                tokens = set(((node.get("props") or {}).get("className") or "").split())
+                if "f_custom_category_section" in tokens:
+                    found[0] = True
+                return
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+
+    walk(site_json)
+    return found[0]
+
+
 def _typo_px(value):
     """A v3 font size as px. v3's root is 62.5%, so its `rem` is 10px."""
     if isinstance(value, (int, float)):
@@ -12179,6 +12346,10 @@ def _typo_plan(site_json: dict) -> dict:
     return plan
 
 
+#: The shop's own `currentColors`, for the same one-run lifetime as
+#: `_V3_THEME_ID`. Only the brand anchor is read, and only by the header rule.
+_V3_SITE_COLORS = None
+
 # The plan for the site being converted, set by `convert_site` for one run --
 # the same lifetime and the same reason as `_V3_THEME_ID` below.
 _TYPO_PLAN = None
@@ -12188,6 +12359,27 @@ _TYPO_PLAN = None
 # `convert_site` for the length of one run, exactly like the flag above; `None`
 # in single-section mode, where no theme is on offer and those rules stay quiet.
 _V3_THEME_ID = None
+
+#: v3 themes whose own CSS paints the header with the brand colour and makes
+#: every piece of text in it light:
+#:
+#:     .headerPane { background: var(--color_schemeA) }
+#:     .headerPane ... a, .icon-menu, .userArea { color: var(--color_light) }
+#:
+#: That is an inverse header, and **v3's JSON says nothing about it** -- the
+#: shop exports `headerPane.sectionStyle.bgColor: null` -- so a conversion that
+#: read only the JSON put dark text on the brand colour (user, on a navy
+#: header, 2026-10-02).
+#:
+#: Derived with `tools/scan_nested_css.py`: a background on `.headerPane`
+#: itself plus at least one light text colour and **no** dark one. Two themes
+#: paint the header and then use dark text (x_wichittra, x_writenow) -- those
+#: are not inverse and are correctly absent.
+#:
+#: Embedded, like every other v3-CSS fact the browser needs.
+_V3_THEME_INVERSE_HEADER = frozenset((
+    "x_borsa", "x_ceramicstore", "x_mystorage", "x_plaza", "x_swift", "x_void",
+))
 
 #: What the shop's v3 THEME says about heading alignment, site-wide.
 #:
@@ -12621,8 +12813,26 @@ def _headings_state_both_breakpoints(section: dict) -> int:
     def walk(node):
         nonlocal count
         if isinstance(node, dict):
+            if node.get("kind") == "WidgetHeading":
+                info = node.setdefault("info", {})
+                # Every section heading centres, not just a slideshow's.
+                # v1.55 gave the default to `_slideshow_heading` alone, on the
+                # strength of v3's section stylesheets -- which turned out to
+                # be the wrong half of the evidence: `.contentFlexSection`
+                # carries `.center`/`.left`/`.right` utility classes and v3's
+                # app puts `center` on by default, so only the sections that
+                # opt OUT are left. On a real page just one heading in seven
+                # came out centred (user, 2026-10-02).
+                #
+                # A builder that stated an alignment keeps it, and so does a
+                # theme that says the whole site reads left.
+                if "alignment" not in info:
+                    verdict = _V3_THEME_HEADING_ALIGN.get(_V3_THEME_ID) or "center"
+                    info["alignment"] = {"xs": verdict, "lg": verdict}
             if node.get("type") == "widget":
                 info = node.get("info") or {}
+                if isinstance(info.get("widgetAlignSelf"), dict):
+                    info["widgetAlignSelf"] = _as_flex_align(info["widgetAlignSelf"])
                 for key in _BOTH_BREAKPOINT_KEYS:
                     align = info.get(key)
                     if not isinstance(align, dict) or not align:
@@ -12632,6 +12842,14 @@ def _headings_state_both_breakpoints(section: dict) -> int:
                         if bp not in align:
                             align[bp] = only
                             count += 1
+                    # A third breakpoint that repeats its neighbours says
+                    # nothing -- v4 cascades upward (v1.44 established this for
+                    # padding; same reasoning, 17 real values).
+                    if len(align) > 2 and len(set(align.values())) == 1:
+                        for bp in list(align):
+                            if bp not in ("xs", "lg"):
+                                del align[bp]
+                                count += 1
             for value in node.values():
                 walk(value)
         elif isinstance(node, list):
