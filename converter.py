@@ -26,7 +26,7 @@ from urllib.parse import quote, unquote
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.63"
+__version__ = "1.64"
 LAST_UPDATED = "2026-10-02"
 
 # Short summary of what the converter handles — shown in the browser popup.
@@ -41,6 +41,11 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.64", "type": "fix", "date": "2026-10-02", "items": [
+        "<b>ระยะห่างของ footer เขียนชื่อให้ถูกแล้ว</b> — ที่ตัว section ต้องใช้ <code>paddingTop</code> / "
+        "<code>paddingBottom</code> / <code>containerPaddingX</code> <b>ไม่ต้องมีคำว่า footer นำหน้า</b> "
+        "ระบบเติมให้เองจาก zone ที่ section นั้นอยู่ · ชื่อที่มี footer นำหน้าเป็นของ token ใน <code>:root</code> ไม่ใช่ของ section",
+    ]},
     {"version": "1.63", "type": "fix", "date": "2026-10-02", "items": [
         "<b>เลิกใช้ breakpoint ชื่อ <code>sm</code> ทั้งไฟล์แล้ว</b> — v4 ไม่ได้อ่านค่านี้ "
         "ค่าที่เคยเขียนไว้ที่ <code>sm</code> จึงไม่มีผลบนมือถือเลย · กระทบ <code>textAlign</code> (72 จุด) "
@@ -5308,11 +5313,15 @@ def _footer_padding() -> dict:
     vertical = lambda: {"xs": {"value": 32, "unit": "px"},
                         "md": {"value": 36, "unit": "px"},
                         "lg": {"value": 48, "unit": "px"}}
+    # **No `footer` prefix on the section** (user, 2026-10-02): v4 adds it
+    # itself from the zone the section sits in, so the keys here are the plain
+    # ones a content section uses. The prefixed spelling is the `:root` token's
+    # (`footerPaddingTop` in `_base.json`), not a section field.
     return {
-        "footerPaddingTop":       vertical(),
-        "footerPaddingBottom":    vertical(),
-        "footerContainerPaddingX": {"xs": {"value": 20, "unit": "px"},
-                                    "lg": {"value": 40, "unit": "px"}},
+        "paddingTop":       vertical(),
+        "paddingBottom":    vertical(),
+        "containerPaddingX": {"xs": {"value": 20, "unit": "px"},
+                              "lg": {"value": 40, "unit": "px"}},
     }
 
 
