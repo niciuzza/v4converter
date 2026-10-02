@@ -26,7 +26,7 @@ from urllib.parse import quote, unquote
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.67"
+__version__ = "1.68"
 LAST_UPDATED = "2026-10-02"
 
 # Short summary of what the converter handles — shown in the browser popup.
@@ -41,6 +41,21 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.68", "type": "fix", "date": "2026-10-02", "items": [
+        "<b>section ที่ v3 สั่งชิดซ้าย/ขวา หัวข้อชิดตามแล้ว</b> — v3 มี class <code>left</code> / "
+        "<code>right</code> ให้ section ที่ไม่เอาค่ากึ่งกลาง · converter อ่านไปใช้กับข้อความในการ์ดแล้ว "
+        "แต่ลืมหัวข้อของ section · <b>10 section</b> ในไฟล์จริงใช้ class นี้ และไม่มีไฟล์ไหนเขียน "
+        "<code>center</code> เลยสักอัน เพราะเป็นค่าตั้งต้นอยู่แล้ว · ธีมที่สั่งทั้งเว็บยังชนะเหมือนเดิม",
+        "<b>ไอคอนในแถวติดต่อเราไม่ถูกบีบให้เป็นสี่เหลี่ยมจัตุรัสแล้ว</b> — v3 กำหนดแค่ความกว้าง "
+        "<code>60px</code> ส่วนความสูงปล่อยตามสัดส่วนรูป · รุ่นก่อนตั้งทั้งคู่ ไอคอนที่ไม่จัตุรัสจึงผิดสัดส่วน",
+        "<b>ปุ่มท้าย section อยู่กึ่งกลางเหมือนหัวข้อแล้ว</b> — v3 จัดกึ่งกลางให้ทุก section ผ่าน "
+        "<code>.buttonAlign</code> ที่ไม่ผูกกับ section ไหนเลย · v4 ไม่มีค่านี้ หัวข้อจึงกลางแต่ปุ่มใต้หัวข้อไม่กลาง · "
+        "<b>246 ปุ่ม</b> ในไฟล์จริงอยู่ในกรณีนี้ ส่วนอีก 100 ปุ่มที่ v3 ระบุตำแหน่งไว้เองไม่ถูกแตะ · "
+        "2 ธีมที่เขียนทับไว้เองสำหรับ section แบบ feature ยังชิดซ้ายตามธีม",
+        "<b>ปุ่มอ่านตำแหน่งจากจอใหญ่ด้วยแล้ว</b> — ตัวสร้างปุ่มที่ใช้ร่วมกันหลาย section อ่านแค่ค่าจอเล็ก "
+        "ค่าที่ร้านตั้งไว้สำหรับจอใหญ่จึงหายไปทั้งหมด · และถ้าร้านไม่ได้ตั้งอะไรเลย มันแอบเติม “ชิดซ้าย” ให้เอง "
+        "ซึ่งไปบังค่ากึ่งกลางที่ควรได้",
+    ]},
     {"version": "1.67", "type": "fix", "date": "2026-10-02", "items": [
         "<b>ปุ่มใน section สไลด์อยู่กึ่งกลางแล้ว</b> — v3 จัดกึ่งกลางให้ผ่าน CSS เหมือนหัวข้อ "
         "แต่ไม่ได้เขียนลงไฟล์ · ตั้งที่ตัว widget เลย ไม่ไปแตะคอลัมน์หรือค่ารวม",
@@ -1588,10 +1603,21 @@ def build_widget_button(props: dict):
     if target:
         btn_obj["target"] = target
 
-    info = {
-        "buttons": [btn_obj],
-        "widgetAlignSelf": {"xs": align.get("sm", "left")},
-    }
+    info = {"buttons": [btn_obj]}
+
+    # Read BOTH breakpoints, and invent nothing. This used to be
+    # `{"xs": align.get("sm", "left")}`: it dropped `xl` on the floor, so a
+    # shop that aligned its button only at the wide width was ignored, and it
+    # made up a `left` for every shop that said nothing -- which then looked
+    # stated and blocked `_buttons_state_alignment` from centring it, the one
+    # thing v3 actually does by default.
+    widget_align = {}
+    for old_bp, new_bp in (("sm", "xs"), ("xl", "lg"), ("md", "md")):
+        if old_bp in align:
+            widget_align[new_bp] = align[old_bp]
+    if widget_align:
+        info["widgetAlignSelf"] = widget_align
+
     return make_node("widget", "WidgetButtonGroup", None, info)
 
 
@@ -3086,13 +3112,18 @@ def _feat_list_widget(props: dict) -> dict:
     elif "f_iconcontact_section" in class_tokens:
         info["cardInfoAlignment"] = "center"
         # v3 sizes this preset's icon in its own stylesheet --
-        # `.feature_section.f_iconcontact_section .sub-headline-image
+        # `.feature_section.f_iconcontact_section .sub-headline-image img
         # { width: 60px }` (ContentSection.css), platform-wide and in no
-        # theme. v4 has no such default, so the icons came out at their
-        # natural file size, several times too large (user, 2026-10-02).
+        # theme: the only two themes that touch that selector (x_mystorage,
+        # x_orderly) both name `.f_iconcontact_section` inside their `:not()`.
+        # v4 has no such default, so the icons came out at their natural file
+        # size, several times too large (user, 2026-10-02).
+        #
+        # **Width only.** v3 leaves the height to the image's own ratio, so a
+        # wide or tall icon keeps its shape; pinning both squashed every icon
+        # that was not already square (user, 2026-10-02).
         icon = {"value": 60, "unit": "px"}
         info["mediaWidth"] = {"xs": dict(icon), "lg": dict(icon)}
-        info["mediaHeight"] = {"xs": dict(icon), "lg": dict(icon)}
 
     # Nine v3 themes round the custom-category image, five of them into a full
     # circle, and v4 rounds nothing by default -- so the conversion squared off a
@@ -12796,7 +12827,68 @@ def _apply_typo_slots(section: dict, props: dict) -> int:
 _BOTH_BREAKPOINT_KEYS = ("alignment", "widgetAlignSelf")
 
 
-def _headings_state_both_breakpoints(section: dict) -> int:
+#: v3 themes that overturn the platform's centred button for feature sections.
+#: Both write a blanket `.feature_section .buttonAlign { text-align: left }`;
+#: x_orderly adds one preset exception that only holds below 750px --
+#: `.f_titlecolumn_section .buttonAlign` is `center`, then `left` again from
+#: `@media (min-width: 750px)`, which is `xs` centred and `lg` left.
+#:
+#: Embedded for the usual reason: `convert_site` runs in the browser with no
+#: `v3/` to read (as `_V3_THEME_HEADING_ALIGN`).
+_V3_THEME_FEATURE_BUTTON_LEFT = frozenset(("x_mystorage", "x_orderly"))
+
+
+def _buttons_state_alignment(section: dict, props: dict = None) -> int:
+    """A button group with no stated alignment centres.
+
+    `Global.css` carries an **unscoped** `.buttonAlign { text-align: center }`
+    -- the wrapper v3 puts every section button in -- and `ContentSection.css`
+    repeats it for the slideshow. v4 has no such default, so a button whose v3
+    file said nothing drifted to whatever the new theme does, while the
+    heading above it centred. 246 button groups in the corpus are in this
+    case; the 100 that state an alignment are untouched.
+
+    Two things deliberately do NOT feed this:
+
+    * **the heading's verdict** -- a theme's heading rule is written against
+      `.headline` and never reaches the button, so a `left` theme still has
+      centred buttons;
+    * **the section's `left`/`right` class** -- that only reaches the button
+      by inheritance, and `.buttonAlign` sets `text-align` on the wrapper
+      itself, which wins.
+
+    What does override it is a theme writing `.buttonAlign` directly, which
+    two do site-wide for feature sections (`_V3_THEME_FEATURE_BUTTON_LEFT`).
+    """
+    tokens = set(((props or {}).get("className") or "").split())
+    verdict = {"xs": "center", "lg": "center"}
+    if "feature_section" in tokens and _V3_THEME_ID in _V3_THEME_FEATURE_BUTTON_LEFT:
+        verdict = {"xs": "left", "lg": "left"}
+        if _V3_THEME_ID == "x_orderly" and "f_titlecolumn_section" in tokens:
+            verdict["xs"] = "center"
+    verdict = _as_flex_align(verdict)
+
+    count = 0
+
+    def walk(node):
+        nonlocal count
+        if isinstance(node, dict):
+            if node.get("kind") == "WidgetButtonGroup":
+                info = node.setdefault("info", {})
+                if not info.get("widgetAlignSelf"):
+                    info["widgetAlignSelf"] = dict(verdict)
+                    count += 1
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+
+    walk(section)
+    return count
+
+
+def _headings_state_both_breakpoints(section: dict, props: dict = None) -> int:
     """Alignment keys name `xs` AND `lg`, in place.
 
     v3 states one breakpoint far more often than two -- `titleStyle.align.xl`
@@ -12809,6 +12901,26 @@ def _headings_state_both_breakpoints(section: dict) -> int:
     the file and some cannot reach `xs` from the breakpoints they read.
     """
     count = 0
+
+    # What a heading aligns to when no builder stated anything, in v3's own
+    # order of precedence:
+    #
+    #  1. the THEME, when its CSS writes `text-align` on a bare `.headline` --
+    #     that rule matches the heading element itself, so it beats
+    #  2. the section's own `left`/`right`/`center` class, which only reaches
+    #     the heading by inheritance (`.contentFlexSection .left` sits on the
+    #     section element, `.headline` is inside it). Ten real sections carry
+    #     one, every one of them a FeatureSection and every one of them opting
+    #     OUT -- not a single file in the corpus writes `center`, which is the
+    #     clearest evidence that
+    #  3. `center` is simply on already.
+    #
+    # The class was already read for the feature cards' own text
+    # (`cardInfoAlignment`) and only the section's heading was missing it.
+    stated = set(((props or {}).get("className") or "").split())
+    verdict = (_V3_THEME_HEADING_ALIGN.get(_V3_THEME_ID)
+               or next(iter(stated & {"left", "right", "center"}), None)
+               or "center")
 
     def walk(node):
         nonlocal count
@@ -12827,7 +12939,6 @@ def _headings_state_both_breakpoints(section: dict) -> int:
                 # A builder that stated an alignment keeps it, and so does a
                 # theme that says the whole site reads left.
                 if "alignment" not in info:
-                    verdict = _V3_THEME_HEADING_ALIGN.get(_V3_THEME_ID) or "center"
                     info["alignment"] = {"xs": verdict, "lg": verdict}
             if node.get("type") == "widget":
                 info = node.get("info") or {}
@@ -13006,9 +13117,14 @@ def convert_section(old_json: dict, warnings: list = None) -> dict:
     # would ignore the theme for ever. See `_typo_plan`.
     if result is not None and _TYPO_PLAN:
         _apply_typo_slots(result, props)
+    # v3 centres every section's button through an unscoped `.buttonAlign`
+    # rule; v4 has no equivalent, so the heading centred and the button under
+    # it did not. Before the pass below, which normalises what both write.
+    if result is not None:
+        _buttons_state_alignment(result, props)
     # A heading aligned at one width only inherits the theme at the other.
     if result is not None:
-        _headings_state_both_breakpoints(result)
+        _headings_state_both_breakpoints(result, props)
     return result
 
 
