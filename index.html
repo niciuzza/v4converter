@@ -224,6 +224,11 @@
   .page-callout{flex:none;border-bottom:1px solid var(--border);padding:10px 13px;font-size:12px;line-height:1.6}
   .page-callout.made{background:var(--accent-soft)}
   .page-callout.dead{background:var(--bad-soft)}
+  /* A page the converter did NOT create. Same banner as the two above and for
+     the same reason: the page count changed, so it must be readable without
+     opening anything. */
+  .page-callout.gone{background:var(--panel-head)}
+  .page-callout.gone .pc-head{color:var(--warn)}
   .page-callout .pc-head{font-weight:600;display:flex;align-items:center;gap:7px;margin-bottom:5px}
   .page-callout.made .pc-head{color:var(--accent)}
   .page-callout.dead .pc-head{color:var(--bad)}
@@ -725,7 +730,8 @@
     // Page-level warnings carry a page path ("/sale"), not a JSON path, so
     // they have no line to tick — and they are shown in their own callout.
     const ws = (state.htmlWarnings || [])
-      .filter(w => !["page-created", "dead-link", "page-needed"].includes(w.kind));
+      .filter(w => !["page-created", "dead-link", "page-needed",
+                     "page-dropped"].includes(w.kind));
     if (!ws.length || !state.result || state.selected !== "all") {
       ruler.innerHTML = "";
       return;
@@ -1375,7 +1381,8 @@
     const ws  = (state.htmlWarnings || []);
     const made = ws.filter(w => w.kind === "page-created");
     const dead = ws.filter(w => w.kind === "dead-link" || w.kind === "page-needed");
-    if (!state.result || (!made.length && !dead.length)) {
+    const gone = ws.filter(w => w.kind === "page-dropped");
+    if (!state.result || (!made.length && !dead.length && !gone.length)) {
       box.classList.add("hidden");
       box.innerHTML = "";
       return;
@@ -1383,6 +1390,7 @@
     box.classList.remove("hidden");
     box.classList.toggle("made", !!made.length && !dead.length);
     box.classList.toggle("dead", !!dead.length);
+    box.classList.toggle("gone", !made.length && !dead.length && !!gone.length);
     const list = (items, withLinks) => items.map(w => `<li>
         <span class="pc-path">${escapeHTML(w.path || "")}</span>
         <span class="pc-title">${escapeHTML(w.title || "")}</span>
@@ -1404,6 +1412,12 @@
         converter สร้างให้ไม่ได้ (ปิดสวิตช์ไว้ หรือเป็น showroom ที่ร้านสร้างเอง
         ซึ่งสินค้าข้างในไม่ได้อยู่ในไฟล์)</div>
       <ul>${list(dead, true)}</ul>`);
+    if (gone.length) blocks.push(`
+      <div class="pc-head">➖ ไม่ได้สร้างหน้าให้ ${gone.length} หน้า</div>
+      <div class="pc-note">v3 ไม่มีเนื้อหาในหน้าพวกนี้เลย — หน้าเปล่าใน v4 ไม่มีประโยชน์
+        และถ้าชื่อ path ตรงกับหน้าที่ v4 มีให้เองอยู่แล้ว หน้าเปล่าจะไปทับของ v4 ทิ้ง ·
+        <b>ถ้ายังต้องการ path นี้ ให้สร้างหน้าเองใน v4</b></div>
+      <ul>${list(gone, false)}</ul>`);
     box.innerHTML = blocks.join('<div style="height:9px"></div>');
   }
 
@@ -1411,7 +1425,8 @@
     renderPageCallout();
     const banner = $("warnBanner");
     const ws = (state.htmlWarnings || [])
-      .filter(w => !["page-created", "dead-link", "page-needed"].includes(w.kind));
+      .filter(w => !["page-created", "dead-link", "page-needed",
+                     "page-dropped"].includes(w.kind));
     if (!ws.length || !state.result) {
       banner.classList.add("hidden");
       banner.open = false;

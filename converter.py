@@ -26,8 +26,8 @@ from urllib.parse import quote, unquote
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.68"
-LAST_UPDATED = "2026-10-02"
+__version__ = "1.74"
+LAST_UPDATED = "2026-10-05"
 
 # Short summary of what the converter handles — shown in the browser popup.
 # Plain strings; inline HTML (e.g. <code>) is allowed for rendering there.
@@ -41,6 +41,71 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.74", "type": "fix", "date": "2026-10-05", "items": [
+        "<b>ขนาดตัวอักษรที่คำนวณให้ ไม่มีทศนิยมยาวเกินจำเป็นแล้ว</b> — v4 เก็บค่าเป็น "
+        "<code>rem</code> ขนาดที่เป็นเลขคี่จึงต้องใช้ทศนิยม 4 ตำแหน่ง "
+        "(49px = <code>3.0625rem</code>) · ตอนนี้ปัดลงเป็นเลขคู่ก่อน ได้ <code>3rem</code> พอดี · "
+        "<b>ทศนิยมไม่เกิน 3 ตำแหน่ง และยังลงตัวเป็น px เต็มเสมอ</b> ซึ่งเป็นกริดเดียวกับ"
+        "สเกลของ v4 เอง (<code>0.875</code> = 14px, <code>1.125</code> = 18px) · "
+        "ถ้าปัดแล้วตรงกับขนาดของธีมอยู่แล้ว ก็ไม่ต้องเขียนทับเลย",
+    ]},
+    {"version": "1.73", "type": "fix", "date": "2026-10-05", "items": [
+        "<b>เมนูที่ชี้ไปหน้าที่ร้านสร้างเอง กดติดแล้ว</b> — ชื่อ path ของหน้าถูก converter "
+        "เปลี่ยนเว้นวรรคเป็นขีด (<code>/about us</code> → <code>/about-us</code>) แต่<b>ลิงก์ในเมนู"
+        "ไม่ได้เปลี่ยนตาม</b> เมนูจึงชี้ไปหน้าที่ไม่มีอยู่ · ตอนนี้ใช้ path ของ v3 ตรง ๆ ทั้งสองฝั่ง · "
+        "ร้านหนึ่งมี 5 หน้าที่ชื่อมีเว้นวรรค และ <b>ลิงก์เสีย 6 จุด</b> · "
+        "<b>ระบบ v4 จัดการเรื่องเว้นวรรคเองตอน import</b> จึงไม่ต้องแปลงล่วงหน้า — "
+        "แปลงล่วงหน้าแค่ฝั่งเดียวคือสาเหตุที่ทำให้ไม่ตรงกัน",
+    ]},
+    {"version": "1.72", "type": "fix", "date": "2026-10-05", "items": [
+        "<b>หน้าที่ v3 ไม่มีเนื้อหาเลย ไม่ถูกสร้างใน v4 อีก</b> — v3 ให้สร้าง path ไว้เฉย ๆ "
+        "โดยไม่ต้องใส่อะไรได้ · เดิมแปลงออกมาเป็นหน้าเปล่า ซึ่งไม่มีประโยชน์ และถ้าชื่อ path "
+        "ตรงกับหน้าที่ v4 มีให้เองอยู่แล้ว หน้าเปล่าจะไปทับของ v4 ทิ้ง · "
+        "<b>มีแจ้งเตือนบอกทุกครั้งว่าไม่ได้สร้างหน้าไหน</b> แสดงค้างไว้ไม่ต้องกดเปิด",
+    ]},
+    {"version": "1.71", "type": "feat", "date": "2026-10-05", "items": [
+        "<b>บล็อกแบบ hilight ได้โครงเหมือน v3 แล้ว — บทความเด่น 1 ชิ้น + รายการข้างๆ</b> — v3 วาดการ์ด "
+        "<b>สองแบบ</b> ในหนึ่ง section (เด่น 1 ชิ้น + ย่อไม่เกิน 4 ชิ้น) ซึ่ง widget เดียวทำไม่ได้ "
+        "เลยต้องเลือกตามครึ่งใดครึ่งหนึ่งมาตลอด · v4 เพิ่ม <code>offset</code> มาให้ข้ามบทความแรกได้ "
+        "ตอนนี้จึงใช้ BlogList <b>สองตัว</b> (<code>blogNumber 1</code> กับ <code>blogNumber 4, offset 1</code>) "
+        "ตรงกับ v3 เป๊ะ · <b>21 section</b>",
+        "<b>ทั้ง 5 เลย์เอาต์ใช้โครงที่ออกแบบไว้ใน v4 จริง</b> — ลอกโครง แถว คอลัมน์ ชื่อกำกับ และช่องไฟ "
+        "มาจากไฟล์ที่ออกแบบไว้ในระบบ v4 แล้ว export ออกมา · มีเทสต์เทียบโครงกับไฟล์นั้นทุกโหนด",
+        "<b>การ์ดบทความย่อยของแบบ hilight 2 วางรูปข้างข้อความเฉพาะจอใหญ่</b> — บนมือถือการ์ดวางซ้อนกัน "
+        "(รูปอยู่บน ข้อความอยู่ล่าง) ความกว้างรูป 35% จึงใส่ไว้ที่จอใหญ่เท่านั้น · ถ้าใส่ที่มือถือด้วย "
+        "ค่า 35% จะไปคิดกับ<b>ความสูง</b>ของการ์ดแทน รูปจะแบน · v3 ก็สลับเป็นแถวเฉพาะตั้งแต่ 750px ขึ้นไป",
+        "<b>บล็อกแบบ “ข้อความบนรูป” ได้ไล่เฉดและตัวอักษรสีขาวแล้ว</b> — v3 วาง blogContent ทับบนรูป "
+        "พร้อมไล่เฉดดำท้ายรูปและตัวอักษร <code>#fff</code> แต่เดิมแปลงออกมาได้แค่ตำแหน่ง "
+        "ขาดทั้งไล่เฉดและสีตัวอักษร · เพิ่ม <code>isOverlayGradient</code> + ชุดสีกลับด้าน · "
+        "<b>11 section</b>",
+        "<b>การ์ดบล็อกซูมรูปตอนชี้เมาส์ และปุ่มท้าย section เป็นปุ่มสำรอง</b> — ตามไฟล์ออกแบบ v4 "
+        "(<b>40 ปุ่ม</b>) · v3 ไม่ได้ระบุชนิดปุ่มไว้เลยทั้ง 40 อัน จึงไม่มีอะไรถูกเขียนทับ",
+        "<b>แท็กไม่โผล่ในการ์ดบทความย่อย</b> — v3 ไม่เคยวาดแท็กในการ์ดย่อยของแบบ hilight "
+        "(ไม่มีในโครง HTML เลย) แต่ v4 เปิดแท็กเป็นค่าตั้งต้น",
+    ]},
+    {"version": "1.70", "type": "fix", "date": "2026-10-05", "items": [
+        "<b>รูปบทความที่สั่งครอป ได้สัดส่วน 3:2 ตาม v3 แล้ว</b> — เดิมใส่จัตุรัสให้ทุกอัน · "
+        "CSS ของตัวระบบ v3 กำหนดไว้ที่เดียวสำหรับการ์ดบทความทุกใบ (<code>padding-bottom: 66.66%</code> = 3:2) · "
+        "<b>ทั้ง 56 section</b> ในไฟล์จริงเปิดครอปไว้ จึงได้สัดส่วนใหม่ทั้งหมด · "
+        "หน้ารวมบทความ (<code>/blog</code>) ใช้เลขเดียวกัน เพราะ v3 เขียนกฎเดียวกันไว้ให้",
+        "<b>บล็อกแบบ hilight ขอบทความ 6 ชิ้น</b> — v3 ไม่เคยอ่านจำนวนที่ตั้งไว้ในแบบนี้เลย "
+        "มันวาดบทความเด่น 1 + บทความย่อยอีกไม่เกิน 4 = <b>5 ชิ้นตายตัว</b> (มี section หนึ่งตั้ง 12 แต่ขึ้นจริง 5) · "
+        "v4 ไม่มีเลย์เอาต์เด่น-คู่-รายการให้ลอก จึงปัดขึ้นเป็นเลขคู่ที่ใกล้ที่สุดคือ 6 ซึ่งลงตัวกับกริด 2 หรือ 3 คอลัมน์ "
+        "ไม่เหลือช่องโหว่ · <b>21 section</b>",
+        "<b>หัวข้อ section บทความ ใช้กฎเดียวกันหมดแล้ว</b> — มีเลย์เอาต์หนึ่งที่ถูกบังคับให้ชิดซ้ายและเปลี่ยนระดับหัวข้อ "
+        "ทั้งที่ v3 จัดหัวข้อของทุกพรีเซ็ตแบบเดียวกัน · <b>4 section</b> กลับมากึ่งกลางเหมือนอันอื่น",
+    ]},
+    {"version": "1.69", "type": "fix", "date": "2026-10-05", "items": [
+        "<b>เลย์เอาต์ของ section บทความ อ่านจากค่าที่ v3 ใช้วาดจริงแล้ว</b> — v3 เลือกหน้าตาจาก "
+        "<code>blogType</code> คู่กับ <code>presetId</code> (กลายเป็น class <code>.hilightTemplate.preset3</code> "
+        "ที่ CSS ของทุกธีมเกาะอยู่) ไม่ได้ดู <code>keyName</code> เลย · ของเดิมแยกสาขาด้วย <code>keyName</code> "
+        "ซึ่งเป็นแค่ชื่อพรีเซ็ตในหน้าแก้ไข: <b>23 จาก 56 section</b> ในไฟล์จริงไม่มีค่านี้ และอีก <b>8</b> อัน "
+        "บอกคนละอย่างกับที่ v3 วาดออกมา · รวมแล้ว <b>25 จาก 56 section</b> ได้หน้าตาตรงกับของเดิมใน v3 แล้ว",
+        "<b>พรีเซ็ตที่ 3 มีเลย์เอาต์ของตัวเองแล้ว</b> — เดิมไม่มีสาขารองรับ ตกไปใช้ตารางการ์ดธรรมดาทั้งหมด "
+        "(<b>4 section</b>) · v3 วางบทความเด่นเป็นแถวเดียว รูปกับข้อความแบ่งกันคนละครึ่ง",
+        "<b>แบบ “ข้อความทับบนรูป” ไปถึง 11 section แล้ว จากเดิม 1</b> — คู่ <code>simple</code> + พรีเซ็ต 2 "
+        "คือแบบที่ v3 วางข้อความทับบนรูป ไล่เฉดดำท้ายรูป และใช้ตัวอักษรสีขาว · เป็นกฎของตัวระบบเอง ไม่ใช่ของธีมใดธีมหนึ่ง",
+    ]},
     {"version": "1.68", "type": "fix", "date": "2026-10-02", "items": [
         "<b>section ที่ v3 สั่งชิดซ้าย/ขวา หัวข้อชิดตามแล้ว</b> — v3 มี class <code>left</code> / "
         "<code>right</code> ให้ section ที่ไม่เอาค่ากึ่งกลาง · converter อ่านไปใช้กับข้อความในการ์ดแล้ว "
@@ -4046,23 +4111,54 @@ def _blog_extract_nickname(title: str):
     return None
 
 
-def _blog_heading_widget(props: dict, key_name: str) -> dict:
-    """Build WidgetHeading for BlogSection."""
+def _blog_template(props: dict) -> str:
+    """v3's `.simpleTemplate` / `.hilightTemplate` class — the layout axis.
+
+    **`keyName` is not read by v3's renderer at all** (measured 2026-10-05 from
+    the component's own source, fetched off a demo's sourcemap — see
+    `tools/fetch_v3_source.py`). `BlogSection.js` builds its section class as
+
+        'pageZone blogLayout ' + className + ' ' + className2 + ' '
+          + (isDarkMode ? "darkMode" : "")
+          + (blogType ? ' ' + blogType + 'Template' : '')
+          + (presetId ? ' preset' + presetId : '')
+
+    and picks its markup with `blogType == 'simple'`. So the pair that decides
+    what a blog section looks like is **(`blogType`, `presetId`)**, which is
+    also exactly what every theme's CSS hangs off
+    (`.blogLayout.blog_section.hilightTemplate.preset3 ...`). `keyName` is the
+    editor's own label for the preset the designer picked: it is **absent from
+    23 of the 56 real sections** (the newer presets stopped writing it), and on
+    **8** of the 33 that have it, it names a template or a preset the renderer
+    does not use — a designer who switches template or preset afterwards leaves
+    it behind.
+
+    v3's own fallback, when `blogType` is missing, is the older
+    `isSimpleTemplate` boolean; no real section needs it, but it costs a line.
+    """
+    blog_type = props.get("blogType")
+    if blog_type:
+        return blog_type
+    return "simple" if props.get("isSimpleTemplate") else "hilight"
+
+
+def _blog_heading_widget(props: dict) -> dict:
+    """Build WidgetHeading for BlogSection — the same for every layout.
+
+    One layout used to get its own heading: an `h2`, a `{as: "span"}` caption
+    and a hard `alignment: "left"`. It came from a single hand-written fixture
+    and from nothing in v3 — a section's title is styled out of `titleStyle`
+    and the `left`/`right` class, identically for every preset, so a *layout*
+    has no business changing the heading's tag or its alignment. Dropped on the
+    user's call, 2026-10-05: every blog heading now centres like the rest
+    (v1.65), and `_apply_heading_text_style` still carries whatever v3 states.
+    """
     title       = props.get("title", "")
     description = props.get("description", "")
 
-    if key_name == "simpleblog_style_2":
-        info = {
-            "caption":   {"as": "span"},
-            "title":     {"text": title, "as": "h2"},
-            "alignment": "left",
-        }
-        if description:
-            info["description"] = {"text": description}
-    else:
-        info = {"title": {"text": title}}
-        if description:
-            info["description"] = {"text": description}
+    info = {"title": {"text": title}}
+    if description:
+        info["description"] = {"text": description}
 
     return make_node("widget", "WidgetHeading", None,
                      _apply_heading_text_style(props, info))
@@ -4092,121 +4188,192 @@ def _blog_grid_cols(blog_in_row, blog_mobile_in_row, default=None):
     return cols
 
 
-def _blog_list_widget(props: dict, key_name: str, preset_id: int) -> dict:
-    """Build WidgetBlogList based on keyName + presetId layout variant."""
-    blog_number        = props.get("blogNumber")
-    blog_in_row        = props.get("blogNumberInRow")
-    blog_mobile_in_row = props.get("blogNumberMobileInRow")
-    is_show_date       = props.get("isShowDate", True)
-    is_show_tag        = props.get("isShowTag", False)
-    is_mobile_scroll   = props.get("isMobileFreeScroll", False)
-    is_crop_image      = props.get("isCropImage", False)
-    tag                = props.get("tag", "")
+#: v4's own "grow the picture on hover" card effect. Present on **all five**
+#: hand-built layouts, so it is carried for every shop (user, 2026-10-05).
+#: Note it is *not* a v3 platform behaviour -- v3's base blog CSS has no hover
+#: transform at all, and only 4 of the 29 published themes add one (x_eco
+#: `scale(1.2)`, x_futuristic `1.05`, x_luxurygold and x_supercar `1.02`). This
+#: is a v4 design choice the user asked for by name, not a conversion.
+_BLOG_HOVER = {"media": "grow"}
 
+#: `row.info.gap` / `col.info.gap` straight out of the hand-built layouts.
+_BLOG_GAP_10_20 = {"lg": {"value": 10, "unit": "px"}, "xs": {"value": 20, "unit": "px"}}
+_BLOG_GAP_10    = {"lg": {"value": 10, "unit": "px"}}
+_BLOG_GAP_10_10 = {"lg": {"value": 10, "unit": "px"}, "xs": {"value": 10, "unit": "px"}}
+
+
+def _blog_simple_widget(props: dict, preset_id: int) -> dict:
+    """The one-widget layouts: `simple` + 1 and `simple` + 2.
+
+    v3 draws a plain grid of `blogNumber` cards here and reads
+    `blogNumberInRow` for the width, so a single `WidgetBlogList` says all of
+    it. Preset 2 is the one where **v3 puts the text on the picture**: the
+    platform stylesheet absolutely positions `.blogContent` at the bottom of
+    `.blogImage`, over a `linear-gradient(transparent -> rgba(0,0,0,.9))`
+    scrim, and paints every label `#fff`
+    (`v3/app-source/BlogSection.compiled.css`). v4 says that with
+    `isOverlay` + `isOverlayGradient` + `colorScheme: "color-scheme-inverse"`,
+    which is exactly what the hand-built "Simple Blog 2" does -- the scrim and
+    the white text were both missing before v1.71.
+    """
     info = {}
-
-    if key_name == "simpleblog_style_1" and preset_id == 2:
-        # bg-image layout (BLA2)
-        cols = _blog_grid_cols(blog_in_row, blog_mobile_in_row)
-        if cols:
-            info["layoutGridCols"] = cols
-        info["isShowDate"]         = is_show_date
-        info["isShowTag"]          = is_show_tag
-        info["layoutCard"]         = {"cardInfoAlignment": "left", "variant": "bg-image"}
-        info["cardDirection"]      = {"lg": "column"}
+    if preset_id == 2:
+        info["layoutCard"] = {"variant": "bg-image", "isOverlay": True,
+                              "isOverlayGradient": True, "effectHover": dict(_BLOG_HOVER)}
+        info["colorScheme"]        = "color-scheme-inverse"
         info["cardInfoDistribute"] = "flex-end"
-
-    elif key_name == "simpleblog_style_2":
-        # highlight list layout with row direction (BLA3)
-        info["isShowTag"]  = is_show_tag
-        layout_grid = {"template": "default"}
-        if is_mobile_scroll:
-            layout_grid["isOverflowX"] = True
-        info["layoutGrid"] = layout_grid
-        info["isShowDate"]        = is_show_date
-        info["layoutCard"]        = {"variant": "full-image", "cardInfoAlignment": "left", "isShowMedia": True}
-        info["isShowShortContent"] = True
-        info["cardDirection"]     = {"xs": "column", "lg": "row"}
-        info["cardMediaBasis"]    = {"value": 50, "unit": "%"}
-        info["layoutGridCols"]    = _blog_grid_cols(blog_in_row, blog_mobile_in_row,
-                                                    {"lg": "1", "xs": "1"})
-
-    elif key_name == "hilightblog_style_2":
-        # hilight 2-col row layout (BLA4)
-        info["layoutGridCols"] = _blog_grid_cols(blog_in_row, blog_mobile_in_row,
-                                                 {"lg": "2", "xs": "1"})
-        info["isShowDate"]         = is_show_date
-        info["isShowTag"]          = is_show_tag
-        info["layoutCard"]         = {"cardInfoAlignment": "left", "variant": "full-image", "isShowMedia": True}
-        info["cardDirection"]      = {"xs": "column", "lg": "row"}
-        info["cardInfoDistribute"] = "flex-start"
-        info["cardMediaBasis"] = {"lg": {"value": 50, "unit": "%"}}
-
-    elif key_name == "hilightblog_style_1":
-        # hilight column layout, minimal (BLA5)
-        info["isShowDate"]  = is_show_date
-        info["isShowTag"]   = is_show_tag
-        info["layoutCard"]  = {"cardInfoAlignment": "left", "variant": "full-image", "isShowMedia": True}
-        info["cardDirection"] = {"xs": "column", "lg": "column"}
-        cols = _blog_grid_cols(blog_in_row, blog_mobile_in_row)
-        if cols:
-            info["layoutGridCols"] = cols
-
     else:
-        # simpleblog_style_1 presetId=1 or unknown — full-image column layout (BLA6)
-        info["isShowDate"] = is_show_date
-        info["layoutCard"] = {"cardInfoAlignment": "left", "variant": "full-image", "isShowMedia": True}
-        info["cardDirection"] = {"xs": "column", "lg": "column"}
-        cols = _blog_grid_cols(blog_in_row, blog_mobile_in_row)
-        if cols:
-            info["layoutGridCols"] = cols
-        info["isShowTag"] = is_show_tag
+        info["layoutCard"] = {"variant": "full-image", "effectHover": dict(_BLOG_HOVER)}
+    info["cardDirection"] = {"xs": "column", "lg": "column"}
 
-    # Only `bg-image` puts the text ON the picture; every other v3 blog preset
-    # keeps the two apart -- above it, or beside it when `cardMediaBasis` is
-    # set. Say so, because a theme may turn the overlay on by default and then
-    # paint a dark scrim behind text that is not over any image: Kiara ships
-    # `info.Widget.BlogList.layoutCard.isOverlay: true`, which gave one shop's
-    # side-by-side blog cards a black block behind their text (user,
-    # 2026-09-23). v4-base leaves it off, so this changes nothing on Base.
-    #
-    # 55 of the 56 blog widgets in the real files are non-overlay; the one
-    # `bg-image` is left alone for the theme to style.
-    # ---- Settings every preset shares -------------------------------------
-    # These used to be written inside the branches and three of them were
-    # missing from some: `blogNumber` from both `hilightblog_*` (5 real
-    # sections, 5-10 posts each), `isMobileFreeScroll` from
-    # `hilightblog_style_1` (2), and **`tag` from four of the five** -- 7 real
-    # sections whose blog list is meant to show one tag and would have shown
-    # every post instead. Same shape as the `layoutGridCols` hard-coding fixed
-    # in v1.49; hoisted so a new preset cannot miss them (user, 2026-09-23).
+    cols = _blog_grid_cols(props.get("blogNumberInRow"),
+                           props.get("blogNumberMobileInRow"))
+    if cols:
+        info["layoutGridCols"] = cols
+    blog_number = props.get("blogNumber")
     if blog_number is not None:
         info["blogNumber"] = blog_number
-    if is_mobile_scroll:
-        grid = info.setdefault("layoutGrid", {})
-        grid["isOverflowX"] = True
+    return info
+
+
+def _blog_hilight_widgets(props: dict, preset_id: int):
+    """The two-widget layouts: `hilight` + 1, 2 and 3.
+
+    **This is what `offset` unlocked.** v3's hilight markup is two different
+    cards: a featured post (`.hilightBlog`, `slice(0, 1)`) beside a list of up
+    to four summaries (`.listBlog .itemBlogSummary`, `slice(1, 5)`), and a
+    single `WidgetBlogList` can only draw one card shape -- so until now each
+    hilight layout had to follow one half and lose the other. `offset` arrived
+    in v4 after the first mapping was written (user, 2026-10-05), and with it
+    the structure is exact: **one widget with `blogNumber: 1`, a second with
+    `blogNumber: 4` and `offset: 1`.**
+
+    That also retires v1.70's `blogNumber: 6`. The 6 was chosen *because* "v4
+    has no featured-plus-list layout to copy"; it now has one, so the count is
+    v3's own 1 + 4 again.
+
+    Shapes come from the five layouts the user hand-built in the v4 admin and
+    exported (`blogList-v4.json`), which land one per `(blogType, presetId)`
+    cell -- an independent confirmation of the axis v1.69 re-keyed on. Each
+    matches what v3 draws:
+
+    | preset | featured | list | v3 |
+    |---|---|---|---|
+    | 1 | overlay card | 2 across | both halves 50% wide, list items 50% again |
+    | 2 | `bg-image` overlay, inverse | rows, media 35% | featured image `padding-bottom: 100%`; list rows, image 40% / content 50% |
+    | 3 | 50/50 row, `cover` | 4 across | featured `--rowBlog_style`; v3's list is 2 across, the user chose 4 |
+
+    Returns `(featured_info, list_info)`.
+    """
+    hover = dict(_BLOG_HOVER)
+    featured = {"isShowShortContent": True, "blogNumber": 1,
+                "layoutGridCols": {"lg": "1"}}
+    listing  = {"blogNumber": 4, "offset": 1,
+                "layoutGridGapX": {"lg": "var(--row-gap)", "xs": "var(--row-gap)"},
+                "layoutGridGapY": {"lg": "var(--row-gap)", "xs": "var(--row-gap)"}}
+
+    if preset_id == 2:
+        featured["layoutCard"] = {"variant": "bg-image", "isOverlay": True,
+                                  "isOverlayGradient": True, "effectHover": hover}
+        featured["colorScheme"]        = "color-scheme-inverse"
+        featured["cardDirection"]      = {"xs": "column", "lg": "column"}
+        featured["cardInfoDistribute"] = "flex-end"
+
+        listing["layoutCard"] = {"variant": "full-image", "isOverlay": True,
+                                 "isOverlayGradient": True, "effectHover": dict(hover)}
+        # `xs: column`, not `row`: the card stacks on a phone. The export this
+        # came from said `row` at both breakpoints and the user corrected it
+        # on the spot (2026-10-05) -- and v3 agrees, since the row only exists
+        # at `@media (min-width: 750px)`.
+        listing["cardDirection"]      = {"xs": "column", "lg": "row"}
+        listing["cardInfoDistribute"] = "flex-end"
+        # **`lg` only.** The card is a row at `lg` and a column at `xs`, and on
+        # a column card the main axis is vertical -- a 35% basis there is 35%
+        # of the card's *height*, not its width, so the picture comes out
+        # squashed on a phone. The export stated it at both breakpoints; the
+        # user took `xs` off (2026-10-05), and v3 agrees, since the row only
+        # exists inside `@media (min-width: 750px)`. Same class as v1.52.
+        listing["cardMediaBasis"]     = {"lg": {"value": 35, "unit": "%"}}
+        listing["layoutGridCols"]     = {"lg": "1", "xs": "1"}
+
+    elif preset_id == 3:
+        featured["layoutCard"]    = {"variant": "full-image", "effectHover": hover}
+        featured["cardDirection"] = {"xs": "column", "lg": "row"}
+        featured["mediaObjectFit"] = "cover"
+
+        # the only layout whose list card states no `variant` at all -- it
+        # takes the theme's
+        listing["layoutCard"]     = {"effectHover": dict(hover)}
+        listing["cardDirection"]  = {"xs": "column", "lg": "column"}
+        listing["layoutGridCols"] = {"lg": "4"}
+        # `--col-gap` here, not `--row-gap`: the two lists are stacked inside
+        # one column, so the gap that matters is the column's
+        listing["layoutGridGapX"] = {"lg": "var(--col-gap)", "xs": "var(--col-gap)"}
+        listing["layoutGridGapY"] = {"lg": "var(--col-gap)", "xs": "var(--col-gap)"}
+
+    else:
+        featured["layoutCard"] = {"variant": "full-image", "isOverlay": True,
+                                  "isOverlayGradient": True, "effectHover": hover}
+        featured["cardDirection"]      = {"xs": "column", "lg": "column"}
+        featured["cardInfoDistribute"] = "flex-end"
+        featured["layoutGridGapY"]     = {"lg": {"value": 0, "unit": "px"}}
+
+        listing["layoutCard"] = {"variant": "full-image", "isOverlay": True,
+                                 "isOverlayGradient": True, "effectHover": dict(hover)}
+        listing["cardDirection"]      = {"xs": "column", "lg": "column"}
+        listing["cardInfoDistribute"] = "flex-end"
+        listing["layoutGridCols"]     = {"lg": "2"}
+
+    # **v3's summaries never show tags.** The `.itemBlogSummary` markup has no
+    # `tagList` at all -- only the featured post and the `simple` cards do --
+    # and v4-base turns `isShowTag` *on*, so the list has to say otherwise.
+    listing["isShowTag"] = False
+
+    # v3 ignores `blogNumberInRow` in this markup (it splits 50/50), so the
+    # per-layout counts above stand and v3's number is not read here.
+    return featured, listing
+
+
+def _blog_apply_shared(info: dict, props: dict, is_overflow_ok: bool = True) -> dict:
+    """The settings every blog widget carries, whatever its layout.
+
+    Hoisted in v1.50 after four of the five branches turned out to be dropping
+    `tag` -- 7 real sections whose list is meant to show one tag and showed
+    every post in the shop instead.
+    """
+    is_show_date = props.get("isShowDate", True)
+    info.setdefault("isShowDate", is_show_date)
+    info.setdefault("isShowTag", props.get("isShowTag", False))
+
+    if is_overflow_ok and props.get("isMobileFreeScroll", False):
+        info.setdefault("layoutGrid", {})["isOverflowX"] = True
+
+    tag = props.get("tag", "")
     if tag:
         info.setdefault("apiOptions", {}).setdefault("filters", {})["tags"] = tag
 
-    # `isCropImage` -> square, or the picture's own shape. **Which token depends
-    # on the variant** (user, 2026-09-24): a `bg-image` card has no separate
-    # media element -- the picture IS the card -- so its ratio is `cardRatio`;
-    # every other variant shows the picture as its own element, which is
-    # `mediaRatio`.
+    # `isCropImage` -> **3 / 2**, or the picture's own shape. **Which token
+    # depends on the variant** (user, 2026-09-24): a `bg-image` card has no
+    # separate media element -- the picture IS the card -- so its ratio is
+    # `cardRatio`; every other variant shows the picture as its own element,
+    # which is `mediaRatio`.
     #
     #                    crop ON        crop off
-    #   bg-image         cardRatio 1/1  cardRatio auto
-    #   everything else  mediaRatio 1/1 mediaRatio auto
+    #   bg-image         cardRatio 3/2  cardRatio auto
+    #   everything else  mediaRatio 3/2 mediaRatio auto
     #
-    # **Both states are written**, the same contract `_feat_list_widget` has
-    # had since v1.13: leaving `off` silent lets the theme's own ratio win, and
+    # **3 / 2, not a square.** v3's crop is a padding-bottom box and the
+    # platform stylesheet sets it in one place for every blog card:
+    # `.cropImage .blogImage { padding-bottom: 66.66% }`
+    # (`v3/app-source/BlogSection.compiled.css`; user, 2026-10-05). Three
+    # per-preset overrides exist and are deliberately not carried -- they all
+    # sit on the featured post, and the summaries beside it keep the default.
+    #
+    # **Both states are written**, the contract `_feat_list_widget` has had
+    # since v1.13: leaving `off` silent lets the theme's own ratio win, and
     # v4-base sets `.widget-blog-list { mediaRatio: "4 / 3" }`, so "keep the
     # picture's shape" was coming out as 4:3.
-    #
-    # Was wrong three ways before this: two of the five branches emitted
-    # nothing at all (15 real sections), `hilightblog_style_2` used `cardRatio`
-    # on a `full-image` card, and no branch handled `off`.
-    ratio = "1 / 1" if is_crop_image else "auto"
+    ratio = "3 / 2" if props.get("isCropImage", False) else "auto"
     if (info.get("layoutCard") or {}).get("variant") == "bg-image":
         # `cardRatio` is breakpoint-keyed in v4-base (`xs` 1/1, `lg` 3/4), so
         # both are written -- setting only `lg` would leave `xs` on the theme.
@@ -4214,15 +4381,66 @@ def _blog_list_widget(props: dict, key_name: str, preset_id: int) -> dict:
     else:
         info["mediaRatio"] = ratio
 
+    # Only `bg-image` puts the text ON the picture by nature; for every other
+    # variant the overlay is a decision, and these layouts make it explicitly
+    # -- a theme must not turn it on where it was not asked for (Kiara ships
+    # `info.Widget.BlogList.layoutCard.isOverlay: true`, which gave one shop's
+    # side-by-side cards a black block behind their text; user, 2026-09-23).
     layout_card = info.get("layoutCard")
     if isinstance(layout_card, dict) and layout_card.get("variant") != "bg-image":
-        layout_card["isOverlay"] = False
+        layout_card.setdefault("isOverlay", False)
 
-    return make_node("widget", "WidgetBlogList", None, info)
+    return info
+
+
+def _blog_button_widget(props: dict):
+    """WidgetButtonGroup for the section's own button, or None.
+
+    Centred since v1.68 -- v3 centres every section button through a
+    `.buttonAlign` rule that is not tied to any section and never written to
+    the file.
+    """
+    button_text = props.get("button", "")
+    if not button_text:
+        return None
+    btn_obj = {"title": button_text}
+    link = props.get("buttonLink", "")
+    if link:
+        btn_obj["to"] = link
+    target = props.get("buttonTarget", "")
+    if target:
+        btn_obj["target"] = target
+    # `secondary` + `medium` come from the hand-built layouts, which all three
+    # style this button the same way (`blogList-v4.json`). **No v3 section
+    # states a type** -- `buttonType` is empty on all 40 real blog buttons --
+    # so there is nothing to carry and nothing being overridden; it is the
+    # user's design for the "see all posts" button (2026-10-05). v4-base sets
+    # no ButtonGroup defaults at all.
+    btn_obj["variant"] = "secondary"
+    return make_node("widget", "WidgetButtonGroup", None, {
+        "buttons": [btn_obj],
+        "size": "medium",
+        # centred since v1.68 -- v3 centres every section button through a
+        # `.buttonAlign` rule not tied to any section and never written out
+        "widgetAlignSelf": {"xs": "center", "lg": "center"},
+    })
 
 
 def build_blog_section(props: dict) -> dict:
-    key_name  = props.get("keyName", "")
+    """BlogSection -> a v4 blog section.
+
+    Two shapes, decided by `blogType` (see `_blog_template`):
+
+        simple    one row  -> heading + one WidgetBlogList [+ button]
+        hilight   three rows -> "Header Row" / "Blogs Row" / "Buttons Row",
+                  the middle one carrying the featured post and the list as
+                  two WidgetBlogLists
+
+    The hilight structure, its row/col nicknames and its gaps are copied from
+    the five layouts the user hand-built in the v4 admin and exported
+    (`blogList-v4.json`, 2026-10-05).
+    """
+    blog_type = _blog_template(props)
     preset_id = props.get("presetId", 1)
     title     = props.get("title", "")
 
@@ -4245,25 +4463,51 @@ def build_blog_section(props: dict) -> dict:
     bg = _section_bg_color(props)
     if bg: section_info["bgColor"] = bg
 
-    heading   = _blog_heading_widget(props, key_name)
-    blog_list = _blog_list_widget(props, key_name, preset_id)
+    heading = _blog_heading_widget(props)
+    button  = _blog_button_widget(props)
 
-    col_children = [heading, blog_list]
+    if blog_type == "simple":
+        info = _blog_apply_shared(_blog_simple_widget(props, preset_id), props)
+        children = [heading, make_node("widget", "WidgetBlogList", None, info)]
+        if button is not None:
+            children.append(button)
+        col = make_node("col", None, None, {}, children)
+        rows = [make_node("row", None, None, {}, [col])]
+        return make_node("section", section_kind, nickname, section_info, rows)
 
-    button_text = props.get("button", "")
-    if button_text:
-        btn_obj = {"title": button_text}
-        link = props.get("buttonLink", "")
-        if link:
-            btn_obj["to"] = link
-        target = props.get("buttonTarget", "")
-        if target:
-            btn_obj["target"] = target
-        col_children.append(make_node("widget", "WidgetButtonGroup", None, {"buttons": [btn_obj]}))
+    featured, listing = _blog_hilight_widgets(props, preset_id)
+    # `isOverflowX` would mean nothing on the featured post -- it is one card
+    # in a one-column grid -- so v3's free-scroll reaches the list only
+    # (2 real hilight sections ask for it).
+    featured = _blog_apply_shared(featured, props, is_overflow_ok=False)
+    listing  = _blog_apply_shared(listing,  props)
 
-    col = make_node("col", None, None, {}, col_children)
-    row = make_node("row", None, None, {}, [col])
-    return make_node("section", section_kind, nickname, section_info, [row])
+    featured_widget = make_node("widget", "WidgetBlogList", "Highlight Blog List", featured)
+    list_widget     = make_node("widget", "WidgetBlogList",
+                                "Blog List" if preset_id == 3 else None, listing)
+
+    rows = [make_node("row", None, "Header Row", {},
+                      [make_node("col", None, None, {}, [heading])])]
+
+    if preset_id == 3:
+        # one column, the two lists stacked: v3 puts this preset's featured
+        # post *above* the list, not beside it
+        col = make_node("col", None, None, {"gap": dict(_BLOG_GAP_10_10)},
+                        [featured_widget, list_widget])
+        rows.append(make_node("row", None, "Blogs Row", {}, [col]))
+    else:
+        gap = dict(_BLOG_GAP_10) if preset_id == 2 else dict(_BLOG_GAP_10_20)
+        rows.append(make_node("row", None, "Blogs Row", {"gap": gap}, [
+            make_node("col", None, "Highlight Col",
+                      {"verticalAlign": {"lg": "flex-start"}}, [featured_widget]),
+            make_node("col", None, "Blogs Col", {}, [list_widget]),
+        ]))
+
+    if button is not None:
+        rows.append(make_node("row", None, "Buttons Row", {},
+                              [make_node("col", None, None, {}, [button])]))
+
+    return make_node("section", section_kind, nickname, section_info, rows)
 
 
 # ---------------------------------------------------------------------------
@@ -11243,7 +11487,9 @@ def convert_global(site_json: dict, warnings: list = None, *,
     # block, so one entry sets both.
     for (family, slot), size in sorted(_typo_plan(cfg).get("sizes", {}).items()):
         name = f"typo_{family}_{slot}"
-        rem = round(size / 16, 4)
+        # 3 decimals is enough by construction: `_typo_even_px` keeps every
+        # size even, and even / 16 = n / 8, which `0.125` expresses exactly.
+        rem = round(size / 16, 3)
         style[f".{name}, .{name}_bold"] = {
             # a whole number stays an int, as v4's own files write it
             "fontSize": {"lg": {"value": int(rem) if rem == int(rem) else rem,
@@ -12274,6 +12520,27 @@ def _typo_px(value):
     return size if 8 <= size <= 200 else None
 
 
+def _typo_even_px(px: int) -> int:
+    """Quantise a computed font size so its `rem` is short and lands on a px.
+
+    v4 writes these sizes in `rem` at a 16px root, and the converter divides
+    the px it measured by 16. An **odd** px needs four decimals to say
+    (49 / 16 = `3.0625`) -- more precision than a font size has any use for,
+    and the kind of number nobody can read at a glance. An **even** px never
+    needs more than three (even / 16 = n / 8, and 1/8 is exactly `0.125`), and
+    it still lands on a whole px.
+
+    So an odd size steps **down** to the even one below it: 49px -> 48px ->
+    `3rem`, which is the example the user gave (2026-10-05). Down rather than
+    up because every odd px is equidistant from the two even ones around it,
+    and a rule has to pick one; down is the predictable half.
+
+    v4 Base's own scale is already mostly on this grid -- `0.875` (14px),
+    `1.125` (18px), `1.25` (20px) -- so this lines the shop's sizes up with it.
+    """
+    return px - (px % 2)
+
+
 def _typo_sizes(site_json: dict) -> dict:
     """Every font size the shop states by hand, counted, split by family.
 
@@ -12372,8 +12639,12 @@ def _typo_plan(site_json: dict) -> dict:
             for size in group["sizes"]:
                 plan["lookup"][(family, size)] = group["slot"]
             base = _TYPO_BASE_LG[family][group["slot"]]
-            if enough and group["centre"] != base:
-                plan["sizes"][(family, group["slot"])] = group["centre"]
+            # Quantised before the comparison, not after: a group whose centre
+            # rounds onto Base's own size has nothing left to say, so no
+            # override is written at all.
+            centre = _typo_even_px(group["centre"])
+            if enough and centre != base:
+                plan["sizes"][(family, group["slot"])] = centre
     return plan
 
 
@@ -13210,7 +13481,11 @@ def _default_blog_list_sections(v3_page: dict) -> list:
     if image_type and image_type in _IMAGE_TYPE_TO_OBJECT_FIT:
         blog_info["mediaObjectFit"] = _IMAGE_TYPE_TO_OBJECT_FIT[image_type]
     if cfg.get("isCropImage"):
-        blog_info["mediaRatio"] = "1 / 1"
+        # 3 / 2, the same box the blog *section* crops to -- `BlogAllSection`
+        # has its own copy of the rule, with the same number
+        # (`.blogAllFlexSection… .cropImage .blogImage { padding-bottom: 66.66% }`,
+        # in the `lnwshopx-editable` chunk). Was `1 / 1` until v1.70.
+        blog_info["mediaRatio"] = "3 / 2"
 
     heading    = make_node("widget", "WidgetHeading", None, {"title": {"text": "บทความทั้งหมด"}})
     blog_widget = make_node("widget", "WidgetBlogList", None, blog_info)
@@ -14055,7 +14330,55 @@ def _convert_site(site_json: dict, warnings: list, generate_pages: bool) -> list
     for page in site_json.get("customRoutes") or []:
         if not (isinstance(page, dict) and "layouts" in page):
             continue
-        raw_path = (page.get("path") or "").replace(" ", "-")
+        # **A page v3 left empty is not emitted** (user, 2026-10-05). v3 lets a
+        # merchant create a route and never put anything in it: one shop has a
+        # privacy-policy route with `layouts: []`, a leftover whose own footer
+        # link already points at v4's native `/privacy_policy`. An empty v4
+        # page is useless on its own, and on a path v4 owns it is worse than
+        # useless: **anything the converter emits replaces v4's own default**,
+        # so it would wipe a page v4 ships with content in it.
+        #
+        # The two other custom-page loops in this function already skip on
+        # `not layouts`; `customRoutes` was the one that did not. The warning
+        # is `kind: "page-dropped"`, which the browser tool shows in the
+        # always-visible page callout -- a page disappearing must not be
+        # hidden behind a fold.
+        if not (page.get("layouts") or []):
+            if warnings is not None:
+                title = page.get("title") or page.get("path") or ""
+                warnings.append({
+                    "path": page.get("path") or "", "kind": "page-dropped",
+                    "title": title,
+                    "msg": f"ไม่สร้างหน้า “{title}” ({page.get('path')}) — "
+                           f"v3 ไม่มีเนื้อหาในหน้านี้เลย (layouts ว่าง) · "
+                           f"หน้าเปล่าใน v4 ไม่มีประโยชน์ และถ้า path ตรงกับ"
+                           f"หน้าที่ v4 มีให้เองจะไปทับของ v4 ด้วย",
+                })
+            continue
+        # **v3's path, verbatim.** No slugifying, no space -> `-`: the links
+        # that point here are copied from v3 untouched, so the moment the
+        # converter rewrites the *page's* path the two stop matching and the
+        # menu entry lands on nothing. One shop has 5 custom routes whose
+        # paths contain a space (`/about us`, `/NAS / ...`) and **6 menu links
+        # pointing at them**, every one of which was dead in the output.
+        #
+        # **v4 normalises the space itself on import** (user, 2026-10-05), so
+        # the converter pre-empting it is not just unnecessary, it is what
+        # breaks the pair: v4 would have given the path and the link the same
+        # treatment and kept them matching. Settled as "copy v3's link as it
+        # is and change nothing", which only holds if the path is copied the
+        # same way.
+        #
+        # The `-` was the converter's own invention, not something either
+        # platform asked for -- the same shape as the three v1.65-68 fixes.
+        # A path that still looks wrong afterwards is the merchant's to fix,
+        # in the output file (memory
+        # `feedback_converter_faithful_designer_fixes`).
+        #
+        # `_make_unique_path` still applies: a `-N` suffix on a genuine
+        # collision is not a rewrite of the merchant's URL, it is the only way
+        # to keep two pages that v3 let share a path.
+        raw_path = page.get("path") or ""
         if raw_path:
             path = _make_unique_path(raw_path, used_paths)
         else:
