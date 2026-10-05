@@ -246,6 +246,17 @@
   .modal-readme{margin:0;padding-left:18px;font-size:13px;line-height:1.6;color:var(--fg)}
   .modal-readme li{margin:2px 0}
   .modal-readme code{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--accent);background:var(--accent-soft);padding:1px 5px;border-radius:4px}
+  /* ── What's-new tabs ─────────────────────────────────────────────── */
+  /* Built from each entry's own `type`. The row hides itself when a log has
+     only one kind, so this is the same code the converter's popup uses. */
+  .cl-tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+  .cl-tabs button{font:inherit;font-size:11.5px;font-weight:600;cursor:pointer;
+    padding:4px 10px;border-radius:999px;border:1px solid var(--border-strong);
+    background:transparent;color:var(--muted);display:flex;align-items:center;gap:5px}
+  .cl-tabs button:hover{background:var(--hover);color:var(--fg)}
+  .cl-tabs button[aria-selected="true"]{background:var(--fg-strong);color:var(--panel);
+    border-color:var(--fg-strong)}
+  .cl-tabs .cl-n{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;opacity:.75}
   .changelog{display:flex;flex-direction:column;gap:14px}
   .changelog-entry{border-left:2px solid var(--border-strong);padding-left:13px}
   .changelog-entry .cl-ver{display:flex;align-items:baseline;gap:8px;margin-bottom:5px}
@@ -419,6 +430,7 @@
       </div>
       <div class="modal-section">
         <h4>อัพเดทล่าสุด</h4>
+        <div class="cl-tabs hidden" id="infoClTabs" role="tablist"></div>
         <div class="changelog" id="infoChangelog"></div>
       </div>
     </div>
@@ -445,6 +457,41 @@
   const clKind = (t) => CL_KIND[t]
     ? `<span class="cl-kind" data-kind="${t}">${CL_KIND[t]}</span>` : "";
 
+  // The backend's changelog, kept so the tabs can re-filter it without
+  // another round trip to Pyodide.
+  let CL = [];
+  let clFilter = "all";
+  const CL_TABS = [["all", "ทั้งหมด"], ["feat", "ของใหม่"], ["fix", "แก้บั๊ก"]];
+
+  function renderChangelog() {
+    const count = (k) => k === "all" ? CL.length
+                                     : CL.filter(e => e.type === k).length;
+    const tabs = CL_TABS.filter(([k]) => count(k) > 0);
+    const box = document.getElementById("infoClTabs");
+    // One kind only (or an empty log) — the tabs would say nothing.
+    const worth = tabs.filter(([k]) => k !== "all").length > 1;
+    box.classList.toggle("hidden", !worth);
+    box.innerHTML = !worth ? "" : tabs.map(([k, label]) => `
+      <button type="button" role="tab" data-cl="${k}"
+              aria-selected="${k === clFilter}">${label}
+        <span class="cl-n">${count(k)}</span>
+      </button>`).join("");
+
+    const shown = clFilter === "all" ? CL : CL.filter(e => e.type === clFilter);
+    document.getElementById("infoChangelog").innerHTML = shown.map(e => `
+      <div class="changelog-entry">
+        <div class="cl-ver"><span class="cl-tag">v${e.version}</span>${clKind(e.type)}<span class="cl-date">${e.date}</span></div>
+        <ul>${(e.items || []).map(i => `<li>${i}</li>`).join("")}</ul>
+      </div>`).join("");
+  }
+
+  document.getElementById("infoClTabs").addEventListener("click", (ev) => {
+    const btn = ev.target.closest("button[data-cl]");
+    if (!btn) return;
+    clFilter = btn.dataset.cl;
+    renderChangelog();
+  });
+
   function renderInfo(meta) {
     // meta = { version, updated, capabilities:[...], changelog:[{version,date,items:[...]}] }
     const v = "v" + meta.version;
@@ -469,11 +516,8 @@
     ];
     document.getElementById("infoReadme").innerHTML =
       README_HTMLFIX.map(t => `<li>${t}</li>`).join("");
-    document.getElementById("infoChangelog").innerHTML = (meta.changelog || []).map(e => `
-      <div class="changelog-entry">
-        <div class="cl-ver"><span class="cl-tag">v${e.version}</span>${clKind(e.type)}<span class="cl-date">${e.date}</span></div>
-        <ul>${(e.items || []).map(i => `<li>${i}</li>`).join("")}</ul>
-      </div>`).join("");
+    CL = meta.changelog || [];
+    renderChangelog();
   }
 
   (function setupInfoPopup(){
