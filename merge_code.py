@@ -22,9 +22,10 @@ modify `converter.py`; it has its own version/changelog and its own web page
 
 Merge model (v4 = skeleton, v3 = content), controlled by `mode`:
   - Top-level envelope: kept from v4 (slot `id`, `last_revision_id`,
-    `nickname`, `css`, `unuse_configs`, …), EXCEPT `info` + `style`, which are
+    `nickname`, `unuse_configs`, …), EXCEPT `info` + `style`, which are
     deep-merged with v3's (v3 wins on conflicting keys, with a warning), and
-    `theme_key`, which is taken from v3 outright when v3 carries one. All three
+    `theme_key`, which is taken from v3 outright when v3 carries one, and
+    `css`, where v3's is appended after the slot's (not twice). All four
     are unaffected by `mode`. The theme goes with the content: `info`/`style`
     are written against whatever theme the conversion targeted, so keeping the
     slot's `theme_key` would pair v3's colours with another theme's defaults.
@@ -67,10 +68,15 @@ import collections
 import copy
 import re
 
-MERGE_VERSION = "1.6"
-MERGE_LAST_UPDATED = "2026-09-23"
+MERGE_VERSION = "1.7"
+MERGE_LAST_UPDATED = "2026-10-09"
 
 MERGE_CHANGELOG = [
+    {"version": "1.7", "type": "fix", "date": "2026-10-09", "items": [
+        "<b>รวม <code>css</code> ของ site ด้วย</b> — เดิมใช้ของร้านปลายทางอย่างเดียว css ที่ converter ใส่มาจึงหายไป "
+        "(เช่นกฎที่ทำให้วิดีโอ YouTube เต็มพื้นหลังบนมือถือ)",
+        "css ของร้านปลายทางยังอยู่ครบ ของที่แปลงมาต่อท้าย · ถ้ามีอยู่แล้วจะไม่ใส่ซ้ำ · ทำเหมือนกันทุกโหมด",
+    ]},
     {"version": "1.6", "type": "fix", "date": "2026-09-23", "items": [
         "<b>โหมดต่อท้าย: section ที่เป็นอันเดียวกับของร้านปลายทาง จะใช้ของร้านปลายทาง</b> — converter ใส่ section เริ่มต้นของ v4 "
         "มาให้ในทุกหน้าระบบ (ฟอร์มติดต่อ, รายการบล็อก, หน้าสินค้า ฯลฯ) พอเอามารวมจึงซ้ำกับของที่ร้านมีอยู่แล้ว · "
@@ -280,6 +286,21 @@ def merge_v3_into_v4(v3: dict, v4: dict, mode: str = "append"):
             _merge_info_style(v4_obj, v3_obj, warnings, key)
         else:
             result[key] = copy.deepcopy(v3_obj)
+
+    # ---- Top-level css: add v3's after the slot's ---------------------------
+    # The converter puts here the rules its content needs and v4 does not ship
+    # (the YouTube background class, converter 1.78) -- leaving it behind
+    # breaks that content. The slot's own CSS is the shop's, so it is kept and
+    # v3's goes after it. Same in every mode, like info/style. Text already in
+    # the slot's CSS is not added twice, so merging again is harmless.
+    v3_css = v3.get("css")
+    if isinstance(v3_css, str) and v3_css.strip():
+        v4_css = result.get("css")
+        if not isinstance(v4_css, str) or not v4_css.strip():
+            result["css"] = v3_css
+        elif v3_css.strip() not in v4_css:
+            result["css"] = v4_css.rstrip() + "\n\n" + v3_css
+            warnings.append("css: ต่อ css จากโค้ดที่แปลงมาไว้ท้าย css เดิมของร้านปลายทาง")
 
     # ---- Pages: index v4 by path, then graft/append per v3 page -------------
     v4_pages = result.get("pages")

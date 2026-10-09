@@ -26,8 +26,8 @@ from urllib.parse import quote, unquote
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.74"
-LAST_UPDATED = "2026-10-05"
+__version__ = "1.78"
+LAST_UPDATED = "2026-10-09"
 
 # Short summary of what the converter handles — shown in the browser popup.
 # Plain strings; inline HTML (e.g. <code>) is allowed for rendering there.
@@ -41,6 +41,75 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.78", "type": "feat", "date": "2026-10-09", "items": [
+        "<b>สีกลาง (Neutral) ไม่ติดโทนจากสีตัวอักษรแล้ว</b> — ถ้าสีตัวอักษรของ v3 เป็นสีที่มีโทน "
+        "(เช่นเขียวอมฟ้าเข้มหรือกรมท่า) ขั้นสีเทาจะใช้โทนจากสีเทาหรือครีมที่ร้านใช้จริงแทน · "
+        "ถ้าสีตัวอักษรนั้นเป็น BrandAlt อยู่แล้ว ขั้นเข้มสุดของ Neutral จะเป็นเทาเข้มแทน ไม่ซ้ำกัน",
+        "<b>บล็อกแบบ Simple preset 2 แสดง 2 บทความแรกกว้างครึ่งจอเหมือน v3</b> — v3 ให้ 2 บทความแรกกว้างครึ่งจอ "
+        "แล้วที่เหลือเรียงตามจำนวนต่อแถวที่ตั้งไว้ (เช่น 10 บทความ แถวละ 4 = 2 + 8) · "
+        "แปลงเป็น BlogList 2 ตัว ตัวที่สองข้าม 2 บทความแรก (<code>offset: 2</code>) ตามแบบที่ออกแบบไว้ใน v4",
+        "<b>section ที่ร้านใส่ในหน้าระบบ อยู่ตำแหน่งเดียวกับใน v3</b> — v3 บันทึกไว้ว่าแต่ละ section "
+        "อยู่บนหรือใต้ส่วนที่ระบบวาดเอง (เช่นรูป header อยู่บนรายการบทความ หรือ banner CTA อยู่ใต้ฟอร์มติดต่อ) · "
+        "เดิมส่วนของระบบขึ้นก่อนเสมอ · ใช้กับหน้าบทความ ติดต่อเรา หมวดหมู่ โปรโมชัน สินค้า และค้นหา · "
+        "section ที่ไม่ได้ระบุตำแหน่ง (v3 ไม่แสดง) จะไม่ถูกแปลงมา",
+        "<b>หน้ารวมบทความ: การ์ดเป็นแบบรูปเต็มเรียงบนลงล่าง</b> ไม่ใช้แบบตั้งต้นของธีม",
+        "<b>ผลแปลงบนหน้าเว็บมีค่า <code>null</code> ครบแล้ว</b> — เดิม key ที่เป็น <code>null</code> "
+        "(<code>nickname</code>, <code>kind</code>, <code>css</code> ฯลฯ) หายไปจากผลแปลงบนหน้าเว็บทุกครั้ง "
+        "แต่ CLI ไม่หาย · ตอนนี้ส่งข้อมูลแบบเดียวกับ htmlfix และ merge code",
+        "<b>Headline ที่พื้นหลังเป็นวิดีโอ YouTube: วิดีโอเต็มพื้นที่ section แล้ว</b> — เดิมมีขอบดำ เพราะ iframe ของ YouTube "
+        "ขยายแบบ cover เองไม่ได้ · ตอนนี้ section ตั้ง cover + 16/9, แถวสูงตามวิดีโอ (56.25vw) ที่จอใหญ่, "
+        "padding 0, เนื้อหาอยู่กลาง และใช้ scheme inverse · บนมือถือ section สูง 50vh และ <code>css</code> ของ site "
+        "มีกฎของคลาส <code>video-bg-cover-section</code> ให้วิดีโอเต็มพื้นที่ · วิดีโอ mp4 ไม่เปลี่ยน",
+        "<b>หน้ารายการ (บทความ สินค้าในหมวดหมู่ โปรโมชัน ผลค้นหา) เรียงเป็นตาราง ไม่เลื่อนแนวนอน</b> — "
+        "ตั้ง <code>isOverflowX: false</code> ให้เสมอ ธีมจึงเปลี่ยนเป็นแถบเลื่อนไม่ได้",
+        "<b>Google font ไม่ถูกตัดทิ้งแล้ว</b> — เดิมฟอนต์ที่ไม่อยู่ในรายการฟอนต์ระบบจะถูกตัดทิ้ง "
+        "แล้วให้ใส่เองใน v4 · ตอนนี้เก็บไว้ในชุดฟอนต์ และลงทะเบียนไว้ใน <code>fontManifest</code> "
+        "แบบเดียวกับตอนแปลงธีม (ยังมีแจ้งเตือนให้ตรวจว่าฟอนต์มีใน v4)",
+    ]},
+    {"version": "1.77", "type": "fix", "date": "2026-10-08", "items": [
+        "<b>รูปใน WidgetMedia คงสัดส่วนเดิมของรูป</b> — v3 ไม่ได้กำหนดสัดส่วนรูปไว้ "
+        "แต่ v4 จะใช้สัดส่วนของธีมแทนเมื่อไม่ได้ระบุ รูปจึงถูกครอปผิดรูป · ตอนนี้ใส่ "
+        "<code>mediaRatio: auto</code> ทั้งมือถือและจอใหญ่ให้ทุก WidgetMedia ที่ v3 ไม่ได้กำหนด "
+        "รวมรูปในเมนู dropdown ของ header",
+    ]},
+    {"version": "1.76", "type": "feat", "date": "2026-10-06", "items": [
+        "<b>ร้านถูกตั้งธีม v4 ตามรายการจับคู่ธีม</b> — ไฟล์ที่แปลงทั้งเว็บ (site) ใส่ <code>theme_key</code> "
+        "เป็นธีม v4 ที่จับคู่กับธีม v3 ของร้าน เช่นธีม Plaza ไปเป็น Space and Stroll "
+        "ธีมที่ยังไม่ได้จับคู่ใช้ Base เหมือนเดิม",
+        "<b>สีของร้านใช้บนธีมปลายทางเสมอ</b> — ไม่ใช้สีของธีมแทนสีของร้าน · "
+        "ถ้าธีมปลายทางใช้ BrandAlt เป็นสีปุ่มหลัก (เช่น Forma) จะสลับ Brand กับ BrandAlt ให้ "
+        "สีหลักของร้านจึงยังอยู่ที่ปุ่มหลักเหมือนใน v3",
+    ]},
+    {"version": "1.75", "type": "feat", "date": "2026-10-06", "items": [
+        "<b>สีของร้านถูกจัดตามบทบาท ไม่ใช่ตามช่องอีกต่อไป</b> — v3 ให้สีมา 6 ช่อง "
+        "แต่แต่ละธีมใช้ช่องเดียวกันคนละความหมาย (บางธีมช่อง 2 คือสีปุ่มตอน hover "
+        "บางธีมคือพื้นหลังสีอ่อน) · ตอนนี้ converter แยก<b>สีแบรนด์</b>ออกจาก<b>สีกลาง</b> "
+        "(ขาว ดำ เทา ครีม) แล้ววางลง Brand / BrandAlt / Neutral ตามความหมายของ v4",
+        "<b>Brand ตัดสินด้วยการให้คะแนน</b> — สีที่ธีมใช้ในพื้นที่หลักของเว็บเยอะ (พื้น header หัวข้อ ปุ่ม) "
+        "สีในช่องแรกของ v3 และสีปุ่มหลักของธีม ได้คะแนนมากกว่า (เช่นธีมที่ปุ่มเป็นสีดำ จะได้ Brand สีดำ) · "
+        "สีน้ำตาลหรือสีโทนดินถือเป็นสีกลาง · <b>BrandAlt</b> คือสีแบรนด์ที่คะแนนรองลงมา ถ้าไม่มี ใช้สีที่โทนต่างจากแบรนด์ (เช่นสีครีมข้างแบรนด์สีฟ้า "
+        "หรือสีตัวอักษรน้ำตาลข้างแบรนด์สีเขียว) ถ้ายังไม่มีอีก BrandAlt จะเป็นสีเดียวกับ Brand "
+        "สีของธีมจึงไม่หลุดเข้ามา · ธีมที่มีสีแบรนด์หลายสี สีที่เหลือจะรวมอยู่ใน BrandAlt โดยไม่ไล่เฉด",
+        "<b>สีจากปุ่มของร้านก็นับด้วย</b> (ปุ่มหยิบใส่ตะกร้า ปุ่ม checkout ปุ่มแชท สีลิงก์ตอน hover) "
+        "เพราะบางร้านมีสีที่สองแค่บนปุ่ม · แต่ต้องใช้ซ้ำอย่างน้อย 2 จุด หรือตรงกับสีของร้าน "
+        "สีที่ตั้งไว้เฉพาะปุ่มเดียวไม่นับ · สีในเนื้อหา section ไม่นับ เพราะสีแดงโปรโมชันจะกลายเป็นสีแบรนด์ผิดๆ",
+        "<b>สีเดิมจาก v3 อยู่ครบที่สุดเท่าที่ทำได้</b> — สีที่ร้านใส่มาจะได้ลงขั้นใดขั้นหนึ่งเสมอ "
+        "ขั้นที่คำนวณเองมีไว้เติมช่องว่างเท่านั้น · ช่อง 2 และ 3 ของ v3 (สีพื้นและสีตัวอักษร) "
+        "เป็นปลายสองข้างของ Neutral · จาก 274 สีของทุกธีมและทุกร้าน เหลือที่ไม่ได้ลงแค่ 7 สี "
+        "ซึ่งแทบแยกไม่ออกจากสีที่ลงแล้ว",
+        "<b>สเกลสีไม่ยุบเป็นสีเดียวกันแล้ว</b> — เดิมผสมขาว/ดำแบบตายตัว ถ้าเริ่มจากขาวหรือดำ"
+        "จะได้หลายขั้นเป็นสีเดียวกัน (มีร้านที่เทาทั้ง 5 ขั้นเป็นสีเดียว) · ตอนนี้คำนวณแบบ OKLCH "
+        "ตามที่ตามองเห็น · ขั้นที่คำนวณเองไล่ระหว่างสี v3 ที่อยู่ติดกันสองข้าง (เช่นขาวไปน้ำตาล "
+        "จะได้เทาอมน้ำตาล ไม่ใช่เทาล้วน) · สีเทาไม่ติดสีจากสีดำที่อมเขียวหรืออมฟ้าแล้ว · "
+        "แบรนด์สีดำได้ขั้น hover ที่สว่างขึ้นแทน · ร้านที่ใส่สีขาวไว้หลายช่อง Neutral จะเน้นโทนอ่อน",
+        "<b>ร้านที่ไม่ได้ตั้งสีเอง ได้สีของธีม v3 ที่ใช้อยู่</b> — เดิมร้านแบบนี้ไม่ได้รับสีเลย "
+        "จึงใช้สีของธีม v4 ที่ไปอยู่ ซึ่งไม่ใช่สีที่ v3 แสดง · ตอนนี้ใช้ palette ของธีม v3 แทน (6 ร้าน) · "
+        "ช่องที่ร้านเว้นว่างไว้บางช่องก็ใช้สีของธีมในช่องนั้นเช่นกัน",
+        "<b>สีแบรนด์โทนเข้มหรือโทนอ่อนของ v3 ที่เฉดใกล้กัน อยู่ใน Brand ด้วยกัน</b> — เช่นร้านที่ใช้น้ำตาลเป็นสีหลัก "
+        "และแดงเป็นสีแบรนด์โทนเข้ม ทั้งสองสีจะอยู่ใน Brand เรียงตามความสว่าง "
+        "และขั้นที่อยู่ระหว่างสองสีต่างเฉดจะไล่ระหว่างกัน",
+        "<b>ธีมยังจับคู่สีตามช่องเหมือนเดิม</b> จนกว่าจะใช้รายการจับคู่ธีม v3 → v4",
+    ]},
     {"version": "1.74", "type": "fix", "date": "2026-10-05", "items": [
         "<b>ขนาดตัวอักษรที่คำนวณให้ ไม่มีทศนิยมยาวเกินจำเป็นแล้ว</b> — v4 เก็บค่าเป็น "
         "<code>rem</code> ขนาดที่เป็นเลขคี่จึงต้องใช้ทศนิยม 4 ตำแหน่ง "
@@ -1376,6 +1445,11 @@ def convert_text_align(content_style: dict) -> dict:
 
 def make_node(node_type: str, kind, nickname, info: dict, children=None) -> dict:
     """Build a standard new-format node. id and ukey are auto-generated by the target system."""
+    if node_type == "widget" and kind == "WidgetMedia" and isinstance(info, dict) \
+            and "mediaRatio" not in info:
+        # v3 gives no ratio for a media widget, and silence would inherit the
+        # theme's (a fixed crop): keep the image's own shape (user, 2026-10-08).
+        info["mediaRatio"] = {"xs": "auto", "lg": "auto"}
     node = {
         "type": node_type,
         "kind": kind,
@@ -2445,7 +2519,78 @@ def build_headline_section(props: dict) -> dict:
         cols = [make_node("col", None, None, {}, _headline_content_widgets(props, include_media=True))]
 
     row = make_node("row", None, None, {}, cols)
+    if bg_media_type == "videoBg" and _is_youtube(props.get("backgroundVideo")):
+        _youtube_bg_cover(section_info, row)
     return make_node("section", "Standard", props.get("presetName", ""), section_info, [row])
+
+
+def _is_youtube(src) -> bool:
+    return bool(src) and ("youtube.com" in src or "youtu.be" in src)
+
+
+_ZERO_PX = {"xs": {"value": 0, "unit": "px"}, "lg": {"value": 0, "unit": "px"}}
+
+#: The class `_youtube_bg_cover` puts on the section, and the CSS that makes
+#: the iframe cover it below lg, where the section is 50vh rather than 16/9
+#: (user, 2026-10-09, tested in v4). v4 has no such rule of its own, so the
+#: CSS travels in the site's top-level `css` -- see `site_css`.
+YOUTUBE_BG_CLASS = "video-bg-cover-section"
+YOUTUBE_BG_CSS = (
+    "@media (max-width: 1023px){\n"
+    "  /* ทำให้เป็น cover ใน mobile ความสูงกำหนดที่ Row ของเนื้อหา */\n"
+    "  .video-bg-cover-section .element-video .youtube,\n"
+    "  .video-bg-cover-section .element-video .youtube iframe{\n"
+    "  position: absolute;\n"
+    "  top: 50%;\n"
+    "  left: 50%;\n"
+    "  transform: translate(-50%, -50%);\n"
+    "    width: max(100vw, calc(100vh * (16 / 9)));\n"
+    "    height: max(100vh, calc(100vw * (9 / 16)));\n"
+    "  }\n"
+    "}"
+)
+
+
+def site_css(*parts):
+    """The site's top-level `css`: the rules the converted content needs and v4
+    does not ship. None when nothing needs any, as before. Takes the pages and
+    zones (any nesting) and looks for the classes the builders put on."""
+    found = []
+
+    def walk(n):
+        if isinstance(n, dict):
+            if (n.get("info") or {}).get("customClassName") == YOUTUBE_BG_CLASS:
+                found.append(True)
+            for v in n.values():
+                walk(v)
+        elif isinstance(n, list):
+            for v in n:
+                walk(v)
+    walk(list(parts))
+    return YOUTUBE_BG_CSS if found else None
+
+
+def _youtube_bg_cover(section_info: dict, row: dict) -> None:
+    """A YouTube background is an iframe, which cannot `cover` the section the
+    way a <video> does: it letterboxes. The user's fix (2026-10-09, on a real
+    shop's about page): the section states `cover` and a 16/9 video ratio, and
+    the row takes the video's own height at lg (56.25vw = 9/16 of the width),
+    so the frame and the video agree. Padding goes to 0 because the row's
+    height now sets the section's; the content sits centred in it. White text
+    on moving footage, so the inverse scheme. Only YouTube: an mp4 is a
+    <video> and already covers."""
+    section_info["customClassName"] = YOUTUBE_BG_CLASS
+    section_info["height"] = {"xs": {"value": 50, "unit": "vh"}}
+    section_info["bgSize"] = {"xs": "cover", "lg": "cover"}
+    section_info["elementVideoAspectRatio"] = "16/9"
+    section_info["colorScheme"] = "color-scheme-inverse"
+    section_info["bgVideo"]["isAutoplay"] = True
+    section_info["paddingTop"] = json.loads(json.dumps(_ZERO_PX))
+    section_info["paddingBottom"] = json.loads(json.dumps(_ZERO_PX))
+    row["info"]["height"] = {"lg": {"value": 56.25, "unit": "vw"}}
+    for col in row["children"]:
+        col["info"].setdefault("horizontalAlign", {"xs": "center"})
+        col["info"].setdefault("verticalAlign", {"lg": "center"})
 
 
 # ---------------------------------------------------------------------------
@@ -4426,6 +4571,51 @@ def _blog_button_widget(props: dict):
     })
 
 
+#: grid gaps of the hand-built "Simple Blog 2" (user, 2026-10-09)
+_BLOG_ROW_GAP = {"xs": "var(--row-gap)", "lg": "var(--row-gap)"}
+
+
+def _blog_simple2_section(props, section_kind, nickname, section_info, heading, button):
+    """`simple` + preset 2: the first two posts are half-width, the rest follow
+    `blogNumberInRow`.
+
+    v3's platform stylesheet gives `.simpleTemplate.preset2 .itemBlog:first-child,
+    :nth-child(2)` a `flex-basis: 50%` from 750px up
+    (`v3/app-source/BlogSection.compiled.css`), so a shop asking for 10 posts
+    four to a row sees 2 across, then 8 in two rows of 4. v4 says it with two
+    `WidgetBlogList`s, the second with `offset: 2` -- the structure, gaps and
+    rows of the layout the user hand-built (2026-10-09, `blogList-v4.json`
+    "Simple Blog 2").
+    """
+    total = props.get("blogNumber")
+    first = _blog_apply_shared(_blog_simple_widget(props, 2), props)
+    rest = _blog_apply_shared(_blog_simple_widget(props, 2), props)
+    # the half-width rule is v3's ≥750px only; a phone keeps its own count
+    mobile = props.get("blogNumberMobileInRow")
+    first["layoutGridCols"] = {"lg": "2", "xs": str(mobile) if mobile else "1"}
+    first["blogNumber"] = 2
+    # the two half-width posts never scroll sideways, even where v3 lets the
+    # rest free-scroll on a phone (user's mobile fix, 2026-10-09)
+    first["layoutGrid"] = {**first.get("layoutGrid", {}), "isOverflowX": False}
+    rest["blogNumber"] = total - 2
+    rest["offset"] = 2
+    for info in (first, rest):
+        info["layoutGridGapX"] = dict(_BLOG_ROW_GAP)
+        info["layoutGridGapY"] = dict(_BLOG_ROW_GAP)
+    rows = [
+        make_node("row", None, "Header Row", {}, [make_node("col", None, None, {}, [heading])]),
+        make_node("row", None, "Blogs Row", {"gap": dict(_BLOG_GAP_10)}, [
+            make_node("col", None, None, {"gap": dict(_BLOG_ROW_GAP)}, [
+                make_node("widget", "WidgetBlogList", None, first),
+                make_node("widget", "WidgetBlogList", None, rest),
+            ])]),
+    ]
+    if button is not None:
+        rows.append(make_node("row", None, "Buttons Row", {},
+                              [make_node("col", None, None, {}, [button])]))
+    return make_node("section", section_kind, nickname, section_info, rows)
+
+
 def build_blog_section(props: dict) -> dict:
     """BlogSection -> a v4 blog section.
 
@@ -4466,6 +4656,9 @@ def build_blog_section(props: dict) -> dict:
     heading = _blog_heading_widget(props)
     button  = _blog_button_widget(props)
 
+    if blog_type == "simple" and preset_id == 2 and (props.get("blogNumber") or 0) > 2:
+        return _blog_simple2_section(props, section_kind, nickname, section_info,
+                                     heading, button)
     if blog_type == "simple":
         info = _blog_apply_shared(_blog_simple_widget(props, preset_id), props)
         children = [heading, make_node("widget", "WidgetBlogList", None, info)]
@@ -5876,7 +6069,9 @@ def _mega_col_widgets(entries: list) -> list:
             widgets.append({
                 "id": None, "type": "widget", "kind": "WidgetMedia",
                 "nickname": None,
-                "info": {"mediaType": "image", "image": {"src": image}},
+                "info": {"mediaType": "image", "image": {"src": image},
+                         # no ratio from v3: keep the image's shape (as make_node does)
+                         "mediaRatio": {"xs": "auto", "lg": "auto"}},
                 "style": [],
             })
         has_title = bool(title)
@@ -6431,6 +6626,201 @@ _THEME_COLOR_KEYS = [
     "colorBrandSubtle",      # [4]
     "colorBrandBold",        # [5]
 ]
+
+# Which v3 colour slot each theme paints its buttons in: (primary, primary
+# hover, {slot: uses on the other buttons, links and accent tag}, {brand slot:
+# how often the theme's CSS paints with it — header grounds, headings,
+# buttons}). The primary
+# button's fill is the clearest sign of a theme's brand colour (user,
+# 2026-10-06): x_playground's is its green slot 4, x_voice's its black slot 0.
+# Generated by tools/gen_theme_buttons.py from the theme converter's checked
+# `.color-scheme-main` ("theme"), else the palette's button mixins
+# ("palette"). Embedded because the browser's convert_global needs it.
+_THEME_BUTTON_SLOTS = {
+    'x_adminweb': (1, 1, {0: 3, 3: 2}, {0: 15, 1: 7, 4: 0, 5: 2}),  # palette
+    'x_adventure': (5, 0, {0: 2, 5: 3}, {0: 27, 1: 8, 4: 7, 5: 4}),  # theme
+    'x_bakery': (0, 5, {0: 3, 5: 2}, {0: 34, 1: 17, 4: 0, 5: 0}),  # theme
+    'x_basic': (0, 5, {0: 5, 3: 2, 5: 2}, {0: 30, 1: 3, 4: 0, 5: 9}),  # palette
+    'x_bluehorizon': (0, 0, {0: 2, 2: 1, 3: 1, 4: 1, 5: 1}, {0: 53, 1: 4, 4: 10, 5: 2}),  # theme
+    'x_bold': (0, 4, {0: 5, 3: 2, 4: 2}, {0: 13, 1: 2, 4: 9, 5: 0}),  # palette
+    'x_borsa': (0, 4, {0: 4, 3: 1}, {0: 65, 1: 6, 4: 18, 5: 0}),  # palette
+    'x_caution': (1, 0, {0: 5, 1: 1, 3: 2}, {0: 9, 1: 17, 4: 3, 5: 0}),  # palette
+    'x_ceramicstore': (0, 1, {0: 4, 1: 2, 2: 1}, {0: 74, 1: 11, 4: 6, 5: 1}),  # theme
+    'x_cha': (0, 5, {0: 1, 2: 1, 5: 2}, {0: 76, 1: 5, 4: 0, 5: 3}),  # theme
+    'x_clean': (0, 5, {0: 5, 3: 2, 5: 2}, {0: 24, 1: 8, 4: 4, 5: 4}),  # palette
+    'x_cleancolor': (0, 5, {0: 6, 3: 2, 5: 1}, {0: 41, 1: 6, 4: 2, 5: 4}),  # palette
+    'x_cozy': (3, 1, {0: 3, 3: 2}, {0: 35, 1: 3, 4: 3, 5: 4}),  # palette
+    'x_cozy_fw': (3, 3, {0: 2, 3: 3}, {0: 37, 1: 0, 4: 4, 5: 4}),  # theme
+    'x_denim_fw': (0, 3, {0: 5}, {0: 37, 1: 3, 4: 0, 5: 2}),  # palette
+    'x_downtown': (0, 4, {0: 3, 1: 1, 3: 1}, {0: 52, 1: 24, 4: 1, 5: 0}),  # palette
+    'x_eco': (0, 5, {0: 2, 1: 1, 5: 2}, {0: 38, 1: 15, 4: 7, 5: 12}),  # theme
+    'x_elite': (0, None, {0: 5, 5: 1}, {0: 50, 1: 32, 4: 3, 5: 3}),  # theme
+    'x_fundamental': (0, 5, {0: 5, 3: 3, 4: 1}, {0: 28, 1: 3, 4: 3, 5: 1}),  # palette
+    'x_futuristic': (1, 1, {0: 2, 2: 2, 3: 1}, {0: 23, 1: 9, 4: 12, 5: 0}),  # palette
+    'x_greenery': (0, 5, {0: 5, 3: 2, 5: 2}, {0: 32, 1: 2, 4: 2, 5: 7}),  # palette
+    'x_happy': (0, 0, {0: 5, 3: 2}, {0: 17, 1: 7, 4: 0, 5: 1}),  # palette
+    'x_julie': (1, 1, {0: 7}, {0: 98, 1: 30, 4: 14, 5: 19}),  # palette
+    'x_knowledge': (0, 5, {0: 3, 3: 1, 5: 1}, {0: 50, 1: 6, 4: 0, 5: 7}),  # palette
+    'x_luxurygold': (0, 5, {0: 3, 3: 2}, {0: 9, 1: 4, 4: 4, 5: 11}),  # palette
+    'x_millennium': (0, 5, {0: 5, 3: 2, 5: 2}, {0: 32, 1: 1, 4: 0, 5: 9}),  # palette
+    'x_mixednuts': (0, 3, {0: 5, 2: 1}, {0: 69, 1: 7, 4: 0, 5: 0}),  # theme
+    'x_modernmerce': (0, 5, {0: 3, 3: 1, 5: 1}, {0: 29, 1: 31, 4: 0, 5: 3}),  # palette
+    'x_mystorage': (1, 1, {0: 5, 1: 1, 3: 1}, {0: 43, 1: 11, 4: 0, 5: 7}),  # palette
+    'x_oasis': (0, 5, {0: 3, 2: 2, 5: 1}, {0: 44, 1: 1, 4: 7, 5: 6}),  # theme
+    'x_oceanblue': (3, 0, {0: 3, 3: 2, 4: 1}, {0: 58, 1: 8, 4: 16, 5: 9}),  # palette
+    'x_optic': (0, 5, {0: 4, 3: 1}, {0: 73, 1: 9, 4: 0, 5: 8}),  # palette
+    'x_orderly': (0, 5, {0: 4, 3: 2, 5: 1}, {0: 62, 1: 8, 4: 0, 5: 8}),  # palette
+    'x_ordinary': (0, None, {0: 3, 3: 2}, {0: 13, 1: 4, 4: 0, 5: 2}),  # palette
+    'x_periwinkle': (0, 4, {0: 4, 1: 1, 3: 1}, {0: 47, 1: 12, 4: 9, 5: 2}),  # theme
+    'x_petestate': (3, 0, {0: 1, 1: 2, 3: 3}, {0: 28, 1: 25, 4: 3, 5: 0}),  # theme
+    'x_petfriendly': (0, 3, {0: 2, 1: 1, 2: 3}, {0: 28, 1: 7, 4: 2, 5: 3}),  # theme
+    'x_pineforest': (3, 3, {0: 3, 3: 2}, {0: 3, 1: 0, 4: 0, 5: 0}),  # palette
+    'x_playground': (4, 1, {0: 1, 2: 1, 4: 5}, {0: 17, 1: 20, 4: 18, 5: 12}),  # theme
+    'x_plaza': (0, 1, {0: 3, 1: 1, 3: 1}, {0: 67, 1: 8, 4: 0, 5: 0}),  # palette
+    'x_pottery': (0, 0, {0: 4, 3: 1}, {0: 60, 1: 8, 4: 12, 5: 2}),  # palette
+    'x_prestige': (0, 5, {0: 5, 3: 2, 4: 1, 5: 1}, {0: 22, 1: 14, 4: 2, 5: 4}),  # palette
+    'x_redvalvet': (1, 1, {0: 3, 3: 2}, {0: 21, 1: 16, 4: 13, 5: 8}),  # palette
+    'x_relax': (3, 0, {0: 5, 3: 2}, {0: 11, 1: 0, 4: 0, 5: 2}),  # palette
+    'x_seat': (0, 3, {0: 3, 2: 1, 3: 1}, {0: 74, 1: 7, 4: 0, 5: 0}),  # palette
+    'x_soda': (0, 5, {0: 3, 3: 1, 5: 1}, {0: 7, 1: 0, 4: 0, 5: 3}),  # palette
+    'x_solid_round_fw': (0, 1, {0: 4, 1: 3, 3: 1}, {0: 37, 1: 21, 4: 1, 5: 2}),  # palette
+    'x_solid_shape_fw': (3, 1, {1: 4, 3: 4}, {0: 6, 1: 22, 4: 1, 5: 2}),  # palette
+    'x_solid_wide_fw': (3, 1, {1: 3, 3: 3}, {0: 17, 1: 22, 4: 1, 5: 4}),  # palette
+    'x_solidfw': (0, 5, {0: 5, 3: 1, 5: 3}, {0: 49, 1: 2, 4: 1, 5: 10}),  # palette
+    'x_street': (1, 0, {0: 5, 1: 1, 3: 2}, {0: 8, 1: 33, 4: 0, 5: 0}),  # palette
+    'x_supercar': (0, 3, {0: 4, 2: 1, 3: 1}, {0: 21, 1: 6, 4: 14, 5: 6}),  # theme
+    'x_sweetpink': (0, 5, {0: 5, 3: 2, 5: 2}, {0: 17, 1: 3, 4: 0, 5: 24}),  # palette
+    'x_swift': (0, 3, {0: 3, 2: 2}, {0: 19, 1: 6, 4: 0, 5: 2}),  # theme
+    'x_testfigurine2216': (0, 5, {0: 3, 3: 2}, {0: 21, 1: 5, 4: 2, 5: 9}),  # palette
+    'x_urban': (0, 5, {0: 5, 3: 2, 5: 2}, {0: 17, 1: 12, 4: 10, 5: 5}),  # palette
+    'x_vintage': (0, 1, {0: 5, 1: 2, 3: 2}, {0: 35, 1: 29, 4: 1, 5: 0}),  # palette
+    'x_voice': (0, 4, {0: 3, 1: 1, 3: 1}, {0: 30, 1: 43, 4: 3, 5: 0}),  # palette
+    'x_void': (1, 0, {1: 4, 2: 3}, {0: 69, 1: 82, 4: 0, 5: 3}),  # theme
+    'x_warehouse': (1, 1, {0: 3, 3: 2}, {0: 15, 1: 6, 4: 0, 5: 2}),  # palette
+    'x_wichittra': (0, 5, {0: 2, 1: 1, 2: 1, 3: 1}, {0: 32, 1: 13, 4: 8, 5: 14}),  # palette
+    'x_wingwing': (0, 5, {0: 5, 3: 2, 5: 2}, {0: 32, 1: 2, 4: 0, 5: 9}),  # palette
+    'x_writenow': (0, 5, {0: 2, 3: 2, 5: 1}, {0: 72, 1: 2, 4: 3, 5: 25}),  # palette
+    'xp_baoji': (3, 0, {0: 3, 3: 2}, {0: 17, 1: 0, 4: 0, 5: 0}),  # palette
+    'xp_polygon': (1, 1, {0: 3, 3: 2}, {0: 0, 1: 0, 4: 0, 5: 0}),  # palette
+    'xp_rosegold': (0, 1, {0: 5, 1: 2, 3: 2}, {0: 26, 1: 5, 4: 3, 5: 5}),  # palette
+    'xp_santashop': (0, 1, {0: 5, 1: 2, 3: 2}, {0: 26, 1: 8, 4: 0, 5: 2}),  # palette
+    'xp_siamwoodworker': (0, 5, {0: 4, 1: 4, 3: 1}, {0: 16, 1: 11, 4: 0, 5: 11}),  # palette
+}
+
+# Each theme's six anchors as v3 renders a shop that never set its own
+# colours (`currentColors: []` — six real shops): convert_global falls back to
+# these, or the shop would take whatever v4 theme it lands on (user,
+# 2026-10-06). Generated by tools/gen_theme_buttons.py with the registry above.
+_THEME_V3_PALETTE = {
+    'x_adventure': ['#9e3224', '#f5f5f5', '#ffffff', '#171717', '#eb3e3e', '#9e3224'],
+    'x_bakery': ['#c1121f', '#fdf0d5', '#ffffff', '#0a100d', '#c1121f', '#9e0f19'],
+    'x_basic': ['#29b6f6', '#f83535', '#ffffff', '#424242', '#81d4fa', '#2196f3'],
+    'x_bluehorizon': ['#6096ba', '#fffbf2', '#ffffff', '#121f38', '#f8fbfd', '#121f38'],
+    'x_bold': ['#000000', '#e6e6e6', '#ffffff', '#000000', '#212121', '#000000'],
+    'x_borsa': ['#332115', '#f2ede1', '#ffffff', '#262626', '#4d3726', '#262626'],
+    'x_caution': ['#000000', '#ffdd22', '#ffffff', '#000000', '#212121', '#000000'],
+    'x_ceramicstore': ['#617ba0', '#855443', '#ffffff', '#000000', '#faf7f3', '#e1a79c'],
+    'x_cha': ['#f59749', '#faefe2', '#ffffff', '#333333', '#f59749', '#f08024'],
+    'x_clean': ['#000000', '#9e9e9e', '#ffffff', '#000000', '#cccccc', '#000000'],
+    'x_cleancolor': ['#ef2b79', '#202549', '#ffffff', '#000000', '#fd468f', '#d80659'],
+    'x_cozy': ['#d49f4d', '#d49f4d', '#ffffff', '#000000', '#fefbf8', '#f4f4f4'],
+    'x_cozy_fw': ['#d49f4d', '#d49f4d', '#ffffff', '#000000', '#fefbf8', '#f4f4f4'],
+    'x_denim_fw': ['#334eac', '#f5f7f9', '#ffffff', '#000000', '#c2cae6', '#243778'],
+    'x_downtown': ['#000000', '#cc0001', '#ffffff', '#000000', '#404040', '#000000'],
+    'x_eco': ['#588157', '#dda15e', '#ffffff', '#0b0c0a', '#f5f7f5', '#344e41'],
+    'x_elite': ['#c9b399', '#4c403b', '#faf8f7', '#000500', '#bbb59d', '#7c674a'],
+    'x_fundamental': ['', '#9e9e9e', '#ffffff', '#000000', '#cccccc', '#000000'],
+    'x_futuristic': ['#644fe1', '#6655cb', '#ffffff', '#050505', '#f3f4fa', '#6655cb'],
+    'x_greenery': ['#4dac66', '#5dbf78', '#ffffff', '#424242', '#5dbf78', '#3e9054'],
+    'x_happy': ['#ffdd22', '#eeca00', '#ffffff', '#464646', '#ffed89', '#eeca00'],
+    'x_julie': ['#3e5797', '#ffdb5c', '#ffffff', '#202020', '#b1bbd5', '#314578'],
+    'x_knowledge': ['#2667d2', '#dd2c28', '#ffffff', '#000000', '#f1f5f9', '#1759c6'],
+    'x_luxurygold': ['#e0c06e', '', '#ffffff', '#222222', '#f8f5f0', '#ab8a36'],
+    'x_millennium': ['#ff9100', '#455a64', '#ffffff', '#212121', '#ffb74d', '#f57c00'],
+    'x_mixednuts': ['#849940', '#f4edd4', '#ffffff', '#4d311e', '#ffffff', '#ffffff'],
+    'x_modernmerce': ['#ffd00a', '#2667d2', '#ffffff', '#014247', '#ffd00a', '#ffc100'],
+    'x_mystorage': ['#05299e', '#ff8a5b', '#f2f4f3', '#0a0908', '#84828f', '#182961'],
+    'x_oasis': ['#40966c', '#f4f4f4', '#ffffff', '#000000', '#f3f9f6', '#2f895d'],
+    'x_oceanblue': ['#2a3d53', '#d5dadc', '#ffffff', '#040608', '#83909c', '#1d2b3a'],
+    'x_optic': ['#3276b5', '#dcedf7', '#ffffff', '#414b56', '#ffffff', '#255b8d'],
+    'x_orderly': ['#1e65ff', '#1e65ff', '#ffffff', '#042a2b', '#c9c7cb', '#1343ad'],
+    'x_ordinary': ['#007be8', '#ef5602', '#ffffff', '#111111', '#4e5870', '#252d42'],
+    'x_periwinkle': ['#9a9cea', '#a2dcee', '#ffffff', '#1a202c', '#aeb0ee', '#7b7dbb'],
+    'x_petestate': ['#fcd226', '#108690', '#ffffff', '#1d1e4e', '#f5f6f8', '#ffffff'],
+    'x_petfriendly': ['#f46f43', '#3f9cce', '#ffffff', '#000000', '#eff7fb', '#f46f43'],
+    'x_pineforest': ['#000000', '#737373', '#ffffff', '#000000', '#737373', '#737373'],
+    'x_playground': ['#9486e9', '#ffd33a', '#ffffff', '#3a3a3a', '#3ec293', '#fa9db7'],
+    'x_plaza': ['#dd2c28', '#e63e3b', '#ffffff', '#000000', '#ffffff', '#ffffff'],
+    'x_pottery': ['#5b3131', '#e1dfd3', '#ffffff', '#555555', '#a42332', '#3a2020'],
+    'x_prestige': ['#1f2e63', '#8d98a4', '#ffffff', '#333333', '#4e5870', '#252d42'],
+    'x_relax': ['#222222', '#b3b5bb', '#ffffff', '#000000', '#e2e5eb', '#8c8f94'],
+    'x_seat': ['#ff7b18', '#ced0d6', '#ffffff', '#272e36', '#ffffff', '#ffffff'],
+    'x_soda': ['#2667d2', '#dd2c28', '#ffffff', '#000000', '', '#1759c6'],
+    'x_solid_round_fw': ['#000000', '#333333', '#ffffff', '#000000', '#666666', '#000000'],
+    'x_solid_shape_fw': ['#444444', '#000000', '#ffffff', '#000000', '#efe8ec', '#000000'],
+    'x_solid_wide_fw': ['#444444', '#000000', '#ffffff', '#000000', '#efe8ec', '#000000'],
+    'x_solidfw': ['#f46336', '#c6d0d2', '#ffffff', '#000000', '#f67b20', '#f63f20'],
+    'x_street': ['#000000', '#f83535', '#ffffff', '#000000', '#212121', '#000000'],
+    'x_supercar': ['#bc1212', '#e7e7e7', '#ffffff', '#171717', '#fd1313', '#972b2b'],
+    'x_sweetpink': ['#ffd0dc', '#ffe4dc', '#ffffff', '#757575', '#ffe8ee', '#f29db2'],
+    'x_swift': ['#e94f37', '#01a7c2', '#f6f7eb', '#393e41', '#f5998b', '#9f2727'],
+    'x_urban': ['#77777b', '#d0b17c', '#ffffff', '#424242', '#bababc', '#484849'],
+    'x_vintage': ['#e67257', '#619ca4', '#eceadd', '#684a41', '#ff8b70', '#bf604a'],
+    'x_voice': ['#000000', '#dc2626', '#ffffff', '#000000', '#262626', '#000000'],
+    'x_void': ['#000000', '#3fc4c0', '#ffffff', '#000000', '#dddddd', '#5e2bff'],
+    'x_warehouse': ['#05299e', '#ff8a5b', '#f2f4f3', '#0a0908', '#84828f', '#182961'],
+    'x_wichittra': ['#cec0af', '#d2b48c', '#ffffff', '#444240', '#f6f3ec', '#b3a694'],
+    'x_wingwing': ['#ffa495', '#b5d68d', '#ffffff', '#673111', '#d4e6be', '#f5cac3'],
+    'x_writenow': ['#f995b5', '#ffbbd4', '#ffffff', '#171717', '#fff5f9', '#ed548b'],
+    'xp_baoji': ['#ed1c24', '#000000', '#ffffff', '#000000', '#f14950', '#8e1116'],
+    'xp_polygon': ['#3249ac', '#3249ac', '#ffffff', '#000000', '#ffffff', '#ffffff'],
+    'xp_rosegold': ['#fbb3be', '#f9beae', '#ffffff', '#757575', '#ffcecd', '#d96077'],
+    'xp_santashop': ['#23a1d1', '#ff6600', '#ffffff', '#424242', '#46b8e4', '#1d89bf'],
+    'xp_siamwoodworker': ['#00467e', '#f39200', '#ffffff', '#000000', '#6690b2', '#00233f'],
+}
+
+# Which v4 native theme a v3 theme's shops move onto — the user's matching
+# list (matching_v3tov4.md, kept local; embedded here because the browser
+# needs it). A v3 theme not listed, or listed with no partner, lands on
+# "base". A `_fw` variant falls back to its base theme (x_cozy_fw → x_cozy).
+# Letters such as "(B)" in the list mark a different colour preset, i.e. the
+# shop's own colours, which the :root override already carries.
+_V3_TO_V4_THEME = {
+    "x_bluehorizon": "Shizuku",
+    "x_orderly": "neoorderly", "x_voice": "neoorderly",
+    "x_supercar": "alphafit",
+    "x_cozy": "kiara", "x_swift": "kiara", "x_petfriendly": "kiara",
+    "x_oasis": "spaceandstroll", "x_denim": "spaceandstroll",
+    "x_ceramicstore": "spaceandstroll", "x_petestate": "spaceandstroll",
+    "x_modernmerce": "spaceandstroll", "x_plaza": "spaceandstroll",
+    "x_playground": "spaceandstroll",
+    "x_eco": "brewcocoffee", "x_cha": "brewcocoffee", "x_mixednuts": "brewcocoffee",
+    "x_knowledge": "forma",
+    "x_optic": "ventura", "x_downtown": "ventura",
+}
+
+# Which ramp each v4 native theme paints its PRIMARY BUTTON with (its
+# `.color-scheme-main` buttonPrimaryFillColor, 2026-10-07). The shop's own
+# colours are always sent (user: "the colours should be the shop's, not the
+# theme's"); on a theme whose primary button is BrandAlt, the shop's Brand
+# and BrandAlt are swapped, so its main colour still lands on the button.
+# Every other theme (and Base) paints the button with Brand: no swap.
+_V4_THEME_COLOR_ROLE = {
+    "forma": "swap",
+}
+
+
+def v4_theme_key(site_json):
+    """The v4 theme a v3 shop is converted onto: its v3 theme's partner in the
+    matching list, else "base"."""
+    tid = site_json.get("currentTheme") if isinstance(site_json, dict) else None
+    if not isinstance(tid, str):
+        return "base"
+    for key in (tid, re.sub(r"_fw$", "", tid)):
+        if key in _V3_TO_V4_THEME:
+            return _V3_TO_V4_THEME[key]
+    return "base"
+
 
 # v3 base typography constants (from v3/palletes/color-x_main.css), the same for
 # every v3 site. Status colors are intentionally NOT carried over — v4's own status
@@ -11210,6 +11600,738 @@ def _split_collapsed_brand_subtle(root):
             root["colorBrandSubtle"] = mid
 
 
+# ── Shop colours by role (convert_global only) ──────────────────────────────
+#
+# v3's six `currentColors` slots do not mean the same thing on every theme:
+# x_plaza spends `schemeB` (slot 1) on a button hover, x_denim_fw on a pale
+# section ground. So for a SHOP, read the colours by what they are rather than
+# where they sit: pick up to two accents and the neutrals, and lay each into the
+# v4 ramp whose meaning it has in v4 Base (Brand / BrandAlt = the shop's brand
+# colours, Neutral = ground and text). Built to v4 Base's semantics only (user,
+# 2026-10-06); theme conversion keeps the slot mapping, because converted
+# themes reference `brand-alt` AS `schemeB` hundreds of times, until the
+# v3→v4 theme-matching list is in.
+#
+# Steps are generated in OKLCH (perceptual), so a ramp started from white or
+# black still has somewhere to go — the sRGB mixes above collapsed four shops.
+
+_ACCENT_MIN_CHROMA = 0.06   # below this a colour reads as grey / cream / earth
+_TINT_MIN_CHROMA = 0.03     # a pale tint this coloured may belong to an accent
+_TINT_MIN_L = 0.8
+_HUE_TOLERANCE = 15         # degrees; one shop's brown and red are 17° apart
+# A second colour "of a different tone": faint (a cream is chroma 0.013) but
+# far enough round the wheel from the brand and from the neutral ends.
+_TONE_MIN_CHROMA = 0.008
+_TONE_MIN_HUE_GAP = 25
+# A muted, darkish orange-to-olive is an earth tone — a neutral, not a brand
+# colour (user, 2026-10-02: "neutral is often earth tone / sepia / grey").
+# One theme's slot-1 brown #855443 (chroma 0.071) beside a blue brand.
+_EARTH_MAX_CHROMA = 0.08
+# Brand weighting (user, 2026-10-06): how much of the theme's own CSS paints
+# with the colour (× this), plus slot 0 and the primary button.
+_SCORE_CSS = 10
+_SCORE_SLOT0 = 3
+_SCORE_BUTTON = 4
+_SCORE_HOVER = 2
+_RAMP_STEPS = ("Subtlest", "Subtle", "", "Bold", "Boldest")
+
+# Global-component colours that name a brand colour, by how strongly.
+# Section content is deliberately NOT read: promo red #ff0000 is typed into
+# headings in 7 files and would out-vote the real brand.
+_COMPONENT_ROOTS = ("header", "footer", "components", "product")
+_BUTTON_WEIGHT = 3
+_LINK_WEIGHT = 2
+_SLOT_WEIGHT = 2
+
+
+def _srgb_to_linear(c):
+    c /= 255.0
+    return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+
+
+def _linear_to_srgb(c):
+    c = 12.92 * c if c <= 0.0031308 else 1.055 * (c ** (1 / 2.4)) - 0.055
+    return c * 255.0
+
+
+def _to_oklch(hexc):
+    """'#rrggbb' → (L, C, H°), or None if unparseable."""
+    rgb = _hex(hexc)
+    if rgb is None:
+        return None
+    r, g, b = (_srgb_to_linear(c) for c in rgb)
+    l_ = (0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b) ** (1 / 3)
+    m_ = (0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b) ** (1 / 3)
+    s_ = (0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b) ** (1 / 3)
+    L = 0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_
+    a = 1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_
+    bb = 0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_
+    return L, math.hypot(a, bb), math.degrees(math.atan2(bb, a)) % 360
+
+
+def _oklch_to_rgb(L, C, H):
+    """Unclamped linear→sRGB (0..255 floats) for one OKLCH colour."""
+    a = C * math.cos(math.radians(H))
+    b = C * math.sin(math.radians(H))
+    l_ = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3
+    m_ = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3
+    s_ = (L - 0.0894841775 * a - 1.2914855480 * b) ** 3
+    r = 4.0767416621 * l_ - 3.3077115913 * m_ + 0.2309699292 * s_
+    g = -1.2684380046 * l_ + 2.6097574011 * m_ - 0.3413193965 * s_
+    bl = -0.0041960863 * l_ - 0.7034186147 * m_ + 1.7076147010 * s_
+    return tuple(_linear_to_srgb(c) for c in (r, g, bl))
+
+
+def _from_oklch(L, C, H):
+    """OKLCH → '#rrggbb', lowering chroma until it fits sRGB (never clipping a
+    channel, which would shift the hue)."""
+    L = max(0.0, min(1.0, L))
+    for _ in range(40):
+        rgb = _oklch_to_rgb(L, C, H)
+        if all(-0.5 <= c <= 255.5 for c in rgb):
+            return _to_hex(rgb)
+        C *= 0.9
+    return _to_hex(_oklch_to_rgb(L, 0.0, H))
+
+
+def _hue_gap(h1, h2):
+    d = abs(h1 - h2) % 360
+    return min(d, 360 - d)
+
+
+def _component_colors(site_json):
+    """[(hex, weight)] for the button / link-hover colours a shop set on its
+    global components (header, footer, cart, product page, chat widget).
+    A hover colour counts like any other: one shop's only red is a footer
+    button's hover, and that red IS its second brand colour (user, 2026-10-06)."""
+    found = []
+
+    def walk(node, path):
+        if isinstance(node, dict):
+            for k, v in node.items():
+                if k == "layouts":
+                    continue
+                walk(v, path + [k])
+        elif isinstance(node, list):
+            for v in node:
+                walk(v, path)
+        elif isinstance(node, str) and _hex(node) is not None:
+            p = "/".join(path).lower()
+            if "button" in p and (path[-1] == "bgColor" or "border" in p):
+                found.append((_norm_hex(node), _BUTTON_WEIGHT))
+            elif "link" in p and ("hoverstyle" in p or "activestyle" in p) \
+                    and path[-1] == "fontColor":
+                found.append((_norm_hex(node), _LINK_WEIGHT))
+
+    if isinstance(site_json, dict):
+        for key in _COMPONENT_ROOTS:
+            walk(site_json.get(key), [key])
+    return found
+
+
+def _place_accent_ramp(members):
+    """Lay one hue group into a 5-step ramp.
+
+    `members` is [(hex, L, C, H)] with the group's own colour first. That
+    colour is the base step; every other member snaps to the free step its
+    lightness is nearest; the rest are generated at the same hue. A base hex
+    of None is generated too (a ramp built around a pale tint, below).
+    Returns ({step: hex}, {step: True if it came from v3})."""
+    base_hex, bl, bc, bh = members[0]
+    targets = {
+        "Subtlest": bl + (0.975 - bl) * 0.85,
+        "Subtle": bl + (0.975 - bl) * 0.5,
+        "": bl,
+        "Bold": bl * 0.8,
+        "Boldest": bl * 0.58,
+    }
+    placed = {"": (base_hex, bl, bc, bh)}
+    lighter = sorted((m for m in members[1:] if m[1] > bl + 0.02), key=lambda m: -m[1])
+    darker = sorted((m for m in members[1:] if m[1] < bl - 0.02), key=lambda m: m[1])
+    for side, steps in ((lighter, ("Subtlest", "Subtle")), (darker, ("Boldest", "Bold"))):
+        if len(side) >= 2:              # outermost stays outermost
+            placed[steps[0]], placed[steps[1]] = side[0], side[1]
+        elif side:
+            m = side[0]
+            placed[min(steps, key=lambda s: abs(targets[s] - m[1]))] = m
+
+    chroma = {"Subtlest": 0.25, "Subtle": 0.6, "Bold": 0.95, "Boldest": 0.8}
+    if bl < 0.2 and not darker:
+        # Nothing is darker than near-black, so the hover steps step UP
+        # instead and still visibly change (user, 2026-10-06; a shop branded in #000).
+        placed["Bold"] = (None, bl + 0.2, bc, bh)
+        placed["Boldest"] = (None, bl + 0.3, bc, bh)
+    out, source = {}, {}
+    for step in _RAMP_STEPS:
+        if step in placed:
+            hx, L, C, H = placed[step]
+            out[step] = hx or _from_oklch(L, C, H)
+            source[step] = hx is not None
+    # Generate the gaps, keeping L strictly ordered between known neighbours.
+    # A gap between two v3 colours of DIFFERENT hue (a brown brand and its red
+    # schemeA_d) is their OKLab midpoint, so the ramp runs from one to the
+    # other (user, 2026-10-06); same-hue ramps keep the base hue as before.
+    order = list(_RAMP_STEPS)
+    for i, step in enumerate(order):
+        if step in placed:
+            continue
+        up = next((placed[s] for s in reversed(order[:i]) if s in placed and placed[s][0]), None)
+        dn = next((placed[s] for s in order[i + 1:] if s in placed and placed[s][0]), None)
+        if up and dn and _hue_gap(up[3], dn[3]) > _HUE_TOLERANCE:
+            k_up = max(j for j in range(i) if order[j] in placed and placed[order[j]][0])
+            k_dn = min(j for j in range(i + 1, len(order)) if order[j] in placed and placed[order[j]][0])
+            t = (i - k_up) / (k_dn - k_up)
+            a_up = (up[2] * math.cos(math.radians(up[3])), up[2] * math.sin(math.radians(up[3])))
+            a_dn = (dn[2] * math.cos(math.radians(dn[3])), dn[2] * math.sin(math.radians(dn[3])))
+            L = up[1] + (dn[1] - up[1]) * t
+            a = a_up[0] + (a_dn[0] - a_up[0]) * t
+            b = a_up[1] + (a_dn[1] - a_up[1]) * t
+            C, H = math.hypot(a, b), math.degrees(math.atan2(b, a)) % 360
+            placed[step] = (None, L, C, H)
+            out[step], source[step] = _from_oklch(L, C, H), False
+            continue
+        # An outer step past a v3 colour of another hue continues from THAT
+        # colour, not the base: past one shop's red Subtle, a pale red, not a
+        # pale brown (user, 2026-10-06). Chroma still scales from the base.
+        near = up or dn
+        hue_here = near[3] if near and _hue_gap(near[3], bh) > _HUE_TOLERANCE else bh
+        L = targets[step]
+        lo = [placed[s][1] for s in order[i + 1:] if s in placed]
+        hi = [placed[s][1] for s in order[:i] if s in placed]
+        if hi and L >= hi[-1]:
+            L = (hi[-1] + (lo[0] if lo else 0.0)) / 2
+        if lo and L <= lo[0]:
+            L = ((hi[-1] if hi else 1.0) + lo[0]) / 2
+        placed[step] = (None, L, bc * chroma[step], hue_here)
+        out[step], source[step] = _from_oklch(L, bc * chroma[step], hue_here), False
+    return out, source
+
+
+def _place_tint_ramp(tint):
+    """A ramp around a pale, barely-coloured v3 colour (one theme's cream
+    `#fdf0d5`). Used as the base it would leave four steps crowded against
+    white, so it keeps its lightness as Subtlest/Subtle and the steps below
+    are generated at its hue, with enough chroma to read as that hue."""
+    h, L, C, H = tint
+    base = (None, 0.62, min(max(C * 2.5, 0.07), 0.12), H)
+    return _place_accent_ramp([base, tint])
+
+
+def _place_neutral_ramp(members, light=None, dark=None, light_bias=False,
+                        dark_in_brand_alt=False):
+    """Lightest → Subtlest, darkest → Boldest; every other v3 neutral takes
+    the middle step it fits best, in order (a v3 colour beats a generated one
+    — user, 2026-10-06), unless it is too close to a neighbour to be told
+    apart or too far from what the step means (± 0.25 of the span: a
+    near-black must not become the mid grey Base sets secondary text in). Gaps interpolate in OKLab between the two
+    ends (keeps a warm or cool cast), at v4 Base's own proportions."""
+    members = sorted(members, key=lambda m: -m[1])
+    out, source = {}, {}
+    if not members:
+        return out, source
+    # v3's color_light / color_dark ARE the page ground and the text colour,
+    # so they hold the ends; a neutral outside them has no step to take.
+    by_hex = {m[0]: m for m in members}
+    top = by_hex.get(light, members[0])
+    bottom = by_hex.get(dark, members[-1])
+    members = [top] + [m for m in members if bottom[1] < m[1] < top[1]] + [bottom]
+    out["Subtlest"], source["Subtlest"] = top[0], True
+    if bottom[1] >= top[1] - 0.02:
+        return out, source          # one neutral only: nothing to span
+    out["Boldest"], source["Boldest"] = bottom[0], True
+    span = ({"Subtle": 0.04, "": 0.35, "Bold": 0.65} if light_bias
+            else {"Subtle": 0.05, "": 0.55, "Bold": 0.78})
+    steps = list(span)
+
+    def t_of(m):
+        return (top[1] - m[1]) / (top[1] - bottom[1])
+
+    # Middles that can be told apart from each other and from both ends.
+    middles, last = [], top[1]
+    for m in members[1:-1]:
+        if last - m[1] >= 0.015 and m[1] - bottom[1] >= 0.015:
+            middles.append(m)
+            last = m[1]
+    # Best order-preserving fit of the middles onto the three steps.
+    best = None
+    for k in range(min(len(middles), 3), 0, -1):
+        for chosen in itertools.combinations(middles, k):
+            for slots in itertools.combinations(steps, k):
+                gaps = [abs(span[s] - t_of(m)) for s, m in zip(slots, chosen)]
+                if max(gaps) > 0.25:    # a step keeps its meaning: no near-black "mid grey"
+                    continue
+                cost = sum(gaps)
+                if best is None or cost < best[0]:
+                    best = (cost, dict(zip(slots, chosen)))
+        if best:
+            break
+    fixed = {"Subtlest": 0.0, "Boldest": 1.0}
+    for s, m in (best[1].items() if best else []):
+        out[s], source[s] = m[0], True
+        fixed[s] = t_of(m)
+    order = ["Subtlest"] + steps + ["Boldest"]
+
+    # Neutral's cast comes from the shop's own neutrals — a warm grey gives
+    # warm greys — never from a coloured text colour (user, 2026-10-09: one
+    # shop's teal text turned its greys teal while its grounds are plain grey).
+    bL, bC, bH = _to_oklch(bottom[0])
+    tinted_dark = bC >= _TINT_MIN_CHROMA and bL >= 0.15
+    casts = [m for m in members if m is not bottom and m[2] < _ACCENT_MIN_CHROMA]
+    cast = max(casts, key=lambda m: m[2]) if casts else None
+    if cast is not None and cast[2] >= 0.003:
+        cc = min(cast[2], 0.02)
+        cast_ab = (cc * math.cos(math.radians(cast[3])), cc * math.sin(math.radians(cast[3])))
+    else:
+        cast_ab = (0.0, 0.0)
+    if tinted_dark and dark_in_brand_alt:
+        # Already the BrandAlt: Boldest is its grey twin, not a duplicate.
+        out["Boldest"] = _from_oklch(bL, math.hypot(*cast_ab),
+                                     math.degrees(math.atan2(cast_ab[1], cast_ab[0])) % 360)
+        source["Boldest"] = False
+
+    def lab(h):
+        L, C, H = _to_oklch(h)
+        if tinted_dark and (h == bottom[0] or h == out.get("Boldest")):
+            return L, cast_ab[0], cast_ab[1]   # the text colour lends no tint
+        # A near-black's tint is invisible on it and loud anywhere lighter.
+        C = 0.0 if L < 0.15 else C
+        return L, C * math.cos(math.radians(H)), C * math.sin(math.radians(H))
+
+    for i, step in enumerate(order):
+        if step in out:
+            continue
+        t = span[step]
+        prev = max(fixed[s] for s in order[:i] if s in fixed)
+        nxt = min(fixed[s] for s in order[i + 1:] if s in fixed)
+        if not prev < t < nxt:          # keep the ramp in order
+            t = (prev + nxt) / 2
+        fixed[step] = t
+        # Between the v3 colours that actually flank this step, not between
+        # the two ends: one theme's white and its brown Bold gave a plain grey
+        # mid step when the brown was ignored (user, 2026-10-06).
+        k_up = max(j for j in range(i) if order[j] in out)
+        k_dn = min(j for j in range(i + 1, len(order)) if order[j] in out)
+        t_up, t_dn = fixed[order[k_up]], fixed[order[k_dn]]
+        f = (t - t_up) / (t_dn - t_up) if t_dn > t_up else 0.5
+        Lu, au, bu = lab(out[order[k_up]])
+        Ld, ad, bd = lab(out[order[k_dn]])
+        a = au + (ad - au) * f
+        b = bu + (bd - bu) * f
+        out[step] = _from_oklch(Lu + (Ld - Lu) * f, math.hypot(a, b),
+                                math.degrees(math.atan2(b, a)) % 360)
+        source[step] = False
+    return out, source
+
+
+def _oklab_gap(h1, h2):
+    L1, C1, H1 = _to_oklch(h1)
+    L2, C2, H2 = _to_oklch(h2)
+    a1, b1 = C1 * math.cos(math.radians(H1)), C1 * math.sin(math.radians(H1))
+    a2, b2 = C2 * math.cos(math.radians(H2)), C2 * math.sin(math.radians(H2))
+    return math.sqrt((L1 - L2) ** 2 + (a1 - a2) ** 2 + (b1 - b2) ** 2)
+
+
+def _build_shop_color_ramps(colors, site_json, *, generate=True, warnings=None,
+                            theme_id=None, explain=None, target_role="brand"):
+    """The shop's three v4 ramps, read by role. Returns {":root key": hex}.
+
+    1. Candidates: the six `currentColors` + global-component button and
+       link-hover colours (`_component_colors`).
+    2. Slots 2 and 3 are v3's `color_light` / `color_dark` on every theme, so
+       they are neutrals whatever their hue (one theme's heading colour is a
+       navy `#1d1e4e`). Otherwise chroma ≥ `_ACCENT_MIN_CHROMA` is an accent;
+       a pale tint may join an accent of its hue; everything else is neutral
+       (white and black included — v4 grounds the page on NeutralSubtlest and
+       sets headings in NeutralBoldest, not on --color-white / -black).
+    3. Accents group by hue. Brand = the group holding v3's slot 0 (its
+       schemeA, the primary brand on every theme); BrandAlt = the heaviest
+       other group, else a pale tint no accent took (a cream ground is the
+       theme's second colour), else Brand itself.
+    4. No accent at all → Brand is v3's slot 0, unless that is the page ground
+       itself (then the theme keeps both of its own).
+    5. **A v3 colour is kept wherever it can be** (user, 2026-10-06): one that
+       found no step of its own replaces the generated step it is nearest to,
+       if the ramp stays in order. Only a colour the eye cannot tell from one
+       already placed, or a third/fourth accent, has nowhere to go.
+
+    With `generate=False` only the colours v3 actually supplied are emitted."""
+    cands = {}   # hex → [weight, slots, L, C, H]
+    for i, c in enumerate(colors if isinstance(colors, list) else []):
+        h = _norm_hex(c) if isinstance(c, str) and c.strip() else None
+        lch = _to_oklch(h) if h else None
+        if lch is None:
+            continue
+        e = cands.setdefault(h, [0, set(), *lch])
+        e[0] += _SLOT_WEIGHT
+        e[1].add(i)
+    # A colour set on ONE button or link only is a spot customisation, not a
+    # shop colour (user, 2026-10-06: one test shop has a different colour on
+    # every button). It counts when it repeats, or matches a shop colour.
+    comp = _component_colors(site_json)
+    comp_count = {}
+    for h, _w in comp:
+        comp_count[h] = comp_count.get(h, 0) + 1
+    own = list(cands)
+    for h, w in comp:
+        lch = _to_oklch(h)
+        if lch is None:
+            continue
+        if comp_count[h] < 2 and h not in cands \
+                and not any(_oklab_gap(h, o) <= 0.03 for o in own):
+            continue
+        e = cands.setdefault(h, [0, set(), *lch])
+        e[0] += w
+
+    accents, tints, neutrals = [], [], []
+    for h, (w, slots, L, C, H) in cands.items():
+        slot = min(slots) if slots else None
+        item = (h, L, C, H, w, slot)
+        if slots and slots <= {2, 3}:
+            neutrals.append(item)       # color_light / color_dark
+        elif C < _EARTH_MAX_CHROMA and L < 0.6 and 25 <= H <= 95:
+            neutrals.append(item)       # an earth tone: a brown reads as a neutral
+        elif C >= _ACCENT_MIN_CHROMA:
+            accents.append(item)
+        elif C >= _TINT_MIN_CHROMA and L >= _TINT_MIN_L:
+            tints.append(item)
+        elif slot is not None:          # a neutral only counts if v3 named it
+            neutrals.append(item)
+
+    # Group accents by hue, strongest colour first so it seeds its group.
+    groups = []
+    for item in sorted(accents, key=lambda x: (-x[4], 99 if x[5] is None else x[5])):
+        for g in groups:
+            c1, c2 = sorted((g[0][2], item[2]))
+            if _hue_gap(g[0][3], item[3]) <= _HUE_TOLERANCE and c2 <= c1 * 2:
+                g.append(item)
+                break
+        else:
+            groups.append([item])
+    loose_tints = []
+    for t in tints:
+        for g in groups[:2]:
+            if _hue_gap(g[0][3], t[3]) <= _HUE_TOLERANCE * 2:
+                g.append(t)
+                break
+        else:
+            loose_tints.append(t)
+    # v3 defines slots 4 and 5 as schemeA_l / schemeA_d — the brand's own
+    # light and dark. A vivid colour there whose hue is within 30° of slot 0
+    # is that brand's other end, even past the 15° grouping tolerance: one
+    # shop's brown brand has a red as its schemeA_d (user, 2026-10-06).
+    v0 = colors[0] if isinstance(colors, list) and colors else None
+    h0_ = _norm_hex(v0) if isinstance(v0, str) and v0.strip() and _hex(v0) else None
+    g0 = next((g for g in groups if any(x[0] == h0_ for x in g)), None) if h0_ else None
+    if g0 is not None:
+        H0 = _to_oklch(h0_)[2]
+        for i in (4, 5):
+            v = colors[i] if len(colors) > i else None
+            h = _norm_hex(v) if isinstance(v, str) and v.strip() and _hex(v) else None
+            g = next((x for x in groups if any(m[0] == h for m in x)), None) if h else None
+            if g is not None and g is not g0 and _hue_gap(_to_oklch(h)[2], H0) <= _HUE_TOLERANCE * 2:
+                g0.extend(g)
+                groups.remove(g)
+
+    # A dark, muted shade of an accent's hue in a brand slot is that accent's
+    # deep step, not a grey: one theme's slot-5 #344e41 is its green, darker.
+    for n in list(neutrals):
+        sl = cands[n[0]][1]
+        if not (sl & {0, 1, 4, 5}) or (sl & {2, 3}) or n[2] < _TINT_MIN_CHROMA or n[1] >= 0.6:
+            continue                    # the Neutral ends stay put
+        if 25 <= n[3] <= 95:
+            continue                    # an earth tone is a neutral, not a deep accent
+        for g in groups:
+            if _hue_gap(g[0][3], n[3]) <= _HUE_TOLERANCE * 2:
+                g.append(n)
+                neutrals.remove(n)
+                break
+
+    def weight(g):
+        return sum(x[4] for x in g)
+
+    def first_slot(g):
+        return min(99 if x[5] is None else x[5] for x in g)
+
+    def slot_hex(i):
+        v = colors[i] if isinstance(colors, list) and len(colors) > i else None
+        return _norm_hex(v) if isinstance(v, str) and v.strip() and _hex(v) else None
+
+    def group_of(h):
+        return next((g for g in groups if any(x[0] == h for x in g)), None)
+
+    def as_base(g):
+        return sorted(g, key=lambda x: (x[0] != prim_hex, x[5] != 0, -x[4],
+                                        99 if x[5] is None else x[5]))[0][0]
+
+    # Brand is WEIGHED, not counted (user, 2026-10-06): a colour scores for
+    # how much of the theme's own CSS paints with its slots (header grounds,
+    # headings, buttons — from `_THEME_BUTTON_SLOTS`), for being v3's slot 0
+    # (schemeA), for being the PRIMARY button's colour, and for each repeat
+    # on the shop's own buttons. A black the primary button is painted in can
+    # be the Brand this way, if it sits in a brand slot. BrandAlt is the next
+    # group, with a bonus for being the primary button's hover colour.
+    btn = _THEME_BUTTON_SLOTS.get(theme_id) if theme_id else None
+    use = btn[3] if btn and len(btn) > 3 and sum(btn[3].values()) else None
+    prim_hex = slot_hex(btn[0]) if btn and isinstance(btn[0], int) else None
+    hover_hex = slot_hex(btn[1]) if btn and isinstance(btn[1], int) else None
+    if prim_hex and (prim_hex not in cands or not (cands[prim_hex][1] & {0, 1, 4, 5})):
+        prim_hex = None                 # painted only in the text colour (slot 2/3)
+    if prim_hex and group_of(prim_hex) is None:
+        page_ground = slot_hex(2)
+        if prim_hex != page_ground:
+            w_, sl_, L_, C_, H_ = cands[prim_hex]
+            groups.append([(prim_hex, L_, C_, H_, w_, min(sl_))])
+            loose_tints = [t for t in loose_tints if t[0] != prim_hex]
+            if not (sl_ & {2, 3}):
+                neutrals = [n for n in neutrals if n[0] != prim_hex]
+        else:
+            prim_hex = None
+    filled = set().union(*(cands[h][1] for h in cands)) & {0, 1, 4, 5}
+
+    def colour_score(h):
+        sl = cands[h][1] & {0, 1, 4, 5}
+        if use:
+            css = sum(use.get(k, 0) for k in sl) / sum(use.values()) * _SCORE_CSS
+        else:
+            css = len(sl) / max(len(filled), 1) * _SCORE_CSS
+        parts = {"css": round(css, 1)}
+        if 0 in sl:
+            parts["slot0"] = _SCORE_SLOT0
+        if h == prim_hex:
+            parts["button"] = _SCORE_BUTTON
+        if comp_count.get(h, 0) >= 2:
+            parts["shop_buttons"] = comp_count[h]
+        return sum(parts.values()), parts
+
+    def group_score(g):
+        total, parts = 0.0, {}
+        for h in {x[0] for x in g}:
+            sc, p = colour_score(h)
+            total += sc
+            parts[h] = p
+        return total, parts
+
+    scored = sorted(groups, key=lambda g: (-group_score(g)[0], first_slot(g)))
+    brand = alt = None
+    extras = []
+    if scored:
+        brand = scored[0]
+
+        def alt_score(g):
+            sc = group_score(g)[0]
+            return sc + (_SCORE_HOVER if hover_hex and any(x[0] == hover_hex for x in g) else 0)
+        rest = sorted(scored[1:], key=lambda g: -alt_score(g))
+        if rest:
+            alt, extras = rest[0], rest[1:]
+    if explain is not None:
+        explain["colour_scores"] = {h: (round(colour_score(h)[0], 1), colour_score(h)[1])
+                                    for h in cands}
+        explain["groups"] = [(as_base(g), round(group_score(g)[0], 1), group_score(g)[1]) for g in scored]
+        explain["brand"] = as_base(brand) if brand else None
+        explain["alt"] = as_base(alt) if alt else None
+        explain["alt_hover"] = bool(alt and hover_hex and any(x[0] == hover_hex for x in alt))
+        explain["extras"] = [as_base(g) for g in extras]
+    brand_base = prim_hex if brand and prim_hex and any(x[0] == prim_hex for x in brand) else None
+
+    def as_members(g):
+        # The primary-button colour, else the slot-0 colour, else the heaviest
+        # is the base step.
+        g = sorted(g, key=lambda x: (x[0] != brand_base, x[5] != 0, -x[4],
+                                     99 if x[5] is None else x[5]))
+        seen, out = [], []
+        for h, L, C, H, _w, _s in g:
+            if any(abs(L - s[1]) < 0.02 and _hue_gap(H, s[3]) < 8 for s in seen):
+                continue                # a near-duplicate would waste a step
+            seen.append((h, L, C, H))
+            out.append((h, L, C, H))
+        return out
+
+    h0 = slot_hex(0)
+    light, dark = slot_hex(2), slot_hex(3)
+    if light == dark:
+        light = dark = None             # one grey in both: no ends to anchor on
+
+    # No second accent: BrandAlt is the shop's colour of a DIFFERENT TONE —
+    # a cream beside a blue, a cool grey beside an orange (user, 2026-10-06) —
+    # even one too faint to count as an accent. It leaves Neutral for it.
+    alt_tint = None
+    brand_hex = as_members(brand)[0][0] if brand else h0
+    if alt is None and brand_hex:
+        bH = _to_oklch(brand_hex)[2]
+        ends = [_to_oklch(h) for h in (light, dark) if h]
+        pool = loose_tints + [n for n in neutrals if not (cands[n[0]][1] & {2, 3})]
+        # The text colour may be the second colour too, when it is a real
+        # hue and not a near-black: one theme's headings are a brown beside an
+        # olive brand (user, 2026-10-06). It stays the Neutral end as well.
+        dark_item = next((n for n in neutrals if n[0] == dark), None)
+        if dark_item and dark_item[2] >= _TINT_MIN_CHROMA and dark_item[1] >= 0.2 \
+                and _hue_gap(dark_item[3], bH) >= _TONE_MIN_HUE_GAP:
+            pool = pool + [dark_item]
+        distinct = [t for t in pool
+                    if t[0] != brand_hex and t[2] >= _TONE_MIN_CHROMA
+                    and _hue_gap(t[3], bH) >= _TONE_MIN_HUE_GAP
+                    and (t is dark_item or all(
+                        e[1] < _TONE_MIN_CHROMA or _hue_gap(t[3], e[2]) >= _TONE_MIN_HUE_GAP
+                        for e in ends))]
+        if distinct:
+            alt_tint = max(distinct, key=lambda t: (t[2], t[4]))
+            if alt_tint is not dark_item:
+                neutrals = [n for n in neutrals if n[0] != alt_tint[0]]
+
+    # A light colour v3 repeats across the brand slots (white in two of them)
+    # says the site is mostly light grounds: it belongs to Neutral, whose
+    # middle steps then stay on the light side (user, 2026-10-06).
+    seen = {}
+    for i in (1, 4, 5):
+        h = slot_hex(i)
+        if h and _to_oklch(h)[0] >= 0.9:
+            seen[h] = seen.get(h, 0) + 1
+    light_bias = any(n >= 2 for n in seen.values())
+
+    def neutral_ramp(items):
+        in_alt = bool(dark) and (
+            any(x[0] == dark for g in ([alt] if alt else []) + list(extras) for x in g)
+            or (alt_tint is not None and alt_tint[0] == dark))
+        return _place_neutral_ramp([(h, L, C, H) for h, L, C, H, _w, _s in items],
+                                   light=light, dark=dark, light_bias=light_bias,
+                                   dark_in_brand_alt=in_alt)
+
+    if explain is not None:
+        explain["alt_kind"] = ("group" if alt else
+                               "text" if alt_tint is not None and alt_tint[0] == dark else
+                               "tone" if alt_tint is not None else "same")
+        if alt_tint is not None:
+            explain["alt"] = alt_tint[0]
+        explain["light_bias"] = light_bias
+
+    def second_ramp(brand_ramp):
+        if alt:
+            return _place_accent_ramp(as_members(alt))
+        if alt_tint:
+            # pale → a ramp grown down from it; otherwise it is the base step
+            return (_place_tint_ramp(alt_tint[:4]) if alt_tint[1] >= _TINT_MIN_L
+                    else _place_accent_ramp([alt_tint[:4]]))
+        return brand_ramp               # one brand colour: Alt = Brand
+
+    ramps = {}   # family → (ramp, src)
+    ramps["Neutral"] = neutral_ramp(neutrals)
+    if brand is None and h0 and h0 != ramps["Neutral"][0].get("Subtlest") \
+            and not (cands[h0][1] & {2, 3}):
+        # slot 0 is about to be the Brand; it is not also a grey
+        ramps["Neutral"] = neutral_ramp([n for n in neutrals if n[0] != h0])
+    if brand:
+        ramps["Brand"] = _place_accent_ramp(as_members(brand))
+        ramps["BrandAlt"] = second_ramp(ramps["Brand"])
+    elif h0:
+        if explain is not None:
+            explain["brand"] = h0
+            explain["brand_kind"] = "ground" if h0 == ramps["Neutral"][0].get("Subtlest") else "slot0"
+        if h0 == ramps["Neutral"][0].get("Subtlest"):
+            if warnings is not None:
+                warnings.append(
+                    "$.currentColors[0]: %s is the page background, so it "
+                    "cannot be the brand colour (a button in it would vanish); "
+                    "Brand left to the v4 theme" % h0)
+        else:
+            # No accent means no colour of the shop's could be the theme's
+            # BrandAlt either, so it would leak the theme's own (Base's amber
+            # on a black-and-white shop): the same fallbacks as above.
+            ramps["Brand"] = _place_accent_ramp([(h0, *_to_oklch(h0))])
+            ramps["BrandAlt"] = second_ramp(ramps["Brand"])
+
+    if extras and "BrandAlt" in ramps:
+        r, s = (dict(x) for x in ramps["BrandAlt"])
+        for g in extras:
+            h, L = as_members(g)[0][:2]
+            free = [st for st in _RAMP_STEPS if not s.get(st)]
+            if not free:
+                break
+            st = min(free, key=lambda x: abs(_to_oklch(r[x])[0] - L))
+            r[st], s[st] = h, True
+        ramps["BrandAlt"] = (r, s)
+
+    # A v3 colour that found no step takes the nearest generated one — in a
+    # ramp of its own kind: a grey only into Neutral, a colour only into a
+    # brand ramp of its hue.
+    alt_is_brand = ramps.get("BrandAlt") is ramps.get("Brand") and "Brand" in ramps
+    ramps = {f: (dict(r), dict(s)) for f, (r, s) in ramps.items()
+             if not (f == "BrandAlt" and alt_is_brand)}
+    placed = {hx for r, _s in ramps.values() for hx in r.values()}
+    for i, c in enumerate(colors if isinstance(colors, list) else []):
+        h = _norm_hex(c) if isinstance(c, str) and c.strip() else None
+        if not h or _hex(h) is None or h in placed:
+            continue
+        _Lc, Cc, Hc = _to_oklch(h)
+        best = None
+        for fam, (r, s) in ramps.items():
+            if fam == "Neutral" and Cc >= _ACCENT_MIN_CHROMA:
+                continue
+            if fam != "Neutral" and (Cc < _TINT_MIN_CHROMA
+                                     or _hue_gap(Hc, _to_oklch(r[""])[2]) > _HUE_TOLERANCE * 2):
+                continue
+            for k, step in enumerate(_RAMP_STEPS):
+                if step not in r or s.get(step):
+                    continue
+                gap = _oklab_gap(h, r[step])
+                if gap > 0.08 or (best and gap >= best[0]):
+                    continue
+                Lh = _to_oklch(h)[0]
+                up = [r[x] for x in _RAMP_STEPS[:k] if x in r]
+                down = [r[x] for x in _RAMP_STEPS[k + 1:] if x in r]
+                near_black = fam != "Neutral" and _to_oklch(r[""])[0] < 0.2
+                if not near_black and ((up and _to_oklch(up[-1])[0] <= Lh)
+                                       or (down and _to_oklch(down[0])[0] >= Lh)):
+                    continue            # would put the ramp out of order
+                if h in r.values():
+                    continue
+                best = (gap, fam, step)
+        if best:
+            _g, fam, step = best
+            ramps[fam][0][step] = h
+            ramps[fam][1][step] = True
+            placed.add(h)
+
+    # A pale colour still without a home goes where its v3 slot put it:
+    # slot 0/4/5 are the brand and its light/dark (schemeA, _l, _d), slot 1
+    # is schemeB. One shop's light blue sits in slot 4 beside a brown brand —
+    # v3 drew it wherever the theme drew "light brand" (user, 2026-10-06).
+    # Unshaded, at the generated step nearest its lightness.
+    for i, c in enumerate(colors if isinstance(colors, list) else []):
+        h = _norm_hex(c) if isinstance(c, str) and c.strip() else None
+        if not h or _hex(h) is None or h in placed or i in (2, 3):
+            continue
+        L_, C_, _H = _to_oklch(h)
+        if C_ < _TINT_MIN_CHROMA or L_ < _TINT_MIN_L:
+            continue
+        fam = "BrandAlt" if i == 1 and not alt_is_brand and "BrandAlt" in ramps else "Brand"
+        if fam not in ramps:
+            continue
+        r, src = ramps[fam]
+        free = [st for st in _RAMP_STEPS if st in r and not src.get(st)]
+        if not free:
+            continue
+        st = min(free, key=lambda x: abs(_to_oklch(r[x])[0] - L_))
+        r[st], src[st] = h, True
+        placed.add(h)
+
+    if alt_is_brand:
+        ramps["BrandAlt"] = ramps["Brand"]
+    # Onto a target theme whose primary button is BrandAlt: swap, so the
+    # shop's main colour is still the button (user, 2026-10-07). An earlier
+    # rule (v1.76 draft) left the theme's own Brand in place on some themes;
+    # it turned one shop's navy buttons black.
+    if target_role == "swap" and "Brand" in ramps and "BrandAlt" in ramps:
+        ramps["Brand"], ramps["BrandAlt"] = ramps["BrandAlt"], ramps["Brand"]
+    if explain is not None:
+        explain["target_role"] = target_role
+    root = {}
+    for fam, (r, s) in ramps.items():
+        for step, hx in r.items():
+            if generate or s.get(step):
+                root["color%s%s" % (fam, step)] = hx
+    return root
+
+
 def _resolve_system_font(name):
     """Map a v3 font name to its canonical v4 system-font name, or return None
     if it is not a system font (i.e. a Google/unknown font). Tolerates case
@@ -11244,8 +12366,8 @@ def _resolve_font_family(names, warnings, path, *, keep_google=False):
     `(kept, google)`.
 
     A non-system, non-generic name is a Google/unknown font:
-      - keep_google=False (website default): it is DROPPED + warned, `google` is [].
-      - keep_google=True  (theme): it is KEPT in the stack with its ORIGINAL case
+      - keep_google=False: it is DROPPED + warned, `google` is [].
+      - keep_google=True  (theme, and shops since v1.78): it is KEPT in the stack with its ORIGINAL case
         and collected into `google` for fontManifest; a warning notes it was added.
         Original case matters — the Google Fonts API is case-sensitive
         ("IBM Plex Serif" loads, "ibm plex serif" 404s)."""
@@ -11287,7 +12409,8 @@ def _resolve_font_family(names, warnings, path, *, keep_google=False):
 
 def _build_theme_root(colors, fonts, theme_id, *, include_colors=True,
                       include_fonts=True, generate_color_scale=True, warnings=None,
-                      keep_google=False, manifest=None):
+                      keep_google=False, manifest=None, site_json=None,
+                      colors_by_role=False, target_role="brand"):
     """Build the v4 style[":root"] override dict from v3 theme inputs.
 
     Shared by convert_global (website JSON) and convert_theme (theme JSON) so both
@@ -11301,7 +12424,13 @@ def _build_theme_root(colors, fonts, theme_id, *, include_colors=True,
     dropping them; when a `manifest` dict is passed, the kept Google fonts are
     recorded as `manifest["google"]` (for theme.info.fontManifest)."""
     root: dict = {}
-    if include_colors and isinstance(colors, list):
+    if include_colors and colors_by_role and isinstance(colors, list):
+        # Shops: read the colours by role, to v4 Base's meaning of each ramp
+        # (see _build_shop_color_ramps). Themes keep the slot mapping below.
+        root.update(_build_shop_color_ramps(
+            colors, site_json, generate=generate_color_scale, warnings=warnings,
+            theme_id=theme_id, target_role=target_role))
+    elif include_colors and isinstance(colors, list):
         for i, key in enumerate(_THEME_COLOR_KEYS):
             if i < len(colors) and isinstance(colors[i], str) and colors[i]:
                 root[key] = colors[i].lower()
@@ -11363,7 +12492,8 @@ def convert_global(site_json: dict, warnings: list = None, *,
                    include_components: bool = True,
                    include_colors: bool = True,
                    include_fonts: bool = True,
-                   generate_color_scale: bool = True) -> dict:
+                   generate_color_scale: bool = True,
+                   map_to_v4_theme: bool = True) -> dict:
     """Convert v3 site-level `components.*` config to v4 global triplet.
 
     Returns {"info": {...}, "style": {...}, "free_zone": {...}}.
@@ -11444,14 +12574,28 @@ def convert_global(site_json: dict, warnings: list = None, *,
     # Shared with convert_theme via _build_theme_root (same color/font/typography
     # rules); convert_global additionally emits info.fontManifest.
     cfg = site_json if isinstance(site_json, dict) else {}
+    colors = cfg.get("currentColors")
+    palette = _THEME_V3_PALETTE.get(cfg.get("currentTheme"))
+    if isinstance(colors, list) and palette:
+        # A slot the shop left empty is drawn in the theme's own colour for it
+        # (user, 2026-10-06) — and a shop that set none gets the whole palette.
+        colors = [c if isinstance(c, str) and c.strip() else palette[i]
+                  for i, c in enumerate((colors + [""] * 6)[:6])]
+    manifest: dict = {}
     root = _build_theme_root(
-        cfg.get("currentColors"), cfg.get("currentFonts"), cfg.get("currentTheme"),
+        colors, cfg.get("currentFonts"), cfg.get("currentTheme"),
         include_colors=include_colors, include_fonts=include_fonts,
-        generate_color_scale=generate_color_scale, warnings=warnings)
+        generate_color_scale=generate_color_scale, warnings=warnings,
+        # Google fonts are kept and registered, as theme conversion has always
+        # done without trouble (user, 2026-10-09); they used to be dropped.
+        keep_google=True, manifest=manifest,
+        site_json=cfg, colors_by_role=True,
+        target_role=(_V4_THEME_COLOR_ROLE.get(v4_theme_key(cfg), "brand")
+                     if map_to_v4_theme else "brand"))
     if include_fonts and isinstance(cfg.get("currentFonts"), dict):
-        # Google fonts are dropped (see _resolve_font_family), so the manifest is
-        # always empty; the key is still emitted to match the v4 shape.
-        info["fontManifest"] = {}
+        # {"google": [...]} when the shop uses Google fonts, else {} (the key is
+        # still emitted to match the v4 shape).
+        info["fontManifest"] = manifest
     # ── The theme's own site-wide heading alignment → :root ──
     # Eleven v3 themes state a blanket rule on the bare `.headline`, which is
     # the theme saying the whole site reads that way. It is written **whatever
@@ -13462,6 +14606,39 @@ def _simple_section(widgets: list, section_info: dict = None,
 
 # ── /blog ────────────────────────────────────────────────────────────────────
 
+#: A list PAGE lays its items out as a grid that wraps, never a sideways
+#: scroller; stated so the theme's own setting cannot turn it into one (user,
+#: 2026-10-09). v3 sends no scroll setting for any system list page (measured
+#: over every shop and demo), so nothing here can override one.
+def _list_page_grid() -> dict:
+    return {"layoutGrid": {"isOverflowX": False}}
+
+
+#: v3's built-in blog list draws a full picture above the text, so say it
+#: rather than inherit the theme's card (user, 2026-10-09: it showed the
+#: theme's default layout)
+_BLOG_ALL_CARD = {"layoutCard": {"variant": "full-image"},
+                  "cardDirection": {"xs": "column", "lg": "column"}}
+
+
+#: Where a system page's own layouts go relative to its built-in part. Each v3
+#: layout carries a `position`, and the page component draws each position at
+#: a fixed spot (`renderLayoutPosition(...)` in v3's BlogPage, ContactusPage,
+#: SearchPage and ProductPage, fetched 2026-10-09): `header` / `subheader`
+#: above the built-in part, `footer` below it. A hero banner and a CTA under
+#: the list are therefore told apart by v3 itself. The product page also has
+#: `detail` and `related` (drawn before the related-products block, our last
+#: default section) and `intro` / `recommend` / `blog` (after it).
+#: A layout with no position is not drawn by v3 at all, so it is dropped
+#: (user, 2026-10-09) -- on a system page only; other pages have no positions.
+_POSITION_BEFORE_DEFAULTS = {"header", "subheader"}
+_POSITION_BEFORE_LAST_DEFAULT = {"detail", "related"}
+#: v3 draws position by position, in this order; `layouts[]` order only
+#: decides within one position (e.g. a footer listed first still comes last).
+_POSITION_ORDER = {"header": 0, "subheader": 1, "detail": 2, "related": 3,
+                   "intro": 4, "blog": 5, "recommend": 6, "footer": 8}
+
+
 def _default_blog_list_sections(v3_page: dict) -> list:
     cfg = v3_page.get("BlogAllSection")
     if cfg is None:
@@ -13469,6 +14646,7 @@ def _default_blog_list_sections(v3_page: dict) -> list:
         blog_info = {
             "isShowDate": True, "isShowTag": True,
             "mediaObjectFit": "contain", "mediaRatio": "1 / 1",
+            **json.loads(json.dumps(_BLOG_ALL_CARD)), **_list_page_grid(),
         }
         return [_simple_section([make_node("widget", "WidgetBlogList", None, blog_info)])]
 
@@ -13476,6 +14654,7 @@ def _default_blog_list_sections(v3_page: dict) -> list:
     blog_info: dict = {
         "isShowDate": cfg.get("isShowDate", True),
         "isShowTag":  cfg.get("isShowTag",  True),
+        **json.loads(json.dumps(_BLOG_ALL_CARD)), **_list_page_grid(),
     }
     image_type = cfg.get("imageType")
     if image_type and image_type in _IMAGE_TYPE_TO_OBJECT_FIT:
@@ -13534,6 +14713,7 @@ def _default_category_sections(_v3_page: dict) -> list:
             "dataSetPrefix": None,
             "productNumber": 20,
             "apiOptions": {"options": [], "filters": {"parent_category_id": "{{PAGE_CATEGORY_ID}}"}},
+            **_list_page_grid(),
         }),
     ], {"paddingTop": {"xs": {"value": 20, "unit": "px"}, "lg": {"value": 40, "unit": "px"}}})
 
@@ -13591,8 +14771,9 @@ def _default_contactus_sections(_v3_page: dict) -> list:
     v3 renders the contact form itself, so a shop's exported `contactus` holds
     only whatever extra sections it added -- 38 of the 51 real files have
     nothing there at all. Those shops no longer get a page (v4 builds its own
-    default); the ten with custom sections get this prepended so the form is not
-    lost behind their content.
+    default); the ten with custom sections get it too, so the form is not lost
+    -- placed by each layout's own `position`, as v3 draws it (see
+    `_POSITION_BEFORE_DEFAULTS`).
 
     v4's default has a third section after this one -- a FAQ accordion filled
     with Lorem ipsum. Deliberately not reproduced: placeholder copy is worse
@@ -13638,7 +14819,7 @@ def _default_promotion_list_sections(_v3_page: dict) -> list:
         make_node("widget", "WidgetHeading", None, {
             "title": {"as": "h2", "text": "โปรโมชั่นทั้งหมด"},
         }),
-        make_node("widget", "WidgetPromotionList", None, {}),
+        make_node("widget", "WidgetPromotionList", None, _list_page_grid()),
     ])]
 
 
@@ -13670,6 +14851,7 @@ def _default_search_sections(_v3_page: dict) -> list:
     product_list_col = _simple_col([
         make_node("widget", "WidgetProductList", None, {
             "dataSetPrefix": None, "isShowPagination": True, "productNumber": 10,
+            **_list_page_grid(),
         }),
     ])
     s2 = make_node("section", None, None, {
@@ -13692,6 +14874,7 @@ def _default_search_sections(_v3_page: dict) -> list:
         make_node("widget", "WidgetBlogList", None, {
             "dataSetPrefix": "b", "dataSetPrefixForTag": None,
             "isShowPagination": True, "blogNumber": 3,
+            **_list_page_grid(),
         }),
     ])
     s3 = make_node("section", None, None, {
@@ -13740,19 +14923,42 @@ def convert_page(
     if layouts is None:
         layouts = page_json.get("layouts") or []
 
-    children = []
+    defaults = (SYSTEM_PAGE_DEFAULTS[default_key](page_json)
+                if default_key and default_key in SYSTEM_PAGE_DEFAULTS else [])
 
-    # Prepend hardcoded default section(s) for this system page type
-    if default_key and default_key in SYSTEM_PAGE_DEFAULTS:
-        children.extend(SYSTEM_PAGE_DEFAULTS[default_key](page_json))
-
+    before, middle, after = [], [], []
     for i, section in enumerate(layouts):
+        pos = section.get("position") if isinstance(section, dict) else None
+        if defaults and pos is None:
+            if warnings is not None:
+                warnings.append(
+                    "%s: section %d (%s) has no position -- v3 never drew it, skipped"
+                    % (path or page_json.get("path") or "page", i,
+                       section.get("name", "?") if isinstance(section, dict) else "?"))
+            continue
         try:
             converted = convert_section(section, warnings)
-            if converted is not None:
-                children.append(converted)
         except ValueError as e:
             print(f"⚠️  Skipping section {i} ({section.get('name', '?')}): {e}")
+            continue
+        if converted is None:
+            continue
+        if not defaults:
+            before.append((0, converted))
+        elif pos in _POSITION_BEFORE_DEFAULTS:
+            before.append((_POSITION_ORDER.get(pos, 0), converted))
+        elif pos in _POSITION_BEFORE_LAST_DEFAULT:
+            middle.append((_POSITION_ORDER.get(pos, 7), converted))
+        else:
+            after.append((_POSITION_ORDER.get(pos, 7), converted))
+    # stable sort: by v3's position order, then by layouts[] order
+    before, middle, after = ([n for _r, n in sorted(g, key=lambda x: x[0])]
+                             for g in (before, middle, after))
+
+    # The built-in part (hardcoded defaults) sits where v3 draws it: the
+    # layouts keep their own order within each position group.
+    children = before + defaults[:-1] + middle + defaults[-1:] + after \
+        if defaults else before
 
     page_component = make_node("page", component_kind, None, {}, children)
 
@@ -14281,7 +15487,12 @@ def _convert_site(site_json: dict, warnings: list, generate_pages: bool) -> list
         v3_key      = entry["v3_key"]
         v3_value    = site_json.get(v3_key) if v3_key else None
         layouts     = _get_layouts_from_v3(v3_value) if v3_value else []
-        if entry.get("skip_if_empty") and not layouts:
+        # a system page draws only positioned layouts (see convert_page), so
+        # one holding nothing else is as empty as one holding nothing
+        drawn = [l for l in layouts
+                 if v3_key not in SYSTEM_PAGE_DEFAULTS
+                 or not isinstance(l, dict) or l.get("position") is not None]
+        if entry.get("skip_if_empty") and not drawn:
             continue
         results.append(convert_page(
             v3_value or {},
@@ -14624,10 +15835,10 @@ def main():
         globals_ = convert_global(data, theme_warnings)
         result = {
             "nickname":    "Imported",
-            "theme_key":   "base",
+            "theme_key":   v4_theme_key(data),
             "info":        globals_["info"],
             "style":       globals_["style"],
-            "css":         None,
+            "css":         site_css(pages, zones),
             "header_zone": zones["header_zone"],
             "footer_zone": zones["footer_zone"],
             "free_zone":   zones["free_zone"],

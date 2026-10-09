@@ -936,21 +936,17 @@
   }
 
   // ── HTML normalize (auto-fix void tags + warn unclosed) ────────────
+  // Lossless, like htmlfix and mergecode: toPy/toJs turns None into
+  // `undefined`, which JSON.stringify then drops -- every `null` key
+  // (`nickname`, `kind`, `css`, …) used to vanish from the output.
   function normalizeHtml(data) {
-    pyodide.globals.set("_raw", pyodide.toPy(data));
-    pyodide.runPython("_clean, _warns = normalize_html(_raw)");
-    const cleanProxy = pyodide.globals.get("_clean");
-    const warnsProxy = pyodide.globals.get("_warns");
-    const clean   = cleanProxy.toJs({ dict_converter: Object.fromEntries });
-    const warns   = warnsProxy.toJs({ dict_converter: Object.fromEntries });
-    cleanProxy.destroy();
-    warnsProxy.destroy();
-    return { clean, warns };
+    return normalizeHtmlLossless(data);
   }
 
   // ── Run conversion ─────────────────────────────────────────────────
   async function runConversion(mode, data) {
-    pyodide.globals.set("_input", pyodide.toPy(data));
+    pyodide.globals.set("_input_json", JSON.stringify(data));
+    pyodide.runPython("import json\n_input = json.loads(_input_json)");
     const cfg = state.config;
     const py = (b) => (b ? "True" : "False");   // JS bool → Python literal
     const gkw = `include_components=${py(cfg.global)}, include_colors=${py(cfg.themeColor)}, include_fonts=${py(cfg.themeFont)}, generate_color_scale=${py(cfg.autoColor)}`;
@@ -963,10 +959,10 @@
         `_globals = convert_global(_input, _twarns, ${gkw})\n` +
         "_result = {\n" +
         "    'nickname':    'Imported',\n" +
-        "    'theme_key':   'base',\n" +
+        "    'theme_key':   v4_theme_key(_input),\n" +
         "    'info':        _globals['info'],\n" +
         "    'style':       _globals['style'],\n" +
-        "    'css':         None,\n" +
+        `    'css':         site_css(_pages, _zones) if ${py(cfg.content)} else None,\n` +
         `    'header_zone': _zones['header_zone'] if ${py(cfg.content)} else None,\n` +
         `    'footer_zone': _zones['footer_zone'] if ${py(cfg.content)} else None,\n` +
         "    'free_zone':   _globals['free_zone'],\n" +
@@ -998,15 +994,10 @@
         "    _result = convert_section(_input, _twarns)\n    _errors = []\n";
     }
     pyodide.runPython(snippet + "\ntry:\n    _twarns\nexcept NameError:\n    _twarns = []\n");
-    const resultProxy = pyodide.globals.get("_result");
-    const errorsProxy = pyodide.globals.get("_errors");
-    const twarnsProxy = pyodide.globals.get("_twarns");
-    const result = resultProxy.toJs({ dict_converter: Object.fromEntries });
-    const errors = errorsProxy.toJs();
-    const themeWarns = twarnsProxy.toJs({ dict_converter: Object.fromEntries });
-    resultProxy.destroy();
-    errorsProxy.destroy();
-    twarnsProxy.destroy();
+    pyodide.runPython(
+      "_out_json = json.dumps({'result': _result, 'errors': _errors, 'themeWarns': _twarns}, ensure_ascii=False)"
+    );
+    const { result, errors, themeWarns } = JSON.parse(pyodide.globals.get("_out_json"));
     return { result, errors, themeWarns };
   }
 
