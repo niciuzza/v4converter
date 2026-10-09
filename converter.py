@@ -26,7 +26,7 @@ from urllib.parse import quote, unquote
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.78"
+__version__ = "1.79"
 LAST_UPDATED = "2026-10-09"
 
 # Short summary of what the converter handles — shown in the browser popup.
@@ -41,6 +41,11 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.79", "type": "fix", "date": "2026-10-09", "items": [
+        "<b>Slideshow หลายภาพกลับมาแสดงหลายภาพแล้ว</b> — section ที่ v3 ติ๊ก fade ไว้และแสดงมากกว่า 1 ภาพต่อหน้า "
+        "เดิมได้ <code>effect: \"fade\"</code> ทำให้ v4 แสดงทีละภาพ · v3 เองทำ fade กับหลายภาพไม่ได้ จึงแสดงหลายภาพตามปกติ · "
+        "ตอนนี้ใส่ fade เฉพาะ slider ที่แสดงทีละภาพ (พบ 10 section)",
+    ]},
     {"version": "1.78", "type": "feat", "date": "2026-10-09", "items": [
         "<b>สีกลาง (Neutral) ไม่ติดโทนจากสีตัวอักษรแล้ว</b> — ถ้าสีตัวอักษรของ v3 เป็นสีที่มีโทน "
         "(เช่นเขียวอมฟ้าเข้มหรือกรมท่า) ขั้นสีเทาจะใช้โทนจากสีเทาหรือครีมที่ร้านใช้จริงแทน · "
@@ -2908,7 +2913,12 @@ def _slideshow_widget(props: dict) -> dict:
             if isinstance(s, dict)]) > 1:
         config["isLoop"] = True
 
-    if has_fade:
+    # Fade only when v3 asked for it AND shows one slide at a time. Slick
+    # cannot fade between several visible slides, so v3 drew those as a normal
+    # multi-image slider even with `hasFadeAnimate` on; v4 honours the fade and
+    # collapses them to one picture (10 real sections, user 2026-10-09).
+    # Silence leaves v4's own `slide`, which Base and every native theme set.
+    if has_fade and (slides_to_show or 1) <= 1:
         config["effect"] = "fade"
 
     # `slideContentConfig.speed` is the same value in the nested shape; every
