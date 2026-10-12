@@ -26,8 +26,8 @@ from urllib.parse import quote, unquote
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.79"
-LAST_UPDATED = "2026-10-09"
+__version__ = "1.80"
+LAST_UPDATED = "2026-10-12"
 
 # Short summary of what the converter handles — shown in the browser popup.
 # Plain strings; inline HTML (e.g. <code>) is allowed for rendering there.
@@ -41,6 +41,14 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.80", "type": "fix", "date": "2026-10-12", "items": [
+        "<b>FAQ มีโครงเหมือน v3 แล้ว ทุกธีม</b> — เดิมหน้าตาคำถามมาจากธีม v4 ทั้งหมด (เช่นตัวคำถามใหญ่เท่าหัวข้อ) · "
+        "ตอนนี้ตั้งตามแบบของ v3: หัวข้อกลุ่มชิดซ้าย, แต่ละคำถามห่างกัน 20px, ตัวคำถาม 16px ตัวคำตอบ 14px, "
+        "ไอคอน +, ปิดไว้ตอนแรกและเปิดได้หลายข้อพร้อมกัน, เนื้อหากว้าง 720px อยู่กลาง",
+        "<b>หัวข้อ FAQ ที่ v3 แสดงให้เอง กลับมาแล้ว</b> — ถ้าร้านไม่ได้ตั้งหัวข้อ v3 จะแสดง \"Faqs\" กับ \"คำถามพบบ่อย\" ให้ "
+        "แต่เดิม v4 ไม่มีหัวข้อเลย · ถ้าร้านลบหัวข้อเองจะไม่ใส่ให้",
+        "สีพื้นกล่อง เส้นคั่น และสีตัวอักษรยังเป็นของธีมไปก่อน — จะตั้งตามธีม v3 ในงานสีรอบถัดไป",
+    ]},
     {"version": "1.79", "type": "fix", "date": "2026-10-09", "items": [
         "<b>Slideshow หลายภาพกลับมาแสดงหลายภาพแล้ว</b> — section ที่ v3 ติ๊ก fade ไว้และแสดงมากกว่า 1 ภาพต่อหน้า "
         "เดิมได้ <code>effect: \"fade\"</code> ทำให้ v4 แสดงทีละภาพ · v3 เองทำ fade กับหลายภาพไม่ได้ จึงแสดงหลายภาพตามปกติ · "
@@ -2554,6 +2562,34 @@ YOUTUBE_BG_CSS = (
     "  }\n"
     "}"
 )
+
+
+def site_style(style, *parts):
+    """The site's top-level `style`, plus the blocks the converted content
+    needs: `.widget-accordion` when any page or zone holds an accordion (only
+    FAQs make one). Merged into what `convert_global` produced; returns a new
+    dict, never mutates `style`."""
+    out = json.loads(json.dumps(style or {}))
+    found = []
+
+    def walk(n):
+        if found:
+            return
+        if isinstance(n, dict):
+            if n.get("kind") == "WidgetAccordion":
+                found.append(True)
+                return
+            for v in n.values():
+                walk(v)
+        elif isinstance(n, list):
+            for v in n:
+                walk(v)
+    walk(list(parts))
+    if found:
+        block = out.setdefault(".widget-accordion", {})
+        for k, v in _FAQ_ACCORDION_STYLE.items():
+            block.setdefault(k, json.loads(json.dumps(v)))
+    return out
 
 
 def site_css(*parts):
@@ -5356,6 +5392,24 @@ def _faqs_object_list(faqs_objects, topic: str = "") -> list:
     return [f for f in (faqs_objects or []) if isinstance(f, dict)]
 
 
+#: v3 FaqsSection's defaultProps, shown when the section's JSON has no key.
+_FAQ_DEFAULT_TITLE = "Faqs"
+_FAQ_DEFAULT_DESCRIPTION = "คำถามพบบ่อย"
+
+#: Spacing and shape of v3's FAQ items (`.linkFaqs`: 20px apart, 16px inside,
+#: 2px corners), with the token names Neo Orderly's `.widget-accordion` uses.
+#: Written once in the site's top-level `style` (see `site_style`): the FAQ is
+#: the only thing the converter turns into an accordion, so one site block
+#: covers every one (user, 2026-10-12). Every value per breakpoint. No colour, ground or divider here -- see
+#: build_faqssection_section.
+_FAQ_ACCORDION_STYLE = {
+    "listTabsGap":         {"xs": {"value": 20, "unit": "px"}, "lg": {"value": 20, "unit": "px"}},
+    "listTabPaddingY":     {"xs": {"value": 16, "unit": "px"}, "lg": {"value": 16, "unit": "px"}},
+    "listTabPaddingX":     {"xs": {"value": 16, "unit": "px"}, "lg": {"value": 16, "unit": "px"}},
+    "listTabBorderRadius": {"xs": {"value": 2, "unit": "px"}, "lg": {"value": 2, "unit": "px"}},
+}
+
+
 def build_faqscontent_section(props: dict) -> dict:
     """Build FaqsContent -> the same section as FaqsSection.
 
@@ -5371,6 +5425,10 @@ def build_faqscontent_section(props: dict) -> dict:
     normalised = dict(props)
     normalised["faqsObjects"] = _faqs_object_list(
         props.get("faqsObjects"), props.get("topic") or "")
+    # FaqsContent is its own v3 component; FaqsSection's default heading is
+    # not known to apply to it, so a missing title stays missing.
+    normalised.setdefault("title", "")
+    normalised.setdefault("description", "")
     return build_faqssection_section(normalised)
 
 
@@ -5385,25 +5443,42 @@ def build_faqssection_section(props: dict) -> dict:
 
     col_children = []
 
-    # WidgetHeading
-    title_text = (props.get("title") or "").strip()
-    if title_text:
-        h_info = {"title": {"text": title_text}}
-        desc_text = (props.get("description") or "").strip()
+    # WidgetHeading. v3's FaqsSection has defaultProps `title: "Faqs"` and
+    # `description: "คำถามพบบ่อย"`, so a section whose JSON lacks the keys still
+    # shows that heading -- 10 of 13 real sections (user, 2026-10-12). Only a
+    # missing key takes the default; an explicit "" or null is the merchant
+    # clearing it. v3 draws the area when either one is set, centred.
+    title_text = (props["title"] if "title" in props else _FAQ_DEFAULT_TITLE) or ""
+    desc_text = (props["description"] if "description" in props
+                 else _FAQ_DEFAULT_DESCRIPTION) or ""
+    title_text, desc_text = title_text.strip(), desc_text.strip()
+    if title_text or desc_text:
+        h_info = {}
+        if title_text:
+            h_info["title"] = {"text": title_text}
         if desc_text:
             h_info["description"] = {"text": desc_text}
-        col_children.append(make_node("widget", "WidgetHeading", None,
-                                      _apply_heading_text_style(props, h_info)))
+        h_info = _apply_heading_text_style(props, h_info)
+        h_info.setdefault("alignment", {"xs": "center", "lg": "center"})
+        col_children.append(make_node("widget", "WidgetHeading", None, h_info))
 
-    # One WidgetTextStack + WidgetAccordion per faqsObject
+    # One WidgetTextStack + WidgetAccordion per faqsObject.
+    # The look is v3's platform FaqsSection stylesheet (the same on every site,
+    # read off the demo 2026-10-12), stated in full so the theme cannot swap
+    # in its own: group heading left-aligned; each question its own item,
+    # 20px apart, 16px inside; question 16px, answer 14px; "+" icon; closed at
+    # first; each opens on its own. Colour, ground and dividers stay the
+    # theme's for now -- 26 v3 themes restyle those, and they belong to the
+    # per-shop colour work (user, 2026-10-12).
     for faq_obj in _faqs_object_list(props.get("faqsObjects")):
         name = (faq_obj.get("name") or "").strip()
         col_children.append(make_node("widget", "WidgetTextStack", None, {
             "items": [{
                 "itemType":    "text",
                 "textVariant": "title",
-                "text":        {"text": name},
-            }]
+                "text":        {"text": name, "typoStyle": "typo_heading_medium"},
+            }],
+            "alignment": {"xs": "left", "lg": "left"},
         }))
         items = []
         for qa in (faq_obj.get("list") or []):
@@ -5414,7 +5489,15 @@ def build_faqssection_section(props: dict) -> dict:
                 "title":   {"text": q_text},
                 "content": qa.get("a") or "",
             })
-        col_children.append(make_node("widget", "WidgetAccordion", None, {"items": items}))
+        info = {
+            "items":                items,
+            "titleTypoStyle":       "typo_paragraph_medium_bold",
+            "descriptionTypoStyle": "typo_paragraph_small",
+            "arrowButton":          {"variant": "ghost", "iconLeft": "plus", "size": "small"},
+            "isExpandFirstTab":     False,
+            "isOpenMultiTab":       True,
+        }
+        col_children.append(make_node("widget", "WidgetAccordion", None, info))
 
     # Section padding was dropped entirely until v1.28 -- one demo sets
     # 80px/40px top and bottom and got v4's default instead. Every other
@@ -5423,6 +5506,8 @@ def build_faqssection_section(props: dict) -> dict:
     bg_color = _section_bg_color(props)
     if bg_color:
         section_info["bgColor"] = bg_color
+    # v3 sets each group to max-width 720px, centred
+    section_info["containerMaxWidth"] = {"lg": {"value": 720, "unit": "px"}}
 
     col = make_node("col", None, None, {}, col_children)
     row = make_node("row", None, None, {}, [col])
@@ -15281,6 +15366,13 @@ def _build_help_page(help_json: dict, generate_pages: bool = True,
     for anchor, label, layouts in tabs:
         widgets = []
         for layout in layouts:
+            # The tab's own heading names the content, so a FAQ here does not
+            # also take FaqsSection's default "Faqs" heading.
+            if isinstance(layout, dict) and layout.get("name") == "FaqsSection":
+                props = dict(layout.get("props") or {})
+                props.setdefault("title", "")
+                props.setdefault("description", "")
+                layout = dict(layout, props=props)
             try:
                 converted = convert_section(layout, warnings)
             except ValueError:
@@ -15847,7 +15939,7 @@ def main():
             "nickname":    "Imported",
             "theme_key":   v4_theme_key(data),
             "info":        globals_["info"],
-            "style":       globals_["style"],
+            "style":       site_style(globals_["style"], pages, zones),
             "css":         site_css(pages, zones),
             "header_zone": zones["header_zone"],
             "footer_zone": zones["footer_zone"],

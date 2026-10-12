@@ -961,7 +961,7 @@
         "    'nickname':    'Imported',\n" +
         "    'theme_key':   v4_theme_key(_input),\n" +
         "    'info':        _globals['info'],\n" +
-        "    'style':       _globals['style'],\n" +
+        `    'style':       site_style(_globals['style'], _pages, _zones) if ${py(cfg.content)} else _globals['style'],\n` +
         `    'css':         site_css(_pages, _zones) if ${py(cfg.content)} else None,\n` +
         `    'header_zone': _zones['header_zone'] if ${py(cfg.content)} else None,\n` +
         `    'footer_zone': _zones['footer_zone'] if ${py(cfg.content)} else None,\n` +
