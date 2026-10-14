@@ -359,6 +359,7 @@
           <label class="cfg-chip"><input type="checkbox" id="cfgThemeColor" checked> สีธีม</label>
           <label class="cfg-chip"><input type="checkbox" id="cfgAutoColor" checked title="สร้างเฉดสี 5 ระดับ (อ่อน→เข้ม) จากสีที่ตั้งไว้อัตโนมัติ"> สร้างเฉดสีอัตโนมัติ</label>
           <label class="cfg-chip"><input type="checkbox" id="cfgThemeFont" checked> ฟอนต์ธีม</label>
+          <label class="cfg-chip"><input type="checkbox" id="cfgV3Style" checked title="ติ๊กไว้: tag ป้ายส่วนลด ลูกศร slider และช่องกรอก มีรูปทรง (มุม เส้นขอบ แบบขอบหรือพื้นทึบ) เหมือน v3 — เอาติ๊กออก: ใช้รูปทรงของธีม v4 ที่แปลงไป · ไม่มีผลกับสี"> รูปทรงแบบ v3</label>
           <label class="cfg-chip"><input type="checkbox" id="cfgGlobal" checked> ตั้งค่ารวม</label>
           <label class="cfg-chip"><input type="checkbox" id="cfgAutoPages" checked title="v3 มีหน้าสำเร็จรูปที่ v4 ไม่มี (สินค้าแนะนำ / สินค้าลดราคา) — ติ๊กไว้เพื่อให้สร้างหน้าพวกนี้ให้อัตโนมัติเมื่อมีลิงก์ชี้มา ถ้าแพ็กเกจของร้านมีโควตา custom page จำกัด ให้เอาติ๊กออก แล้วลิงก์จะคงเป็นของ v3 พร้อมรายการให้ไปแก้เอง"> สร้างหน้าที่ขาดให้</label>
         </div>
@@ -578,7 +579,7 @@
 
   // ── Output config (what to include) — persisted in localStorage ─────
   const CONFIG_KEY = "converter2v4_outputConfig";
-  const CONFIG_DEFAULT = { content: true, themeColor: true, autoColor: true, themeFont: true, global: true, autoPages: true };
+  const CONFIG_DEFAULT = { content: true, themeColor: true, autoColor: true, themeFont: true, v3Style: true, global: true, autoPages: true };
   function loadConfig() {
     try {
       const v = JSON.parse(localStorage.getItem(CONFIG_KEY) || "{}");
@@ -620,6 +621,7 @@
     themeColor: "cfgThemeColor",
     autoColor:  "cfgAutoColor",
     themeFont:  "cfgThemeFont",
+    v3Style:    "cfgV3Style",
     global:     "cfgGlobal",
     autoPages:  "cfgAutoPages",
   };
@@ -949,7 +951,7 @@
     pyodide.runPython("import json\n_input = json.loads(_input_json)");
     const cfg = state.config;
     const py = (b) => (b ? "True" : "False");   // JS bool → Python literal
-    const gkw = `include_components=${py(cfg.global)}, include_colors=${py(cfg.themeColor)}, include_fonts=${py(cfg.themeFont)}, generate_color_scale=${py(cfg.autoColor)}`;
+    const gkw = `include_components=${py(cfg.global)}, include_colors=${py(cfg.themeColor)}, include_fonts=${py(cfg.themeFont)}, generate_color_scale=${py(cfg.autoColor)}, v3_style=${py(cfg.v3Style)}`;
     let snippet;
     if (mode === "site") {
       snippet =
