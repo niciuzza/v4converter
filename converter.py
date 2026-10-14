@@ -26,7 +26,7 @@ from urllib.parse import quote, unquote
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.82"
+__version__ = "1.83"
 LAST_UPDATED = "2026-10-14"
 
 # Short summary of what the converter handles — shown in the browser popup.
@@ -41,6 +41,17 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.83", "type": "fix", "date": "2026-10-14", "items": [
+        "<b>ปุ่มรองเป็นแบบขอบแล้ว ในธีม v3 ที่ปุ่มรองซ้ำกับปุ่มหลัก</b> — หลายธีม v3 ตั้งปุ่มรองให้เหมือนปุ่มหลักทุกอย่าง "
+        "(พื้นทึบ) เดิมจึงได้ปุ่มรองพื้นทึบ · ตอนนี้ปุ่มรองเป็นแบบขอบสีเดียวกับปุ่มหลัก ตามที่เคยตัดสินไว้ตอนแปลงธีม "
+        "และธีมที่มีแบบออกแบบเองแล้ว (cozy) ใช้ปุ่มรองตามแบบนั้น",
+        "<b>tag ที่ v3 มี ใช้สีตาม v3 แล้ว</b> — 1.81 ให้ tag ใช้สีของธีม v4 แต่รูปทรงแบบ v3 · ตอนนี้ tag ที่ธีม v3 กำหนดไว้ "
+        "ใช้ทั้งสีและรูปทรงตาม v3 (เฉดของร้านที่ใกล้ที่สุด) ส่วน tag ที่ v3 ไม่มี เช่น tag เด่น ใช้ของธีม v4 ทั้งหมด",
+        "<b>ตัวอักษรบนปุ่มที่กลืนกับพื้นปุ่มเป็นสีขาวแล้ว</b> — ถ้าสีตัวอักษรตาม v3 แทบเท่ากับสีพื้นปุ่ม "
+        "(เช่นปุ่มหลักตอน hover ของร้านที่สีหลักกับสีเข้มเป็นดำทั้งคู่) จะเปลี่ยนตัวอักษรเป็นสีขาว หรือดำถ้าดำอ่านง่ายกว่า",
+                "<b>ป้ายบนการ์ดใช้สีของธีม v4</b> — ป้าย New / Hot / Preorder ไม่ถูกย้ายไปสีหลักของร้านแล้ว ใช้สีตามธีม v4 "
+        "ปรับแค่สีตัวอักษรถ้าอ่านไม่ออก · ป้ายส่วนลดที่ธีมไม่ได้ตั้งสีใช้สีแดงสถานะของ v4 (StatusCritical)",
+    ]},
     {"version": "1.82", "type": "fix", "date": "2026-10-14", "items": [
         "<b>หน้า htmlfix และ converter โหลดได้อีกครั้ง</b> — 1.81 มีข้อมูลบรรทัดเดียวยาวมาก (126 KB) "
         "ซึ่ง Python ใน browser อ่านไม่ไหว (MemoryError) · แบ่งเป็นหลายบรรทัดแล้ว",
@@ -74,7 +85,7 @@ CHANGELOG = [
         "<b>Slideshow ไม่ได้ <code>isCenter</code> โดยไม่ได้ตั้งใจแล้ว</b> — เดิม slider ที่ v3 วางข้อความกลางภาพ "
         "(<code>textPosition: middle</code>) ได้ <code>isCenter: true</code> ซึ่งใน v4 คือการจัด slide ที่เลือกไว้ตรงกลาง ไม่เกี่ยวกับข้อความ "
         "(พบ 51 section) · ตอนนี้ใส่เฉพาะ slider ที่ v3 เปิด center mode ไว้ (<code>isCenterMode</code>)",
-        "<b>ตัวเลือกใหม่ \"รูปทรงแบบ v3\"</b> — ติ๊กไว้ (ค่าเริ่มต้น) tag ป้ายส่วนลด ลูกศร slider และช่องกรอกจะมีรูปทรงแบบ v3 "
+        "<b>ตัวเลือกใหม่ \"ดึง style จาก v3\"</b> — ติ๊กไว้ (ค่าเริ่มต้น) tag ป้ายส่วนลด ลูกศร slider และช่องกรอกจะมีรูปทรงแบบ v3 "
         "· เอาติ๊กออกถ้าอยากให้หน้าตาเป็นแบบของธีม v4 ที่แปลงไป · ไม่มีผลกับสี",
     ]},
     {"version": "1.80", "type": "fix", "date": "2026-10-12", "items": [
@@ -7100,12 +7111,12 @@ _V3_MAIN_ROLES = {
         "buttonPrimaryHoverFillColor": {"slot": 3, "ops": []},
         "buttonPrimaryHoverTextColor": {"slot": 2, "ops": []},
         "buttonPrimaryTextColor": {"slot": 2, "ops": []},
-        "buttonSecondaryBorderColor": "transparent",
-        "buttonSecondaryFillColor": {"slot": 3, "ops": []},
-        "buttonSecondaryHoverBorderColor": "transparent",
-        "buttonSecondaryHoverFillColor": {"slot": 3, "ops": []},
-        "buttonSecondaryHoverTextColor": {"slot": 2, "ops": []},
-        "buttonSecondaryTextColor": {"slot": 2, "ops": []},
+        "buttonSecondaryBorderColor": {"slot": 3, "ops": []},
+        "buttonSecondaryFillColor": "transparent",
+        "buttonSecondaryHoverBorderColor": {"slot": 3, "ops": []},
+        "buttonSecondaryHoverFillColor": "transparent",
+        "buttonSecondaryHoverTextColor": {"slot": 3, "ops": []},
+        "buttonSecondaryTextColor": {"slot": 3, "ops": []},
         "captionTextColor": {"slot": 3, "ops": [["tint", 20]]},
         "descriptionTextColor": {"slot": 3, "ops": [["tint", 20]]},
         "inputBgColor": "#ffffff",
@@ -7144,10 +7155,12 @@ _V3_MAIN_ROLES = {
         "buttonPrimaryHoverFillColor": "var(--color-brand-bold)",
         "buttonPrimaryHoverTextColor": {"slot": 2, "ops": []},
         "buttonPrimaryTextColor": {"slot": 2, "ops": []},
-        "buttonSecondaryFillColor": {"slot": 0, "ops": []},
-        "buttonSecondaryHoverFillColor": {"slot": 0, "ops": []},
-        "buttonSecondaryHoverTextColor": {"slot": 2, "ops": []},
-        "buttonSecondaryTextColor": {"slot": 2, "ops": []},
+        "buttonSecondaryBorderColor": {"slot": 0, "ops": []},
+        "buttonSecondaryFillColor": "transparent",
+        "buttonSecondaryHoverBorderColor": {"slot": 0, "ops": []},
+        "buttonSecondaryHoverFillColor": "transparent",
+        "buttonSecondaryHoverTextColor": {"slot": 0, "ops": []},
+        "buttonSecondaryTextColor": {"slot": 0, "ops": []},
         "captionTextColor": {"slot": 3, "ops": []},
         "descriptionTextColor": {"slot": 3, "ops": []},
         "inputBgColor": "#ffffff",
@@ -7563,12 +7576,12 @@ _V3_MAIN_ROLES = {
         "buttonPrimaryHoverFillColor": {"slot": 3, "ops": []},
         "buttonPrimaryHoverTextColor": {"slot": 2, "ops": []},
         "buttonPrimaryTextColor": {"slot": 2, "ops": []},
-        "buttonSecondaryBorderColor": "transparent",
-        "buttonSecondaryFillColor": {"slot": 3, "ops": []},
-        "buttonSecondaryHoverBorderColor": "transparent",
-        "buttonSecondaryHoverFillColor": {"slot": 3, "ops": []},
-        "buttonSecondaryHoverTextColor": {"slot": 2, "ops": []},
-        "buttonSecondaryTextColor": {"slot": 2, "ops": []},
+        "buttonSecondaryBorderColor": {"slot": 3, "ops": []},
+        "buttonSecondaryFillColor": "transparent",
+        "buttonSecondaryHoverBorderColor": {"slot": 3, "ops": []},
+        "buttonSecondaryHoverFillColor": "transparent",
+        "buttonSecondaryHoverTextColor": {"slot": 3, "ops": []},
+        "buttonSecondaryTextColor": {"slot": 3, "ops": []},
         "captionTextColor": {"slot": 3, "ops": [["tint", 20]]},
         "descriptionTextColor": {"slot": 3, "ops": []},
         "inputBgColor": "#ffffff",
@@ -7595,18 +7608,23 @@ _V3_MAIN_ROLES = {
         "arrowsHoverTextColor": {"slot": 0, "ops": []},
         "arrowsTextColor": {"slot": 3, "ops": []},
         "bgColor": {"slot": 2, "ops": []},
+        "buttonGhostBorderColor": "transparent",
+        "buttonGhostHoverBorderColor": "transparent",
+        "buttonGhostHoverFillColor": "transparent",
+        "buttonGhostHoverTextColor": "var(--color-brand)",
+        "buttonGhostTextColor": "var(--color-neutral-boldest)",
         "buttonPrimaryBorderColor": "transparent",
-        "buttonPrimaryFillColor": {"slot": 3, "ops": []},
+        "buttonPrimaryFillColor": "var(--color-neutral-boldest)",
         "buttonPrimaryHoverBorderColor": "transparent",
-        "buttonPrimaryHoverFillColor": {"slot": 3, "ops": []},
-        "buttonPrimaryHoverTextColor": {"slot": 2, "ops": []},
-        "buttonPrimaryTextColor": {"slot": 2, "ops": []},
-        "buttonSecondaryBorderColor": "transparent",
-        "buttonSecondaryFillColor": {"slot": 3, "ops": []},
-        "buttonSecondaryHoverBorderColor": "transparent",
-        "buttonSecondaryHoverFillColor": {"slot": 3, "ops": []},
-        "buttonSecondaryHoverTextColor": {"slot": 2, "ops": []},
-        "buttonSecondaryTextColor": {"slot": 2, "ops": []},
+        "buttonPrimaryHoverFillColor": "var(--color-neutral-boldest)",
+        "buttonPrimaryHoverTextColor": "var(--color-brand)",
+        "buttonPrimaryTextColor": "var(--color-neutral-subtlest)",
+        "buttonSecondaryBorderColor": "var(--color-neutral-boldest)",
+        "buttonSecondaryFillColor": "transparent",
+        "buttonSecondaryHoverBorderColor": "var(--color-brand)",
+        "buttonSecondaryHoverFillColor": "transparent",
+        "buttonSecondaryHoverTextColor": "var(--color-brand)",
+        "buttonSecondaryTextColor": "var(--color-neutral-boldest)",
         "captionTextColor": {"slot": 3, "ops": [["tint", 20]]},
         "descriptionTextColor": {"slot": 3, "ops": []},
         "inputBgColor": "#ffffff",
@@ -7619,11 +7637,11 @@ _V3_MAIN_ROLES = {
         "sliderBulletsBgColor": {"slot": 2, "ops": [["shade", 10]]},
         "sliderBulletsHoverBgColor": {"slot": 0, "ops": []},
         "tagDefaultBgColor": "transparent",
-        "tagDefaultBorderColor": {"slot": 3, "ops": []},
+        "tagDefaultBorderColor": "var(--color-neutral-boldest)",
         "tagDefaultHoverBgColor": "transparent",
-        "tagDefaultHoverBorderColor": {"slot": 0, "ops": []},
-        "tagDefaultHoverTextColor": {"slot": 0, "ops": []},
-        "tagDefaultTextColor": {"slot": 3, "ops": []},
+        "tagDefaultHoverBorderColor": "var(--color-brand)",
+        "tagDefaultHoverTextColor": "var(--color-brand)",
+        "tagDefaultTextColor": "var(--color-neutral-boldest)",
         "textColor": {"slot": 3, "ops": []},
         "titleTextColor": {"slot": 3, "ops": []},
     },
@@ -8029,12 +8047,12 @@ _V3_MAIN_ROLES = {
         "buttonPrimaryHoverFillColor": {"slot": 0, "ops": []},
         "buttonPrimaryHoverTextColor": {"slot": 2, "ops": []},
         "buttonPrimaryTextColor": {"slot": 2, "ops": []},
-        "buttonSecondaryBorderColor": "transparent",
-        "buttonSecondaryFillColor": {"slot": 0, "ops": []},
-        "buttonSecondaryHoverBorderColor": "transparent",
-        "buttonSecondaryHoverFillColor": {"slot": 0, "ops": []},
-        "buttonSecondaryHoverTextColor": {"slot": 2, "ops": []},
-        "buttonSecondaryTextColor": {"slot": 2, "ops": []},
+        "buttonSecondaryBorderColor": {"slot": 0, "ops": []},
+        "buttonSecondaryFillColor": "transparent",
+        "buttonSecondaryHoverBorderColor": {"slot": 0, "ops": []},
+        "buttonSecondaryHoverFillColor": "transparent",
+        "buttonSecondaryHoverTextColor": {"slot": 0, "ops": []},
+        "buttonSecondaryTextColor": {"slot": 0, "ops": []},
         "captionTextColor": {"slot": 3, "ops": [["tint", 20]]},
         "descriptionTextColor": {"slot": 3, "ops": [["tint", 20]]},
         "inputBgColor": "#ffffff",
@@ -8193,12 +8211,12 @@ _V3_MAIN_ROLES = {
         "buttonPrimaryHoverFillColor": {"slot": 1, "ops": []},
         "buttonPrimaryHoverTextColor": {"slot": 2, "ops": []},
         "buttonPrimaryTextColor": {"slot": 2, "ops": []},
-        "buttonSecondaryBorderColor": {"slot": 3, "ops": []},
-        "buttonSecondaryFillColor": {"slot": 0, "ops": []},
-        "buttonSecondaryHoverBorderColor": {"slot": 0, "ops": []},
-        "buttonSecondaryHoverFillColor": {"slot": 0, "ops": []},
-        "buttonSecondaryHoverTextColor": {"slot": 2, "ops": []},
-        "buttonSecondaryTextColor": {"slot": 2, "ops": []},
+        "buttonSecondaryBorderColor": {"slot": 0, "ops": []},
+        "buttonSecondaryFillColor": "transparent",
+        "buttonSecondaryHoverBorderColor": {"slot": 1, "ops": []},
+        "buttonSecondaryHoverFillColor": "transparent",
+        "buttonSecondaryHoverTextColor": {"slot": 1, "ops": []},
+        "buttonSecondaryTextColor": {"slot": 0, "ops": []},
         "captionTextColor": {"slot": 3, "ops": [["tint", 20]]},
         "descriptionTextColor": {"slot": 3, "ops": [["tint", 40]]},
         "inputBgColor": "#ffffff",
@@ -8239,7 +8257,7 @@ _V3_MAIN_ROLES = {
         "buttonPrimaryHoverTextColor": "var(--color-neutral-subtlest)",
         "buttonPrimaryTextColor": "var(--color-neutral-subtlest)",
         "buttonSecondaryBorderColor": "var(--color-brand)",
-        "buttonSecondaryFillColor": {"slot": 0, "ops": []},
+        "buttonSecondaryFillColor": "transparent",
         "buttonSecondaryHoverBorderColor": "var(--color-brand)",
         "buttonSecondaryHoverFillColor": "var(--color-brand)",
         "buttonSecondaryHoverTextColor": "var(--color-neutral-subtlest)",
@@ -8924,10 +8942,12 @@ _V3_MAIN_ROLES = {
         "buttonPrimaryHoverFillColor": {"slot": 1, "ops": []},
         "buttonPrimaryHoverTextColor": {"slot": 2, "ops": []},
         "buttonPrimaryTextColor": {"slot": 2, "ops": []},
-        "buttonSecondaryFillColor": {"slot": 0, "ops": []},
-        "buttonSecondaryHoverFillColor": {"slot": 1, "ops": []},
-        "buttonSecondaryHoverTextColor": {"slot": 2, "ops": []},
-        "buttonSecondaryTextColor": {"slot": 2, "ops": []},
+        "buttonSecondaryBorderColor": {"slot": 0, "ops": []},
+        "buttonSecondaryFillColor": "transparent",
+        "buttonSecondaryHoverBorderColor": {"slot": 1, "ops": []},
+        "buttonSecondaryHoverFillColor": "transparent",
+        "buttonSecondaryHoverTextColor": {"slot": 1, "ops": []},
+        "buttonSecondaryTextColor": {"slot": 0, "ops": []},
         "captionTextColor": {"slot": 3, "ops": []},
         "descriptionTextColor": {"slot": 3, "ops": [["tint", 40]]},
         "inputBgColor": "#ffffff",
@@ -8990,10 +9010,12 @@ _V3_MAIN_ROLES = {
         "buttonPrimaryHoverFillColor": {"slot": 1, "ops": []},
         "buttonPrimaryHoverTextColor": {"slot": 2, "ops": []},
         "buttonPrimaryTextColor": {"slot": 2, "ops": []},
-        "buttonSecondaryFillColor": {"slot": 3, "ops": []},
-        "buttonSecondaryHoverFillColor": {"slot": 1, "ops": []},
-        "buttonSecondaryHoverTextColor": {"slot": 2, "ops": []},
-        "buttonSecondaryTextColor": {"slot": 2, "ops": []},
+        "buttonSecondaryBorderColor": {"slot": 3, "ops": []},
+        "buttonSecondaryFillColor": "transparent",
+        "buttonSecondaryHoverBorderColor": {"slot": 1, "ops": []},
+        "buttonSecondaryHoverFillColor": "transparent",
+        "buttonSecondaryHoverTextColor": {"slot": 1, "ops": []},
+        "buttonSecondaryTextColor": {"slot": 3, "ops": []},
         "captionTextColor": {"slot": 3, "ops": []},
         "descriptionTextColor": {"slot": 3, "ops": [["tint", 40]]},
         "inputBgColor": "#ffffff",
@@ -9022,12 +9044,12 @@ _V3_MAIN_ROLES = {
         "buttonPrimaryHoverFillColor": {"slot": 5, "ops": []},
         "buttonPrimaryHoverTextColor": {"slot": 2, "ops": []},
         "buttonPrimaryTextColor": {"slot": 2, "ops": []},
-        "buttonSecondaryBorderColor": "transparent",
-        "buttonSecondaryFillColor": {"slot": 0, "ops": []},
-        "buttonSecondaryHoverBorderColor": "transparent",
-        "buttonSecondaryHoverFillColor": {"slot": 5, "ops": []},
-        "buttonSecondaryHoverTextColor": {"slot": 2, "ops": []},
-        "buttonSecondaryTextColor": {"slot": 2, "ops": []},
+        "buttonSecondaryBorderColor": {"slot": 0, "ops": []},
+        "buttonSecondaryFillColor": "transparent",
+        "buttonSecondaryHoverBorderColor": {"slot": 5, "ops": []},
+        "buttonSecondaryHoverFillColor": "transparent",
+        "buttonSecondaryHoverTextColor": {"slot": 5, "ops": []},
+        "buttonSecondaryTextColor": {"slot": 0, "ops": []},
         "captionTextColor": {"slot": 3, "ops": [["tint", 20]]},
         "descriptionTextColor": {"slot": 3, "ops": [["tint", 40]]},
         "inputBgColor": "#ffffff",
@@ -9103,7 +9125,7 @@ _V3_MAIN_ROLES = {
         "buttonPrimaryHoverTextColor": "var(--color-neutral-subtlest)",
         "buttonPrimaryTextColor": "var(--color-neutral-subtlest)",
         "buttonSecondaryBorderColor": "var(--color-brand)",
-        "buttonSecondaryFillColor": {"slot": 0, "ops": []},
+        "buttonSecondaryFillColor": "transparent",
         "buttonSecondaryHoverBorderColor": "var(--color-brand)",
         "buttonSecondaryHoverFillColor": "var(--color-brand)",
         "buttonSecondaryHoverTextColor": "var(--color-neutral-subtlest)",
@@ -9586,12 +9608,12 @@ _V3_MAIN_ROLES = {
         "buttonPrimaryHoverFillColor": {"slot": 3, "ops": []},
         "buttonPrimaryHoverTextColor": {"slot": 2, "ops": []},
         "buttonPrimaryTextColor": {"slot": 2, "ops": []},
-        "buttonSecondaryBorderColor": "transparent",
-        "buttonSecondaryFillColor": {"slot": 3, "ops": []},
-        "buttonSecondaryHoverBorderColor": "transparent",
-        "buttonSecondaryHoverFillColor": {"slot": 0, "ops": []},
-        "buttonSecondaryHoverTextColor": {"slot": 2, "ops": []},
-        "buttonSecondaryTextColor": {"slot": 2, "ops": []},
+        "buttonSecondaryBorderColor": {"slot": 3, "ops": []},
+        "buttonSecondaryFillColor": "transparent",
+        "buttonSecondaryHoverBorderColor": {"slot": 3, "ops": []},
+        "buttonSecondaryHoverFillColor": "transparent",
+        "buttonSecondaryHoverTextColor": {"slot": 3, "ops": []},
+        "buttonSecondaryTextColor": {"slot": 3, "ops": []},
         "captionTextColor": {"slot": 3, "ops": []},
         "descriptionTextColor": {"slot": 3, "ops": [["tint", 40]]},
         "inputBgColor": "#ffffff",
@@ -9738,12 +9760,12 @@ _V3_MAIN_ROLES = {
         "buttonPrimaryHoverFillColor": {"slot": 1, "ops": []},
         "buttonPrimaryHoverTextColor": {"slot": 2, "ops": []},
         "buttonPrimaryTextColor": {"slot": 2, "ops": []},
-        "buttonSecondaryBorderColor": "transparent",
-        "buttonSecondaryFillColor": {"slot": 0, "ops": []},
-        "buttonSecondaryHoverBorderColor": "transparent",
-        "buttonSecondaryHoverFillColor": {"slot": 1, "ops": []},
-        "buttonSecondaryHoverTextColor": {"slot": 2, "ops": []},
-        "buttonSecondaryTextColor": {"slot": 2, "ops": []},
+        "buttonSecondaryBorderColor": {"slot": 0, "ops": []},
+        "buttonSecondaryFillColor": "transparent",
+        "buttonSecondaryHoverBorderColor": {"slot": 1, "ops": []},
+        "buttonSecondaryHoverFillColor": "transparent",
+        "buttonSecondaryHoverTextColor": {"slot": 1, "ops": []},
+        "buttonSecondaryTextColor": {"slot": 0, "ops": []},
         "captionTextColor": {"slot": 3, "ops": [["tint", 20]]},
         "descriptionTextColor": {"slot": 3, "ops": []},
         "inputBgColor": "#ffffff",
@@ -10612,6 +10634,10 @@ def _main_scheme_by_role(colors, v3_theme, v4_theme, new_root, v3_style=True):
     # Only tokens with v3 evidence (a palette mixin or the theme converter's
     # checked scheme); a token v3 says nothing about is left to the theme.
     v3_refs = dict(_V3_MAIN_ROLES[tid])
+    # A tag v3 has takes v3's colours, shape and all (user, 2026-10-14);
+    # with the v3-style toggle off it is drawn the theme's way instead.
+    if not v3_style:
+        v3_refs = {k: v for k, v in v3_refs.items() if not k.startswith("tag")}
     native = _V4_NATIVE_MAIN.get((v4_theme or "").lower(), {})
     v4_refs = dict(_SCHEME_BASE_MAIN, **native)
 
@@ -10627,7 +10653,7 @@ def _main_scheme_by_role(colors, v3_theme, v4_theme, new_root, v3_style=True):
 
     out = {}
     for tok in _SCHEME_BASE_MAIN:
-        if tok not in v3_refs or tok.startswith("tag"):
+        if tok not in v3_refs:
             continue
         a, b = v3.get(tok), v4.get(tok)
         if not isinstance(a, str):
@@ -10668,18 +10694,20 @@ def _main_scheme_by_role(colors, v3_theme, v4_theme, new_root, v3_style=True):
         return (m.group(1), m.group(2) or "") if m else (None, None)
     final_refs = dict(v4_refs)
     final_refs.update(out)
-    used = {fam(final_refs.get(t))[0] for t in v3_refs if not t.startswith("tag")} - {None}
+    used = {fam(final_refs.get(t))[0] for t in v3_refs} - {None}
     if used:
         main_ramp = "brand" if "brand" in used else sorted(used)[0]
         for tok in dict.fromkeys(list(_SCHEME_BASE_MAIN) + list(native)):
-            if tok in v3_refs and not tok.startswith("tag"):
+            if tok in v3_refs:
+                continue
+            # What v3 does not have keeps the theme's colour, ramp included
+            # (user, 2026-10-14): the accent tag ("use the theme's, the easy
+            # choice") and the card badges ("badges can use v4's defaults").
+            if tok.startswith("tag") or "Badge" in tok:
                 continue
             f, suffix = fam(final_refs.get(tok))
             if f and f not in used:
                 out[tok] = "var(--color-%s%s)" % (main_ramp, suffix)
-
-    if v3_style:
-        _tag_shape(out, v3, v3_refs, v4_refs, new_vars, steps)
 
     # Colours v3 says nothing about stay the theme's -- unless they would melt
     # into their own ground (a white placeholder on a white input). Those move
@@ -10709,7 +10737,7 @@ def _main_scheme_by_role(colors, v3_theme, v4_theme, new_root, v3_style=True):
               and (t in native or t in dict(unset))
               and t[:-len("TextColor")] + "BgColor" in v4_refs]
     for fg, bg, need in _SCHEME_CONTRAST_PAIRS + badges:
-        if fg in v3_refs and not fg.startswith("tag"):
+        if fg in v3_refs:
             continue
         if fg.startswith("tag"):
             need = _SCHEME_BADGE_CONTRAST
@@ -10735,6 +10763,24 @@ def _main_scheme_by_role(colors, v3_theme, v4_theme, new_root, v3_style=True):
 
     for tt, ref in unset:
         out.setdefault(tt, ref)
+
+    # Text v3 states can still land on its own fill: a primary hover drawn in
+    # schemeA on a dark fill vanishes on a shop whose schemeA *is* its dark
+    # (v3 drew it the same way). A label that melts into
+    # its own fill (< 1.5:1) turns white, or black where black reads better
+    # (user, 2026-10-14).
+    final = dict(v4)
+    final.update(_scheme_values(out, new_vars))
+    for fg, bg, _need in _SCHEME_CONTRAST_PAIRS:
+        if bg == "bgColor" or fg not in v3_refs:
+            continue
+        f, b = final.get(fg), final.get(bg)
+        if not (isinstance(f, str) and _hex(f) is not None
+                and isinstance(b, str) and _hex(b) is not None):
+            continue
+        if _contrast(f, b) < _SCHEME_MELT:
+            white = _contrast("#ffffff", b) >= _contrast("#000000", b)
+            out[fg] = "var(--color-white)" if white else "var(--color-black)"
 
     # A disabled button reads as not clickable: faint neutral text, whatever
     # the theme chose (user, 2026-10-12).
@@ -10835,92 +10881,24 @@ def _control_shape(v3_theme, v4_theme):
     return out
 
 
-#: The tag families of the main scheme, each a ground, a border and a text.
-_SCHEME_TAG_FAMILIES = ("tagDefault", "tagDefaultHover", "tagAccent", "tagAccentHover")
-#: Below this contrast with the page, a tag ground reads as a pale tint.
+def _v3_tag_has_border(colors, v3_theme):
+    """Whether v3 draws a visible border on its tag (x_main's outline at 15%
+    dark, say). v4 Base draws tag borders 0px wide, so the site has to give
+    them a width or v3's outline vanishes."""
+    if v3_theme not in _V3_MAIN_ROLES or not isinstance(colors, list) or len(colors) < 6:
+        return False
+    vals = _v3_scheme_values([_norm_hex(c) if _hex(c) is not None else "" for c in colors[:6]],
+                             v3_theme)
+    page = vals.get("bgColor") if isinstance(vals.get("bgColor"), str) else "#ffffff"
+    page = page if _hex(page) is not None else "#ffffff"
+    return any(isinstance(v, str) and _hex(v) is not None and _contrast(v, page) >= 1.05
+               for k, v in vals.items()
+               if k.startswith("tag") and k.endswith("BorderColor") and k in _V3_MAIN_ROLES[v3_theme])
+
+
+#: Below this contrast with the page, a badge ground reads as a pale tint.
 _SCHEME_TAG_PALE = 1.6
 _SCHEME_TAG_TINT_C = 0.08
-
-
-def _tag_shape(out, v3, v3_refs, v4_refs, new_vars, steps):
-    """A tag keeps the v4 theme's colour and takes v3's shape (user,
-    2026-10-14): an outline (clear ground, coloured border and text) or a solid
-    chip (coloured ground, light text). The colour is the one the theme's tag
-    is drawn in -- its ground, or its text when the ground is a pale tint.
-    A v3 tag that is itself a pale tint, or a family v3 says nothing about,
-    stays as the theme has it. Writes into `out`."""
-    def ground(h):
-        return h if isinstance(h, str) and _hex(h) is not None else "#ffffff"
-    # each side is read against its own page: a dark v3 theme's tag sits on
-    # a dark page, the converted one on whatever the scheme ends up with
-    page = ground(_scheme_resolve(out.get("bgColor", v4_refs.get("bgColor")), new_vars))
-    page3 = ground(v3.get("bgColor"))
-
-    def clear(h, on):
-        return not isinstance(h, str) or h in _SCHEME_KEYWORDS or _hex(h) is None \
-            or _contrast(h, on) < 1.05
-
-    def pale(h, on):
-        # a tint, not a light colour: a yellow brand is as light as a tint
-        # but is the colour itself
-        return _contrast(h, on) < _SCHEME_TAG_PALE and _to_oklch(h)[1] < _SCHEME_TAG_TINT_C
-
-    def as_ref(ref):
-        if isinstance(ref, str) and re.fullmatch(r"var\(--color-[\w-]+\)", ref.strip()):
-            return ref.strip()
-        h = _scheme_resolve(ref, new_vars)
-        if isinstance(h, tuple):
-            h = _mix(page, _hex(h[0]), h[1])
-        if not isinstance(h, str) or _hex(h) is None or not steps:
-            return None
-        return "var(%s)" % _scheme_var(_scheme_nearest_step("tag", h, steps, None))
-
-    for f in _SCHEME_TAG_FAMILIES:
-        bg_t, bd_t, tx_t = f + "BgColor", f + "BorderColor", f + "TextColor"
-        if not any(t in v3_refs for t in (bg_t, bd_t, tx_t)):
-            continue
-        bg3 = v3.get(bg_t)
-        if clear(bg3, page3):
-            shape = "outline" if not clear(v3.get(bd_t), page3) else "text"
-        elif pale(bg3, page3):
-            continue                    # a pale tint: the theme's look stands
-        else:
-            shape = "solid"
-        theme = {t: out.get(t, v4_refs.get(t)) for t in (bg_t, bd_t, tx_t)}
-        tbg = _scheme_resolve(theme[bg_t], new_vars)
-        tbg = _mix(page, _hex(tbg[0]), tbg[1]) if isinstance(tbg, tuple) else tbg
-        if clear(tbg, page):
-            key = theme[bd_t] if not clear(_scheme_resolve(theme[bd_t], new_vars), page) \
-                else theme[tx_t]
-            solid_theme = False
-        elif pale(tbg, page):
-            key, solid_theme = theme[tx_t], False
-        else:
-            key, solid_theme = theme[bg_t], True
-        key = as_ref(key)
-        if key is None:
-            continue
-        if shape == "solid":
-            k = _scheme_resolve(key, new_vars)
-            text = None
-            if solid_theme:
-                own = _scheme_resolve(theme[tx_t], new_vars)
-                if isinstance(own, str) and _hex(own) is not None and \
-                        _contrast(own, k) >= _SCHEME_BADGE_CONTRAST:
-                    text = as_ref(theme[tx_t])
-            if text is None:
-                cw, cb = _contrast("#ffffff", k), _contrast("#000000", k)
-                text = "var(--color-white)" if cw >= _SCHEME_BADGE_CONTRAST or cw >= cb \
-                    else "var(--color-black)"
-            want = {bg_t: key, bd_t: "transparent", tx_t: text}
-        else:
-            want = {bg_t: "transparent", tx_t: key,
-                    bd_t: key if shape == "outline" else "transparent"}
-        for t, v in want.items():
-            if v != v4_refs.get(t) or t in out:
-                out[t] = v
-            else:
-                out.pop(t, None)
 
 
 #: The sale-percent badge, by where v4 reads it: (selector, token prefix, v3
@@ -11048,6 +11026,8 @@ def _scheme_step_family(key):
 
 _SCHEME_DISABLED_TEXT = "var(--color-neutral)"
 _SCHEME_BADGE_CONTRAST = 4.5
+#: Below this a label has melted into its own fill, whatever v3 said.
+_SCHEME_MELT = 1.5
 #: v4's old names for black and white, still referenced by some native
 #: themes (user, 2026-10-12: dark -> black, light -> white).
 _SCHEME_ALIASES = {"--color-dark": "--color-black", "--color-light": "--color-white"}
@@ -16925,9 +16905,8 @@ def convert_global(site_json: dict, warnings: list = None, *,
                               {k: v for k, v in root.items() if k.startswith("color")})
         if inv:
             style.setdefault(".color-scheme-inverse", {}).update(inv)
-        # v4 Base draws a tag's border 0px wide, so an outline tag needs one
-        if v3_style and any(k.startswith("tag") and k.endswith("BorderColor")
-                            and v != "transparent" for k, v in main.items()):
+        # v4 Base draws a tag's border 0px wide, so v3's outline tag needs one
+        if v3_style and _v3_tag_has_border(colors, cfg.get("currentTheme")):
             root["tagBorderWidth"] = {"value": 1, "unit": "px"}
             root["tagHoverBorderWidth"] = {"value": 1, "unit": "px"}
         if v3_style:
@@ -16936,7 +16915,7 @@ def convert_global(site_json: dict, warnings: list = None, *,
                     {k: v for k, v in root.items() if k.startswith("color")}).items():
                 style.setdefault(sel, {}).update(toks)
     # Arrow and field shape is not colour: it follows v3 whenever the shop is
-    # mapped onto a v4 theme and v3's style is asked for.
+    # mapped onto a v4 theme and "ดึง style จาก v3" (pull style from v3) is on.
     if map_to_v4_theme and v3_style and (include_colors or include_fonts):
         for sel, toks in _control_shape(cfg.get("currentTheme"), v4_theme_key(cfg)).items():
             (root if sel == ":root" else style.setdefault(sel, {})).update(toks)
