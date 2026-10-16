@@ -952,18 +952,21 @@
     const cfg = state.config;
     const py = (b) => (b ? "True" : "False");   // JS bool → Python literal
     const gkw = `include_components=${py(cfg.global)}, include_colors=${py(cfg.themeColor)}, include_fonts=${py(cfg.themeFont)}, generate_color_scale=${py(cfg.autoColor)}, v3_style=${py(cfg.v3Style)}`;
+    // the shop's colour toggles reach the content too: a ground is written as
+    // var(--color-…) only for a step the site's :root really carries
+    const ckw = `include_colors=${py(cfg.themeColor)}, generate_color_scale=${py(cfg.autoColor)}`;
     let snippet;
     if (mode === "site") {
       snippet =
         "_twarns = []\n" +
-        `_pages = convert_site(_input, _twarns, generate_pages=${py(cfg.autoPages)}) if ${py(cfg.content)} else []\n` +
-        "_zones = convert_zones(_input, _twarns)\n" +
+        `_pages = convert_site(_input, _twarns, generate_pages=${py(cfg.autoPages)}, ${ckw}) if ${py(cfg.content)} else []\n` +
+        `_zones = convert_zones(_input, _twarns, ${ckw})\n` +
         `_globals = convert_global(_input, _twarns, ${gkw})\n` +
         "_result = {\n" +
         "    'nickname':    'Imported',\n" +
         "    'theme_key':   v4_theme_key(_input),\n" +
         "    'info':        _globals['info'],\n" +
-        `    'style':       site_style(_globals['style'], _pages, _zones) if ${py(cfg.content)} else _globals['style'],\n` +
+        `    'style':       site_style(_globals['style'], _pages, _zones, theme_key=v4_theme_key(_input)) if ${py(cfg.content)} else _globals['style'],\n` +
         `    'css':         site_css(_pages, _zones) if ${py(cfg.content)} else None,\n` +
         `    'header_zone': _zones['header_zone'] if ${py(cfg.content)} else None,\n` +
         `    'footer_zone': _zones['footer_zone'] if ${py(cfg.content)} else None,\n` +

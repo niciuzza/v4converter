@@ -26,8 +26,8 @@ from urllib.parse import quote, unquote
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.83"
-LAST_UPDATED = "2026-10-14"
+__version__ = "1.85"
+LAST_UPDATED = "2026-10-16"
 
 # Short summary of what the converter handles — shown in the browser popup.
 # Plain strings; inline HTML (e.g. <code>) is allowed for rendering there.
@@ -41,6 +41,50 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.85", "type": "fix", "date": "2026-10-16", "items": [
+        "<b>รูปทรงช่องกรอกและลูกศรเทียบกับธีม v4 ฉบับใหม่</b> — ธีม v4 ทุกธีมย้ายความหนาเส้นขอบออกจาก color scheme "
+        "ไปไว้ที่ <code>:root</code> ที่เดียว (ค่าที่ปรับในระบบจึงขึ้นทุก scheme) converter เทียบความหนาเส้นขอบของ v3 "
+        "กับค่าใหม่นี้แล้ว · ร้านที่ช่องกรอกใน v3 มีกรอบรอบช่อง แต่ธีม v4 ที่ใช้เป็นเส้นล่าง จะได้ความหนาเส้นขอบตาม v3 ที่ระดับเว็บ",
+        "<b>dark mode ที่มากับ class ของ preset</b> — บาง preset ใส่ <code>darkMode</code> ไว้ใน class ของ section "
+        "แทนการติ๊ก dark mode ซึ่ง v3 ก็วาดเป็น dark mode เหมือนกัน แต่ converter เคยอ่านแค่ตัวติ๊ก section พวกนี้เลยได้พื้นปกติ "
+        "· ตอนนี้อ่านทั้งสองทาง (ธีมที่ dark mode เป็นพื้นอ่อน จะได้พื้นอ่อนของธีมตามเดิม)",
+        "<b>ไม่แปลง sub header ที่ว่าง</b> — ร้านที่เปิด sub header ไว้แต่ไม่มีเมนูในนั้น v3 วาดเป็นแถบว่าง "
+        "ตอนนี้ไม่ใส่ section นี้มาใน header ของ v4",
+        "<b>สีพื้น ระยะบน-ล่าง และรูปพื้นหลังของ section ครบทุกประเภทแล้ว</b> — v3 วาดค่าเหล่านี้ให้ทุก section เหมือนกัน "
+        "แต่ section บางประเภทไม่เคยถูกอ่าน (Banner Slider, Banner, ProductTab, Topic, Gallery, Coupon, Promotion, Contact, Custom HTML) "
+        "· เช่นแถบแบนเนอร์พื้นสีหลักที่ออกมาเป็นพื้นของหน้า และระยะ 10px ที่กลายเป็น 64–96px ของ v4",
+        "<b>section ที่ทาสีพื้นตรงกับพื้นของ color scheme อื่น ใช้ scheme นั้นเลย</b> — เช่น section ที่ร้านทาพื้นเป็นสีหลักเข้ม "
+        "ซึ่งตรงกับพื้นของ inverse จะได้ <code>color-scheme-inverse</code> ตัวอักษร ปุ่ม และลูกศรจึงเปลี่ยนสีตาม scheme "
+        "· ต้องเป็นสีเดียวกันเป๊ะ และไม่ทำกับสีที่เป็นพื้นของ main อยู่แล้ว",
+    ]},
+    {"version": "1.84", "type": "fix", "date": "2026-10-15", "items": [
+        "<b>พื้น header / footer ตามที่ธีม v3 ระบาย</b> — ร้านที่ไม่ได้ตั้งสีพื้นเอง ธีม v3 หลายธีมระบายพื้น header หรือ footer "
+        "ด้วยสีของร้าน (เช่นสีหลัก) แต่เดิม v4 ได้พื้นของ scheme ในธีม v4 ซึ่งมักเป็นคนละเฉด (เช่นสีหลักเข้มสุด) "
+        "· ตอนนี้ถ้าธีม v4 มี scheme ของตัวเองที่พื้นเป็นสีเดียวกัน ก็ใช้ scheme นั้นเลย ถ้าไม่มี ใช้ main / inverse ตามเดิม "
+        "แล้วใส่สีพื้นตาม v3 ที่ตัว header / footer · ไม่สร้าง scheme ใหม่",
+        "<b>สีพื้น header / footer อ้างเฉดของร้าน</b> — ถ้าสีพื้น (ทั้งที่ธีม v3 ระบาย และที่ร้านตั้งเอง) "
+        "ตรงกับเฉดใดเฉดหนึ่งของร้าน จะใส่เป็น <code>var(--color-…)</code> สีจึงเปลี่ยนตามเมื่อปรับสีของร้าน "
+        "· สีที่ไม่ตรงกับเฉดไหนยังเป็น hex เหมือนเดิม",
+        "<b>สีพื้นของ section ในเนื้อหาก็อ้างเฉดของร้านแล้ว</b> — ใช้กฎเดียวกับ header / footer "
+        "ทั้งพื้นของ section, row และ column · ถ้าปิดการใช้สีของร้าน สีพื้นทุกอันยังเป็น hex "
+        "เพราะ <code>var</code> จะกลายเป็นสีของธีม v4 แทน",
+        "<b>พื้นของ scheme ตามที่ร้านใช้จริง</b> — ถ้า section และ header / footer ที่ใช้ scheme เดียวกัน (เช่น inverse) "
+        "ใช้พื้นสีเดียวกันชัดเจน แต่พื้นของ scheme ในธีม v4 เป็นอีกสี (เช่นสีหลักเข้มสุด ที่ไม่มีตรงไหนใช้) "
+        "จะตั้งพื้นของ scheme นั้นที่ระดับเว็บเป็นสีที่ร้านใช้ · section ที่เพิ่มทีหลังจึงได้พื้นแบบเดียวกับร้าน "
+        "· ไม่แตะ main และไม่เปลี่ยนถ้าไม่มีสีไหนชนะชัด หรือถ้าตัวอักษรของ scheme อ่านไม่ออกบนพื้นนั้น",
+        "<b>color scheme มีแต่สี</b> — 1.82 ใส่ความหนาเส้นขอบช่องกรอกและลูกศรลงใน scheme ด้วย "
+        "(ธีม v4 บางธีมตั้งค่านี้ไว้ใน scheme) จนมี scheme ที่มีแค่ค่าเดียว · ตอนนี้ความหนาเส้นขอบอยู่ที่ "
+        "<code>:root</code> อย่างเดียว ถ้าธีมตั้งไว้ใน scheme จะใช้ของธีม",
+        "<b>มุมโค้งเต็มเขียนเป็น 999px</b> — ช่องกรอก ลูกศรสไลด์ และปุ่มที่โค้งเต็มใน v3 "
+        "เดิมเขียนเป็น <code>9999px</code> ตอนนี้เขียน <code>999px</code> เหมือนวงกลมจุดอื่น หน้าตาไม่เปลี่ยน",
+        "<b>ไม่ตั้งสีพื้นซ้ำกับพื้นของ scheme</b> — section และ header ที่ตั้งพื้นเป็นสีเดียวกับพื้นของ scheme ที่ใช้อยู่ "
+        "ไม่เขียนสีพื้นทับแล้ว จึงเปลี่ยนตามเมื่อปรับพื้นของ scheme · ต้องเป็นสีเดียวกันพอดี สีที่แค่ใกล้เคียงยังคงไว้ "
+        "และ row / column ยังคงสีพื้นของตัวเอง",
+        "<b>footer พื้นสีอ่อนกับพื้นสีเข้มเลือก scheme ถูกแล้ว</b> — ดูจากสีตัวอักษรที่ธีม v3 ใช้ใน footer "
+        "เช่น footer ที่ธีมระบายพื้นเข้มแต่ไม่ได้ติ๊ก dark mode ตอนนี้ได้ inverse",
+        "<b>สีคำอธิบายตามธีม v3</b> — บางธีม v3 ใช้สีคำอธิบายเท่ากับสีตัวอักษรหลัก แต่ตัวอ่าน CSS พลาดไป "
+        "เพราะ comment ท้ายบรรทัด · ตอนนี้คำอธิบายเข้มเท่าตัวอักษรหลักตาม v3",
+    ]},
     {"version": "1.83", "type": "fix", "date": "2026-10-14", "items": [
         "<b>ปุ่มรองเป็นแบบขอบแล้ว ในธีม v3 ที่ปุ่มรองซ้ำกับปุ่มหลัก</b> — หลายธีม v3 ตั้งปุ่มรองให้เหมือนปุ่มหลักทุกอย่าง "
         "(พื้นทึบ) เดิมจึงได้ปุ่มรองพื้นทึบ · ตอนนี้ปุ่มรองเป็นแบบขอบสีเดียวกับปุ่มหลัก ตามที่เคยตัดสินไว้ตอนแปลงธีม "
@@ -1421,6 +1465,37 @@ def section_padding_info(props: dict) -> dict:
     return info
 
 
+def _carry_section_style(section: dict, props: dict) -> None:
+    """Put `sectionStyle`'s ground, padding and background image on
+    `section.info` when no node of the section carries them yet. A builder
+    that places them itself (on a column, say) is left alone, so this only
+    fills what was dropped."""
+    def anywhere(node, keys):
+        if not isinstance(node, dict):
+            return False
+        if any(k in (node.get("info") or {}) for k in keys):
+            return True
+        return any(anywhere(ch, keys) for ch in node.get("children") or [])
+    info = section.setdefault("info", {})
+    bg = _section_bg_color(props)
+    if bg and not anywhere(section, ("bgColor",)):
+        info["bgColor"] = bg
+    if not anywhere(section, ("paddingTop", "paddingBottom")):
+        info.update(section_padding_info(props))
+    style = props.get("sectionStyle") or {}
+    image = style.get("bgImage") if isinstance(style, dict) else None
+    if isinstance(image, str) and image.strip() and not anywhere(section, ("bgImage",)):
+        info["bgType"] = "image"
+        info["bgImage"] = {"src": image.strip()}
+        if style.get("bgPosition"):
+            pos = convert_bg_position(style["bgPosition"])
+            info["bgPosition"] = {"xs": pos, "lg": pos}
+        if style.get("bgRepeat"):
+            info["bgRepeat"] = style["bgRepeat"]
+        if style.get("bgSize"):
+            info["bgSize"] = {"xs": style["bgSize"], "lg": style["bgSize"]}
+
+
 def convert_bg_position(position_str: str) -> str:
     """
     Convert CSS background-position from old 'y x' to new 'x y' format.
@@ -2611,12 +2686,17 @@ YOUTUBE_BG_CSS = (
 )
 
 
-def site_style(style, *parts):
+def site_style(style, *parts, theme_key=None):
     """The site's top-level `style`, plus the blocks the converted content
     needs: `.widget-accordion` when any page or zone holds an accordion (only
-    FAQs make one). Merged into what `convert_global` produced; returns a new
-    dict, never mutates `style`."""
+    FAQs make one), and each scheme's ground where the shop's content clearly
+    uses another one (`_scheme_grounds_by_use`, needs `theme_key`). Merged into
+    what `convert_global` produced; returns a new dict, never mutates `style`.
+    With `theme_key` it does change the parts: a section's or header's own
+    ground that equals its scheme's ground is removed."""
     out = json.loads(json.dumps(style or {}))
+    if theme_key:
+        _scheme_grounds_by_use(out, parts, theme_key)
     found = []
 
     def walk(n):
@@ -2637,6 +2717,158 @@ def site_style(style, *parts):
         for k, v in _FAQ_ACCORDION_STYLE.items():
             block.setdefault(k, json.loads(json.dumps(v)))
     return out
+
+
+def _scheme_grounds_by_use(out, parts, theme_key):
+    """Give a scheme the ground the shop's content uses with it most (user,
+    2026-10-15). One shop's sections and zones on `inverse` are all its green
+    brand, while the theme's inverse ground is BrandBoldest, which nothing on
+    the site shows -- so a section the merchant adds later on `inverse` comes
+    out a colour the shop never used. Writes `bgColor` into the site's own
+    `.color-scheme-<name>` block (layer 3; the theme stays read-only).
+
+    For every scheme but `main`. Main is the ground of every page, cart and
+    checkout included, where v3 drew the theme's own ground; on every real
+    shop it is also the most used by far (23 to 3 on one).
+
+    Votes: each section, and each row or column that names a scheme, casts its own
+    ground (`bgColor`; the header's `headerBgColor` / `…FixScroll`), or the
+    scheme's ground when it states none. Grounds within `_SCHEME_SAME` count as
+    one. A ground wins only when it is clear:
+    - it beats the scheme's own ground on votes;
+    - it has two votes, or is a header/footer's (those show on every page);
+    - nothing ties it -- a tie goes to the zone, then to a ground one of the
+      shop's steps holds, and otherwise the theme's ground stays (one shop's
+      six inverse sections have six grounds);
+    - the scheme's text reads on it (3:1).
+    The value is the one the nodes carry, so `var(--color-…)` when a step
+    holds it. Nothing happens without the shop's colours in `:root` (the
+    toggle off): the theme's steps are not known here."""
+    root = out.get(":root") or {}
+    if not all(k in root for k in _SCHEME_STEPS[:15]):
+        return   # without the whole scale, a theme step resolves to Base's colour
+    vars_ = {_scheme_var(k): v for k, v in dict(_SCHEME_BASE_ROOT, **root).items()}
+
+    def hexof(v):
+        h = _scheme_resolve(v, vars_) if isinstance(v, str) else None
+        return _norm_hex(h) if isinstance(h, str) and _hex(h) is not None else None
+
+    votes = {}   # scheme -> [(hex or None, raw, in_zone)]
+    slots = []   # (info, ground key, scheme, droppable)
+
+    def walk(n, scheme, zone):
+        if isinstance(n, list):
+            for x in n:
+                walk(x, scheme, zone)
+            return
+        if not isinstance(n, dict):
+            return
+        info = n.get("info") if isinstance(n.get("info"), dict) else {}
+        here = info.get("colorScheme") or scheme
+        section = n.get("type") == "section"
+        # a widget's scheme is for its own parts: a blog card on `inverse`
+        # sits over its photo, and the scheme's ground never shows
+        slot = None
+        if "colorSchemeFixScroll" in info:      # a transparent header: its scrolled ground
+            slot = (info, "headerBgColorFixScroll", info["colorSchemeFixScroll"], True)
+        elif section or (info.get("colorScheme") and n.get("type") != "widget"):
+            key = next((k for k in ("bgColor", "headerBgColor") if info.get(k)), None)
+            # a row or column sits on its section's ground, so its own ground
+            # is never dropped, only counted
+            slot = (info, key, here, section)
+        if slot:
+            slots.append(slot)
+            raw = info.get(slot[1]) if slot[1] else None
+            if not raw:
+                votes.setdefault(slot[2], []).append((None, None, zone))
+            elif hexof(raw):
+                votes.setdefault(slot[2], []).append((hexof(raw), raw, zone))
+        for k, v in n.items():
+            if k != "info" and isinstance(v, (dict, list)):
+                walk(v, here, zone or k in ("header_zone", "footer_zone"))
+
+    for part in parts:
+        walk(part, "color-scheme-main", False)
+
+    theme = _V4_NATIVE_SCHEME_GROUND.get(theme_key) or {}
+    base = _V4_NATIVE_SCHEME_GROUND.get("_base") or {}
+    for scheme, cast in votes.items():
+        if scheme == "color-scheme-main" or not isinstance(scheme, str):
+            continue
+        block = out.get("." + scheme) or {}
+        pair = theme.get(scheme) or base.get(scheme) or [None, None]
+        own = hexof(block.get("bgColor") or pair[0])
+        text = hexof(block.get("textColor") or pair[1])
+        if not own or not text:
+            continue
+        own_votes, groups = 0, []   # groups: [hex, count, zone, raws]
+        for h, raw, zone in cast:
+            if h is None or _oklab_gap(h, own) < _SCHEME_SAME:
+                own_votes += 1
+                continue
+            g = next((g for g in groups if _oklab_gap(g[0], h) < _SCHEME_SAME), None)
+            if g is None:
+                groups.append([h, 0, False, []])
+                g = groups[-1]
+            g[1] += 1
+            g[2] = g[2] or zone
+            g[3].append(raw)
+        rank = lambda g: (g[1], g[2], any(r.startswith("var(") for r in g[3]))
+        groups.sort(key=rank, reverse=True)
+        if not groups:
+            continue
+        top = groups[0]
+        if (top[1] <= own_votes or not (top[1] >= 2 or top[2])
+                or (len(groups) > 1 and rank(groups[1]) == rank(top))
+                or _contrast(text, top[0]) < 3):
+            continue
+        refs = [r for r in top[3] if r.startswith("var(")]
+        value = (max(set(refs), key=refs.count) if refs
+                 else max(set(r.lower() for r in top[3]), key=[r.lower() for r in top[3]].count))
+        out.setdefault("." + scheme, {})["bgColor"] = value
+
+    # A section on `main` whose own ground IS another scheme's ground takes
+    # that scheme (user, 2026-10-16): the merchant painted it that scheme's
+    # colour, so its text, buttons and arrows should follow the scheme too.
+    # One shop's navy banner strips sat on `main` with navy `bgColor` while
+    # its `inverse` is that navy. Exact colour only, as for the drop below.
+    offered = sorted(set(theme or base) | {k[1:] for k in out if k.startswith(".color-scheme-")})
+    grounds = []
+    for scheme in offered:
+        if scheme == "color-scheme-main":
+            continue
+        pair = theme.get(scheme) or base.get(scheme) or [None, None]
+        g = hexof((out.get("." + scheme) or {}).get("bgColor") or pair[0])
+        if g:
+            grounds.append((scheme, g))
+    main_pair = theme.get("color-scheme-main") or base.get("color-scheme-main") or [None, None]
+    main_ground = hexof((out.get(".color-scheme-main") or {}).get("bgColor") or main_pair[0])
+    for info, key, scheme, droppable in slots:
+        if not (droppable and key == "bgColor" and scheme == "color-scheme-main"
+                and info.get("colorScheme") in (None, "color-scheme-main")):
+            continue
+        h = hexof(info.get(key))
+        if h and h == main_ground:
+            continue   # main's own ground already: nothing to switch
+        match = next((s for s, g in grounds if h and g == h), None)
+        if match:
+            info["colorScheme"] = match
+            slots[slots.index((info, key, scheme, droppable))] = (info, key, match, droppable)
+
+    # A section's or header's own ground that is its scheme's ground says
+    # nothing more, and keeps the node from following the scheme when the
+    # scheme's ground changes (user, 2026-10-15: the header still carried
+    # the green its new inverse already has).
+    for info, key, scheme, droppable in slots:
+        if not (droppable and key and info.get(key)):
+            continue
+        pair = theme.get(scheme) or base.get(scheme) or [None, None]
+        own = hexof((out.get("." + scheme) or {}).get("bgColor") or pair[0])
+        h = hexof(info[key])
+        # the very colour, not "near": a cream section (#fefbf8) on a white
+        # main is within _SCHEME_SAME and is the theme's alt ground
+        if own and h and h == own:
+            del info[key]
 
 
 def site_css(*parts):
@@ -3944,6 +4176,13 @@ def build_bannerslick_section(props: dict) -> dict:
         slider_info["cardRatio"] = {"xs": "1 / 1", "lg": "1 / 1"}
     slider_info["slideConfig"] = {"slidesPerView": 4}
     col_children.append(make_node("widget", "WidgetSlider", None, slider_info))
+
+    # The ground the shop picked, like every other section (2026-10-16: a
+    # navy banner strip came out on the page ground). Its dark-mode scheme is
+    # the shared post-pass in `convert_section()`.
+    bg = _section_bg_color(props)
+    if bg:
+        section_info["bgColor"] = bg
 
     col     = make_node("col", None, None, {}, col_children)
     row     = make_node("row", None, None, {}, [col])
@@ -5852,6 +6091,12 @@ def _section_bg_color(props: dict) -> str | None:
     return bg
 
 
+def _class_says_dark(props: dict) -> bool:
+    """`darkMode` among the words of the section's `className`/`className2`."""
+    return any(isinstance(props.get(k), str) and "darkMode" in props[k].split()
+               for k in ("className", "className2"))
+
+
 def _is_dark_ground(props: dict) -> bool:
     """True when v3 says this block sits on a dark ground.
 
@@ -5867,8 +6112,15 @@ def _is_dark_ground(props: dict) -> bool:
     background came through, the *text* colour did not, so they rendered dark
     text on a dark ground. That is the same defect v1.18 fixed for the header,
     and this is the shared test both now use.
+
+    The flag also arrives as a **class**: v3's renderer builds the section's
+    class from `className + ' ' + className2 + (isDarkMode ? "darkMode" : "")`
+    (see `_blog_template`), so a preset whose `className` or `className2`
+    already carries `darkMode` draws dark mode with no flag at all (a
+    ProductTab and a ParagraphSection on one shop, grey in v3 and on the
+    plain ground in v4 until 2026-10-16).
     """
-    if props.get("isDarkMode"):
+    if props.get("isDarkMode") or _class_says_dark(props):
         return True
     bg = ((props.get("sectionStyle") or {}).get("bgColor") or "").strip()
     return bool(bg and _is_dark_hex(bg))
@@ -5901,6 +6153,181 @@ def _footer_color_scheme(props: dict) -> str | None:
     return None
 
 
+def _site_colour_root(cfg: dict):
+    """(colors, {colour token: value}): the shop's six v3 colours, empty slots
+    filled from the theme's palette, and the `:root` colours `convert_global`
+    builds from them -- the same call, colours only. The zones need it to tell
+    which of the theme's schemes is nearest what v3 drew; `convert_zones` runs
+    apart from `convert_global`, so it rebuilds the root rather than share it.
+    (None, {}) without colours. Cached per site JSON for one run: every
+    section's ground asks for it."""
+    scale = _V3_ROOT_FLAGS[1]
+    hit = _SITE_ROOT_CACHE.get("entry")
+    if hit and hit[0] is cfg and hit[1] == scale:
+        return hit[2]
+    colors = cfg.get("currentColors")
+    palette = _THEME_V3_PALETTE.get(cfg.get("currentTheme"))
+    if not isinstance(colors, list) or not palette:
+        found = (None, {})
+    else:
+        colors = [c if isinstance(c, str) and c.strip() else palette[i]
+                  for i, c in enumerate((colors + [""] * 6)[:6])]
+        root = _build_theme_root(
+            colors, None, cfg.get("currentTheme"), include_colors=True, include_fonts=False,
+            generate_color_scale=scale, warnings=[], keep_google=True, manifest={},
+            site_json=cfg, colors_by_role=True,
+            target_role=_V4_THEME_COLOR_ROLE.get(v4_theme_key(cfg), "brand"))
+        found = (colors, {k: v for k, v in root.items() if k.startswith("color")})
+    _SITE_ROOT_CACHE["entry"] = (cfg, scale, found)
+    return found
+
+
+_SITE_ROOT_CACHE: dict = {}
+
+
+def _ground_ref(colour):
+    """A ground as v4 should store it: `var(--color-<step>)` when the shop's
+    ramps hold that very colour (OKLab < `_SCHEME_SAME`), so the ground follows
+    the shop's palette; the hex otherwise (user, 2026-10-15: v4 takes var(),
+    and a colour no step holds stays a hex -- never pulled to the nearest one).
+    Only a step the site's `:root` really writes is a candidate: with the
+    shop's colours left out (`_V3_ROOT_FLAGS`) a `var` would point at the
+    theme's colour instead, so every ground stays a hex. Outside a site run,
+    or for anything not a hex, `colour` comes back as is."""
+    cfg = _V3_SITE_CFG if isinstance(_V3_SITE_CFG, dict) else None
+    if not cfg or not _V3_ROOT_FLAGS[0] or _hex(colour) is None:
+        return colour
+    _colors, root = _site_colour_root(cfg)
+    if not root:
+        return colour
+    vars_ = {_scheme_var(k): v for k, v in dict(_SCHEME_BASE_ROOT, **root).items()}
+    best = None
+    for key in _SCHEME_STEPS:
+        if key not in root and key not in ("colorWhite", "colorBlack"):
+            continue
+        h = _scheme_resolve(vars_.get(_scheme_var(key)), vars_)
+        if isinstance(h, str) and _hex(h) is not None:
+            gap = _oklab_gap(_norm_hex(colour), h)
+            if best is None or gap < best[0]:
+                best = (gap, key)
+    if best is None or best[0] >= _SCHEME_SAME:
+        return colour
+    return "var(%s)" % _scheme_var(best[1])
+
+
+def _ground_refs_in(tree):
+    """Every node's own ground (`info.bgColor`: section, row, column) through
+    `_ground_ref`, in place -- the rule the header and footer grounds follow,
+    for the page content too (user, 2026-10-15). Returns `tree`."""
+    if isinstance(tree, list):
+        for x in tree:
+            _ground_refs_in(x)
+    elif isinstance(tree, dict):
+        info = tree.get("info")
+        if isinstance(info, dict) and isinstance(info.get("bgColor"), str):
+            ref = _ground_ref(info["bgColor"].strip())
+            if ref.startswith("var("):   # no step holds it: the value as written
+                info["bgColor"] = ref
+        for v in tree.values():
+            if isinstance(v, (dict, list)):
+                _ground_refs_in(v)
+    return tree
+
+
+def _zone_scheme(zone: str, dark: bool):
+    """(colorScheme, ground) for a header or footer whose ground v3's THEME
+    paints -- the shop's JSON says nothing -- or None when there is nothing to
+    say (no colours, an unknown theme, or a light zone that sits on the page).
+
+    The rule (user, 2026-10-15): a new scheme only when the elements' colours
+    must change, never because the ground differs. So:
+
+    1. **Polarity** -- dark or light -- from the text colour the theme states
+       on the zone, else from v3's `isDarkMode`, else from the ground itself. That decides which schemes
+       may hold the zone at all.
+    2. One of the v4 theme's **own** schemes of that polarity (`main-1`,
+       `inverse-2`, … -- the theme's, not new ones) whose ground is the same
+       colour as v3's: that scheme alone is the answer.
+    3. None is: main / inverse, which carry the shop's own colours, with v3's
+       ground written on the node (`headerBgColor` / `bgColor`), the way a
+       merchant's own ground already is.
+
+    `dark` is v3's `isDarkMode`: it picks the theme's `.darkMode` rule, not
+    the answer -- a theme's dark footer can be a light one."""
+    cfg = _V3_SITE_CFG if isinstance(_V3_SITE_CFG, dict) else None
+    entry = ((_V3_ZONE_GROUND.get((cfg or {}).get("currentTheme")) or {})
+             .get(zone + ("Dark" if dark else "")))
+    if not cfg or not entry:
+        return None
+    colors, root = _site_colour_root(cfg)
+    if not colors:
+        return None
+    colors = [_norm_hex(c) if _hex(c) is not None else "" for c in colors]
+
+    def v3(spec):
+        return _scheme_v3_spec(spec, colors, "#ffffff") if isinstance(spec, dict) else (
+            _norm_hex(spec) if _hex(spec) is not None else None)
+    ground, text = v3(entry["bg"]), v3(entry.get("text"))
+    if ground is None:
+        return None
+
+    def is_dark(bg):
+        return _contrast("#ffffff", bg) >= _contrast("#000000", bg)
+    # light text means a dark zone; with no text stated, v3's own flag says
+    # it (a mid-tone ground like #40966c reads either way by lightness alone)
+    # (the themes in `_V3_THEME_INVERSE_HEADER` state their light text on the
+    # header's links and icons, not on the pane itself)
+    if not text and zone == "header" and not dark and \
+            cfg.get("currentTheme") in _V3_THEME_INVERSE_HEADER:
+        want = is_dark(ground)
+        want = want or not _shop_brand_is_light()
+    elif text and _contrast(text, ground) < _SCHEME_MELT:
+        # the theme's text assumes a ground the shop changed (a white brand
+        # under white header text): the ground decides
+        want = is_dark(ground)
+    else:
+        want = (_contrast(text, "#000000") > _contrast(text, "#ffffff") if text
+                else True if dark else is_dark(ground))
+    default = "color-scheme-inverse" if want else "color-scheme-main"
+
+    vars_ = {_scheme_var(k): v for k, v in dict(_SCHEME_BASE_ROOT, **root).items()}
+    v4 = (v4_theme_key(cfg) or "").lower()
+    offered = _V4_NATIVE_SCHEME_GROUND.get(v4) or _V4_NATIVE_SCHEME_GROUND.get("_base") or {}
+    best = None
+    for name, (bg_ref, _txt) in offered.items():
+        bg = _scheme_resolve(bg_ref, vars_)
+        if not isinstance(bg, str) or _hex(bg) is None or is_dark(bg) != want:
+            continue
+        key = (_oklab_gap(ground, bg), name != default, name)
+        if best is None or key < best[0]:
+            best = (key, name)
+    # another scheme only when its ground IS v3's; otherwise main / inverse
+    # (which carry the shop's own colours) with v3's ground on the node
+    if best is None or best[0][0] >= _SCHEME_SAME:
+        return default, _ground_ref(ground)
+    return best[1], None
+
+
+def _footer_ground_info(props: dict) -> dict:
+    """The footer section's `colorScheme` and `bgColor`. The merchant's own
+    ground wins; without one, the theme's (`_zone_scheme`); without that, the
+    signals in `_footer_color_scheme`."""
+    info: dict = {}
+    bg = _section_bg_color(props)
+    zone = None if bg else _zone_scheme("footer", bool(props.get("isDarkMode")))
+    if zone:
+        info["colorScheme"], ground = zone
+        if ground:
+            info["bgColor"] = ground
+        return info
+    scheme = _footer_color_scheme(props)
+    if scheme:
+        info["colorScheme"] = scheme
+    if bg:
+        info["bgColor"] = _ground_ref(bg)
+    return info
+
+
 def _footer_preset1(props: dict) -> dict:
     h_align   = _footer_h_align(props)
     brand_col = _footer_col(
@@ -5917,13 +6344,7 @@ def _footer_preset1(props: dict) -> dict:
                                           contact_span, True, 1))
     _footer_distribute_lg(content_cols, brand_lg=6, brand_col=brand_col)
     cols = [brand_col] + content_cols
-    section_info: dict = {}
-    scheme = _footer_color_scheme(props)
-    if scheme:
-        section_info["colorScheme"] = scheme
-    bg = _section_bg_color(props)
-    if bg:
-        section_info["bgColor"] = bg
+    section_info: dict = _footer_ground_info(props)
     row = make_node("row", None, None, {}, cols)
     return make_node("section", "footer", "[preset1]", section_info,
                      [row, _footer_copyright_row(props)])
@@ -5940,13 +6361,7 @@ def _footer_preset2(props: dict) -> dict:
                                           contact_span, True, 2))
     _footer_distribute_lg(content_cols, brand_lg=4, brand_col=brand_col)
     cols = [brand_col] + content_cols
-    section_info: dict = {}
-    scheme = _footer_color_scheme(props)
-    if scheme:
-        section_info["colorScheme"] = scheme
-    bg = _section_bg_color(props)
-    if bg:
-        section_info["bgColor"] = bg
+    section_info: dict = _footer_ground_info(props)
     row = make_node("row", None, None, {}, cols)
     return make_node("section", "footer", "[preset2]", section_info,
                      [row, _footer_copyright_row(props)])
@@ -5972,13 +6387,7 @@ def _footer_preset3(props: dict) -> dict:
     _footer_distribute_lg(row2_cols, brand_lg=0)
     row2 = make_node("row", None, None, {}, row2_cols)
 
-    section_info: dict = {}
-    scheme = _footer_color_scheme(props)
-    if scheme:
-        section_info["colorScheme"] = scheme
-    bg = _section_bg_color(props)
-    if bg:
-        section_info["bgColor"] = bg
+    section_info: dict = _footer_ground_info(props)
     return make_node("section", "footer", "[preset3]", section_info,
                      [row1, row2, _footer_copyright_row(props)])
 
@@ -6317,6 +6726,13 @@ def _header_extra_section_info(props: dict) -> dict:
     # white, and its own value has to win.
     if not bg_color and not is_dark and _V3_THEME_ID in _V3_THEME_INVERSE_HEADER:
         is_dark = not _shop_brand_is_light()
+    # Without a ground of its own, the header takes the one v3's theme paints,
+    # on the v4 theme's nearest scheme (see _zone_scheme).
+    zone = None if bg_color else _zone_scheme("header", bool(pane.get("isDarkMode")))
+    scheme = (zone[0] if zone else
+              "color-scheme-inverse" if is_dark else "color-scheme-main")
+    if zone and zone[1]:
+        bg_color = zone[1]
     height_preset = pane.get("heightPresetId")
     _HEIGHTS = {1: 60, 2: 70, 3: 80, 4: 90}
 
@@ -6325,16 +6741,16 @@ def _header_extra_section_info(props: dict) -> dict:
         font_color = (props.get("bgTransparentFontColor") or "").strip()
         info["colorSchemeFixTop"] = "color-scheme-main" if _is_dark_hex(font_color) else "color-scheme-inverse"
         info["headerBgColorFixTop"] = "transparent"
-        info["colorSchemeFixScroll"] = "color-scheme-inverse" if is_dark else "color-scheme-main"
+        info["colorSchemeFixScroll"] = scheme
         if bg_color:
-            info["headerBgColorFixScroll"] = bg_color.lower()
+            info["headerBgColorFixScroll"] = _ground_ref(bg_color.lower())
         info["fixPaths"] = ["/"]
     else:
         if (props.get("subHeaderPane") or {}).get("isFixTop"):
             info["stickyType"] = "always"
-        info["colorScheme"] = "color-scheme-inverse" if is_dark else "color-scheme-main"
+        info["colorScheme"] = scheme
         if bg_color:
-            info["headerBgColor"] = bg_color.lower()
+            info["headerBgColor"] = _ground_ref(bg_color.lower())
 
     if height_preset:
         px = _HEIGHTS.get(height_preset)
@@ -6726,7 +7142,11 @@ def _build_header_main_section(props: dict) -> dict:
 def build_header_section(props: dict) -> dict:
     """Convert HeaderSection props → v4 header_zone (main section + subHeader if enabled)."""
     children = [_build_header_main_section(props)]
-    if props.get("isShowSubMenuPane"):
+    # The sub-header holds the sub-menu and nothing else, so one switched on
+    # with no titled item is an empty bar: v3 draws a blank strip, v4 would
+    # get an empty section. Not carried (user, 2026-10-16).
+    has_items = any((m or {}).get("title") for m in (props.get("subMenuListObjects") or []))
+    if props.get("isShowSubMenuPane") and has_items:
         children.append(_subheader_section(props))
     header_zone = make_node("page", "header", "Header", {})
     header_zone["children"] = children
@@ -7336,6 +7756,7 @@ _V3_MAIN_ROLES = {
         "buttonSecondaryHoverTextColor": {"slot": 0, "ops": []},
         "buttonSecondaryTextColor": {"slot": 3, "ops": []},
         "captionTextColor": {"slot": 3, "ops": [["tint", 20]]},
+        "descriptionTextColor": {"slot": 3, "ops": []},
         "inputBgColor": "#ffffff",
         "inputBorderColor": {"slot": 3, "ops": [["alpha", 0.05]]},
         "inputPlaceholderColor": "#757575",
@@ -7415,6 +7836,7 @@ _V3_MAIN_ROLES = {
         "buttonSecondaryHoverTextColor": "var(--color-neutral-subtlest)",
         "buttonSecondaryTextColor": "var(--color-brand)",
         "captionTextColor": {"slot": 3, "ops": [["tint", 20]]},
+        "descriptionTextColor": {"slot": 3, "ops": []},
         "inputBgColor": "#ffffff",
         "inputBorderColor": "var(--color-neutral-subtle)",
         "inputPlaceholderColor": "#757575",
@@ -7464,6 +7886,7 @@ _V3_MAIN_ROLES = {
         "buttonSecondaryHoverTextColor": "var(--color-neutral-subtlest)",
         "buttonSecondaryTextColor": {"slot": 3, "ops": []},
         "captionTextColor": {"slot": 3, "ops": [["tint", 20]]},
+        "descriptionTextColor": {"slot": 3, "ops": []},
         "inputBgColor": "#ffffff",
         "inputBorderColor": "var(--color-neutral-subtle)",
         "inputPlaceholderColor": "#757575",
@@ -7705,6 +8128,7 @@ _V3_MAIN_ROLES = {
         "buttonSecondaryHoverTextColor": {"slot": 0, "ops": []},
         "buttonSecondaryTextColor": {"slot": 3, "ops": []},
         "captionTextColor": {"slot": 3, "ops": [["tint", 20]]},
+        "descriptionTextColor": {"slot": 3, "ops": []},
         "inputBgColor": "#ffffff",
         "inputBorderColor": {"slot": 3, "ops": [["alpha", 0.05]]},
         "inputPlaceholderColor": "#757575",
@@ -8017,6 +8441,7 @@ _V3_MAIN_ROLES = {
         "buttonSecondaryHoverTextColor": {"slot": 0, "ops": []},
         "buttonSecondaryTextColor": {"slot": 3, "ops": []},
         "captionTextColor": {"slot": 3, "ops": [["tint", 20]]},
+        "descriptionTextColor": {"slot": 3, "ops": []},
         "inputBgColor": "#ffffff",
         "inputBorderColor": {"slot": 3, "ops": [["alpha", 0.05]]},
         "inputPlaceholderColor": "#757575",
@@ -8135,6 +8560,7 @@ _V3_MAIN_ROLES = {
         "buttonSecondaryHoverTextColor": "var(--color-neutral-subtlest)",
         "buttonSecondaryTextColor": "var(--color-brand)",
         "captionTextColor": {"slot": 3, "ops": [["tint", 20]]},
+        "descriptionTextColor": {"slot": 3, "ops": []},
         "inputBgColor": "#ffffff",
         "inputBorderColor": "var(--color-neutral-subtle)",
         "inputPlaceholderColor": "#757575",
@@ -8180,6 +8606,7 @@ _V3_MAIN_ROLES = {
         "buttonSecondaryHoverTextColor": {"slot": 0, "ops": []},
         "buttonSecondaryTextColor": {"slot": 3, "ops": []},
         "captionTextColor": {"slot": 3, "ops": [["tint", 20]]},
+        "descriptionTextColor": {"slot": 3, "ops": []},
         "inputBgColor": "#ffffff",
         "inputBorderColor": {"slot": 3, "ops": [["alpha", 0.05]]},
         "inputPlaceholderColor": "#757575",
@@ -8338,6 +8765,7 @@ _V3_MAIN_ROLES = {
         "buttonSecondaryHoverTextColor": {"slot": 0, "ops": []},
         "buttonSecondaryTextColor": {"slot": 3, "ops": []},
         "captionTextColor": {"slot": 3, "ops": [["tint", 20]]},
+        "descriptionTextColor": {"slot": 3, "ops": []},
         "inputBgColor": "#ffffff",
         "inputBorderColor": {"slot": 3, "ops": [["alpha", 0.05]]},
         "inputPlaceholderColor": "#757575",
@@ -8505,7 +8933,7 @@ _V3_MAIN_ROLES = {
         "buttonSecondaryHoverTextColor": "var(--color-brand)",
         "buttonSecondaryTextColor": "var(--color-neutral-boldest)",
         "captionTextColor": {"slot": 3, "ops": [["tint", 20]]},
-        "descriptionTextColor": {"slot": 3, "ops": [["tint", 40]]},
+        "descriptionTextColor": {"slot": 3, "ops": []},
         "inputBgColor": "#ffffff",
         "inputBorderColor": "var(--color-neutral-subtle)",
         "inputPlaceholderColor": "#757575",
@@ -8690,6 +9118,7 @@ _V3_MAIN_ROLES = {
         "buttonSecondaryHoverTextColor": {"slot": 0, "ops": []},
         "buttonSecondaryTextColor": {"slot": 3, "ops": []},
         "captionTextColor": {"slot": 3, "ops": [["tint", 20]]},
+        "descriptionTextColor": {"slot": 3, "ops": []},
         "inputBgColor": "#ffffff",
         "inputBorderColor": {"slot": 3, "ops": [["alpha", 0.05]]},
         "inputPlaceholderColor": "#757575",
@@ -8727,10 +9156,12 @@ _V3_MAIN_ROLES = {
         "buttonSecondaryHoverTextColor": {"slot": 0, "ops": []},
         "buttonSecondaryTextColor": {"slot": 3, "ops": []},
         "captionTextColor": {"slot": 3, "ops": [["tint", 20]]},
+        "descriptionTextColor": {"slot": 3, "ops": []},
         "inputBgColor": "#ffffff",
         "inputBorderColor": {"slot": 3, "ops": [["alpha", 0.05]]},
         "inputPlaceholderColor": "#757575",
         "inputTextColor": {"slot": 3, "ops": []},
+        "linkDefaultColor": {"slot": 3, "ops": []},
         "linkDefaultHoverColor": "#000000",
         "sliderBulletsActiveBgColor": {"slot": 3, "ops": []},
         "sliderBulletsBgColor": {"slot": 3, "ops": [["alpha", 0.5]]},
@@ -8872,6 +9303,7 @@ _V3_MAIN_ROLES = {
         "buttonSecondaryHoverTextColor": {"slot": 0, "ops": []},
         "buttonSecondaryTextColor": {"slot": 3, "ops": []},
         "captionTextColor": {"slot": 3, "ops": [["tint", 20]]},
+        "descriptionTextColor": {"slot": 3, "ops": []},
         "inputBgColor": "#ffffff",
         "inputBorderColor": {"slot": 3, "ops": [["alpha", 0.05]]},
         "inputPlaceholderColor": "#757575",
@@ -8909,6 +9341,7 @@ _V3_MAIN_ROLES = {
         "buttonSecondaryHoverTextColor": {"slot": 0, "ops": []},
         "buttonSecondaryTextColor": {"slot": 3, "ops": []},
         "captionTextColor": {"slot": 3, "ops": [["tint", 20]]},
+        "descriptionTextColor": {"slot": 3, "ops": []},
         "inputBgColor": "#ffffff",
         "inputBorderColor": {"slot": 3, "ops": [["alpha", 0.05]]},
         "inputPlaceholderColor": "#757575",
@@ -9375,6 +9808,7 @@ _V3_MAIN_ROLES = {
         "buttonSecondaryHoverTextColor": {"slot": 0, "ops": []},
         "buttonSecondaryTextColor": {"slot": 3, "ops": []},
         "captionTextColor": {"slot": 3, "ops": [["tint", 20]]},
+        "descriptionTextColor": {"slot": 3, "ops": []},
         "inputBgColor": "#ffffff",
         "inputBorderColor": {"slot": 3, "ops": [["alpha", 0.05]]},
         "inputPlaceholderColor": "#757575",
@@ -9503,6 +9937,7 @@ _V3_MAIN_ROLES = {
         "buttonSecondaryHoverTextColor": {"slot": 0, "ops": []},
         "buttonSecondaryTextColor": {"slot": 3, "ops": []},
         "captionTextColor": {"slot": 3, "ops": [["tint", 20]]},
+        "descriptionTextColor": {"slot": 3, "ops": []},
         "inputBgColor": "#ffffff",
         "inputBorderColor": {"slot": 3, "ops": [["alpha", 0.05]]},
         "inputPlaceholderColor": "#757575",
@@ -9578,6 +10013,7 @@ _V3_MAIN_ROLES = {
         "buttonSecondaryHoverTextColor": {"slot": 0, "ops": []},
         "buttonSecondaryTextColor": {"slot": 3, "ops": []},
         "captionTextColor": {"slot": 3, "ops": [["tint", 20]]},
+        "descriptionTextColor": {"slot": 3, "ops": []},
         "inputBgColor": "#ffffff",
         "inputBorderColor": {"slot": 3, "ops": [["alpha", 0.05]]},
         "inputPlaceholderColor": "#757575",
@@ -9794,6 +10230,8 @@ _V4_NATIVE_MAIN = {
         "linkDefaultColor": "var(--color-neutral-boldest)",
         "linkDefaultHoverColor": "var(--color-brand)",
         "buttonPrimaryFillColor": "var(--color-brand)",
+        "buttonPrimaryTextColor": "var(--color-white)",
+        "buttonPrimaryHoverTextColor": "var(--color-white)",
         "tagDefaultBgColor": "var(--color-brand)",
         "tagDefaultTextColor": "var(--color-neutral-subtlest)",
         "arrowsBgColor": "transparent",
@@ -9843,13 +10281,17 @@ _V4_NATIVE_MAIN = {
     "brewhavencoffee": {
         "bgColor": "var(--color-white)",
         "buttonPrimaryFillColor": "var(--color-brand)",
+        "buttonPrimaryTextColor": "var(--color-white)",
+        "buttonPrimaryHoverTextColor": "var(--color-white)",
         "tagDefaultBgColor": "var(--color-brand)",
         "tagDefaultTextColor": "white",
         "tagAccentBgColor": "var(--color-brand)",
         "tagAccentTextColor": "white",
         "arrowsBgColor": "var(--color-brand)",
+        "arrowsBorderColor": "transparent",
         "arrowsTextColor": "white",
         "arrowsHoverBgColor": "var(--color-brand-subtlest)",
+        "arrowsHoverBorderColor": "transparent",
         "inputPlaceholderColor": "var(--color-neutral-subtle)",
         "arrowsTextHoverColor": "white",
     },
@@ -9901,7 +10343,9 @@ _V4_NATIVE_MAIN = {
         "linkDefaultColor": "var(--color-neutral-boldest)",
         "linkDefaultHoverColor": "var(--color-brand-alt)",
         "buttonPrimaryFillColor": "var(--color-brand-alt)",
+        "buttonPrimaryTextColor": "var(--color-white)",
         "buttonPrimaryHoverFillColor": "var(--color-brand-alt-bold)",
+        "buttonPrimaryHoverTextColor": "var(--color-white)",
         "buttonSecondaryTextColor": "var(--color-brand-alt)",
         "buttonSecondaryHoverTextColor": "var(--color-brand-alt-bold)",
         "buttonGhostTextColor": "var(--color-neutral-boldest)",
@@ -9928,7 +10372,9 @@ _V4_NATIVE_MAIN = {
         "titleTextColor": "var(--color-brand-boldest)",
         "descriptionTextColor": "var(--color-brand-subtle)",
         "linkDefaultColor": "var(--color-brand-boldest)",
+        "buttonPrimaryTextColor": "var(--color-white)",
         "buttonPrimaryHoverFillColor": "var(--color-neutral-bold)",
+        "buttonPrimaryHoverTextColor": "var(--color-white)",
         "buttonSecondaryBorderColor": "var(--color-brand)",
         "buttonSecondaryTextColor": "var(--color-brand)",
         "arrowsBgColor": "var(--color-brand-boldest)",
@@ -9951,7 +10397,9 @@ _V4_NATIVE_MAIN = {
         "linkDefaultColor": "var(--color-black)",
         "linkDefaultHoverColor": "var(--color-brand)",
         "buttonPrimaryFillColor": "var(--color-brand)",
+        "buttonPrimaryTextColor": "var(--color-white)",
         "buttonPrimaryHoverFillColor": "var(--color-brand-bold)",
+        "buttonPrimaryHoverTextColor": "var(--color-white)",
         "buttonSecondaryBorderColor": "var(--color-brand)",
         "buttonSecondaryTextColor": "var(--color-brand)",
         "buttonSecondaryHoverFillColor": "var(--color-brand)",
@@ -10054,6 +10502,45 @@ _V4_NATIVE_MAIN = {
         "inputBorderColor": "var(--color-black)",
         "sectionBorderColor": "var(--color-black)",
     },
+    "recta": {
+        "bgColor": "var(--color-white)",
+        "borderColor": "var(--color-neutral-bold)",
+        "textColor": "var(--color-neutral-boldest)",
+        "textSubtleColor": "var(--color-neutral-bold)",
+        "captionTextColor": "var(--color-brand-alt)",
+        "linkAccentColor": "var(--color-brand-alt)",
+        "linkAccentHoverColor": "var(--color-brand-alt-bold)",
+        "linkDefaultColor": "var(--color-neutral-boldest)",
+        "linkDefaultHoverColor": "var(--color-brand-alt)",
+        "buttonPrimaryFillColor": "var(--color-brand-boldest)",
+        "buttonPrimaryHoverFillColor": "var(--color-brand-alt)",
+        "buttonSecondaryBorderColor": "var(--color-brand-boldest)",
+        "buttonSecondaryTextColor": "var(--color-brand-boldest)",
+        "buttonSecondaryHoverBorderColor": "var(--color-brand-alt)",
+        "buttonSecondaryHoverTextColor": "var(--color-brand-alt)",
+        "buttonGhostTextColor": "var(--color-brand-boldest)",
+        "buttonGhostHoverTextColor": "var(--color-brand-alt)",
+        "buttonDisabledFillColor": "var(--color-neutral-subtlest)",
+        "tagDefaultBgColor": "var(--color-neutral-subtle)",
+        "tagDefaultTextColor": "var(--color-neutral-bold)",
+        "tagDefaultHoverBgColor": "var(--color-neutral-subtlest)",
+        "tagDefaultHoverTextColor": "var(--color-neutral-bold)",
+        "arrowsBgColor": "transparent",
+        "arrowsBorderColor": "var(--color-neutral-boldest)",
+        "arrowsTextColor": "var(--color-neutral-boldest)",
+        "arrowsHoverBgColor": "transparent",
+        "arrowsHoverBorderColor": "var(--color-brand-alt)",
+        "arrowsHoverTextColor": "var(--color-brand-alt)",
+        "sliderBulletsHoverBgColor": "var(--color-brand-alt)",
+        "sliderBulletsActiveBgColor": "var(--color-neutral-bold)",
+        "scrollbarBgColor": "var(--color-neutral-subtle)",
+        "scrollbarTrackColor": "var(--color-neutral-bold)",
+        "formTextColor": "var(--color-neutral-boldest)",
+        "inputFocusColor": "transparent",
+        "inputBorderColor": "var(--color-neutral-subtle)",
+        "inputBgColor": "#e8e8e844",
+        "bgSubtleColor": "var(--color-neutral-subtlest)",
+    },
     "shizuku": {
         "linkAccentHoverColor": "var(--color-brand-alt-bold)",
         "linkDefaultColor": "var(--color-brand)",
@@ -10061,6 +10548,7 @@ _V4_NATIVE_MAIN = {
         "buttonPrimaryFillColor": "var(--color-neutral-subtlest)",
         "buttonPrimaryBorderColor": "var(--color-brand)",
         "buttonPrimaryTextColor": "var(--color-brand)",
+        "buttonPrimaryHoverTextColor": "var(--color-white)",
         "buttonSecondaryFillColor": "var(--color-brand-subtlest)",
         "buttonSecondaryBorderColor": "var(--color-brand-subtlest)",
         "buttonSecondaryTextColor": "var(--color-brand)",
@@ -10076,7 +10564,6 @@ _V4_NATIVE_MAIN = {
         "titleTextColor": "var(--color-brand-bold)",
         "descriptionTextColor": "var(--color-black)",
         "buttonSecondaryHoverTextColor": "var(--color-brand-alt-boldest)",
-        "overlayBgColor": "#000",
         "arrowsTextHoverColor": "var(--color-neutral-bold)",
     },
     "spaceandstroll": {
@@ -10109,6 +10596,8 @@ _V4_NATIVE_MAIN = {
         "arrowsHoverBorderColor": "transparent",
         "arrowsHoverTextColor": "var(--color-neutral-subtlest)",
         "inputPlaceholderColor": "var(--color-neutral-subtle)",
+        "inputFocusColor": "transparent",
+        "inputBorderColor": "transparent",
         "inputBgColor": "var(--color-neutral-subtlest)",
         "cardProductInfoBadgeNewBgColor": "var(--color-brand)",
         "cardProductInfoBadgeNewTextColor": "var(--color-white)",
@@ -10157,6 +10646,7 @@ _V4_NATIVE_MAIN = {
         "scrollbarBgColor": "var(--color-neutral-subtle)",
         "scrollbarTrackColor": "var(--color-brand)",
     },
+    "varinthaispa": {"textColor": "var(--color-brand-boldest)", "buttonPrimaryHoverFillColor": "var(--color-brand-alt-subtlest)", "inputPlaceholderColor": "var(--color-neutral-subtle)"},
     "ventura": {
         "bgColor": "var(--color-white)",
         "borderColor": "var(--color-neutral-boldest)",
@@ -10166,7 +10656,9 @@ _V4_NATIVE_MAIN = {
         "linkDefaultColor": "var(--color-neutral-boldest)",
         "linkDefaultHoverColor": "var(--color-neutral-boldest)",
         "buttonPrimaryFillColor": "var(--color-brand-boldest)",
+        "buttonPrimaryTextColor": "var(--color-white)",
         "buttonPrimaryHoverFillColor": "var(--color-brand-alt-bold)",
+        "buttonPrimaryHoverTextColor": "var(--color-white)",
         "buttonSecondaryBorderColor": "var(--color-brand-boldest)",
         "buttonSecondaryTextColor": "var(--color-brand-boldest)",
         "buttonSecondaryHoverBorderColor": "var(--color-brand-alt-bold)",
@@ -10218,6 +10710,13 @@ _V4_NATIVE_DISCOUNT = {
         "productDetailBadgeDiscountPercenBgColor": "#e51b1b",
         "productDetailBadgeDiscountPercenTextColor": "var(--color-white)",
     },
+    "recta": {
+        "cardProductInfoBadgeDiscountPercentTextColor": "#e30000",
+        "cardProductThumbnailBadgeDiscountPercentBgColor": "#e30000",
+        "cardProductThumbnailBadgeDiscountPercentTextColor": "var(--color-white)",
+        "productDetailBadgeDiscountPercenBgColor": "transparent",
+        "productDetailBadgeDiscountPercenTextColor": "#e30000",
+    },
     "simplydelight": {"productDetailBadgeDiscountPercenBgColor": "#b52424", "productDetailBadgeDiscountPercenTextColor": "var(--color-white)"},
     "ventura": {
         "cardProductInfoBadgeDiscountPercentTextColor": "#e30000",
@@ -10232,92 +10731,53 @@ _V4_NATIVE_SHAPE = {
         ":root": {"inputRadius": {"value": 0, "unit": "px"}, "inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderRadius": {"value": 0, "unit": "px"}, "arrowsBorderWidth": {"value": 0, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 0, "unit": "px"}},
     },
     "alphafit": {
-        ":root": {"arrowsBorderRadius": {"value": 50, "unit": "%"}},
-        ".color-scheme-main": {"inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
-        ".color-scheme-inverse": {"arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
-        ".color-scheme-inverse-2": {"arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
+        ":root": {"inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderRadius": {"value": 50, "unit": "%"}, "arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
     },
     "brewcocoffee": {
-        ":root": {"inputRadius": {"value": 50, "unit": "px"}, "arrowsBorderRadius": {"value": 50, "unit": "px"}},
-        ".color-scheme-main": {"inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
-        ".color-scheme-main-1": {"inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
-        ".color-scheme-inverse": {"inputBorderWidth": {"value": 0, "unit": "px"}, "arrowsBorderWidth": {"value": 1, "unit": "px"}},
+        ":root": {"inputRadius": {"value": 50, "unit": "px"}, "inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderRadius": {"value": 50, "unit": "px"}, "arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
     },
-    "brewhavencoffee": {
-        ".color-scheme-main": {"inputBorderWidth": {"value": 1, "unit": "px"}},
-        ".color-scheme-inverse": {"arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
-        ".color-scheme-inverse-1": {"arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
-        ".color-scheme-main-1": {"inputBorderWidth": {"value": 1, "unit": "px"}},
-        ".color-scheme-main-2": {"inputBorderWidth": {"value": 1, "unit": "px"}},
-    },
+    "brewhavencoffee": {":root": {"inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}}},
     "floating": {
-        ":root": {"arrowsBorderRadius": {"value": 50, "unit": "px"}},
-        ".color-scheme-main": {"inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
-        ".color-scheme-main-2": {"inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
-        ".color-scheme-main-3": {"inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
-        ".color-scheme-main-4": {"inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
-        ".color-scheme-inverse": {"inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderWidth": {"value": 0, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 0, "unit": "px"}},
-        ".color-scheme-inverse-2": {"inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderWidth": {"value": 0, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 0, "unit": "px"}},
+        ":root": {"inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderRadius": {"value": 50, "unit": "px"}, "arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
     },
     "forma": {
-        ":root": {"inputRadius": {"value": 8, "unit": "px"}, "inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderRadius": {"value": 50, "unit": "%"}},
-        ".color-scheme-main": {"arrowsBorderWidth": {"value": 0, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 0, "unit": "px"}},
-        ".color-scheme-main-1": {"arrowsBorderWidth": {"value": 0, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 0, "unit": "px"}},
+        ":root": {"inputRadius": {"value": 8, "unit": "px"}, "inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderRadius": {"value": 50, "unit": "%"}, "arrowsBorderWidth": {"value": 0, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 0, "unit": "px"}},
     },
-    "kiara": {
-        ".color-scheme-inverse": {"inputBorderWidth": "0 0 1px 0", "arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
-        ".color-scheme-inverse-2": {"inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
-        ".color-scheme-main": {"inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderWidth": {"value": 0, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 0, "unit": "px"}},
-        ".color-scheme-inverse-1": {"inputBorderWidth": "0 0 1px 0", "arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
-        ":root": {"arrowsBorderRadius": {"value": 99, "unit": "px"}},
-    },
+    "kiara": {":root": {"inputBorderWidth": "0 0 1px 0", "arrowsBorderRadius": {"value": 99, "unit": "px"}, "arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}}},
     "neoorderly": {
-        ":root": {"inputRadius": {"xs": {"value": 8, "unit": "px"}, "lg": {"value": 8, "unit": "px"}, "2xl": {"value": 8, "unit": "px"}}, "arrowsBorderRadius": {"value": 8, "unit": "px"}},
-        ".color-scheme-main": {"inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
-        ".color-scheme-main-2": {"inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
+        ":root": {"inputRadius": {"xs": {"value": 8, "unit": "px"}, "lg": {"value": 8, "unit": "px"}, "2xl": {"value": 8, "unit": "px"}}, "inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderRadius": {"value": 8, "unit": "px"}, "arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
     },
     "peapea": {":root": {"arrowsBorderRadius": {"value": 50, "unit": "%"}, "arrowsBorderWidth": {"value": 2, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 2, "unit": "px"}}},
-    "shizuku": {
-        ".color-scheme-main": {"arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
-        ".color-scheme-main-2": {"arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
-        ".color-scheme-inverse": {"arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
+    "recta": {
+        ":root": {"inputRadius": {"value": 2, "unit": "px"}, "inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderRadius": {"value": 2, "unit": "px"}, "arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
     },
+    "shizuku": {":root": {"arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}}},
     "simplydelight": {":root": {"arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}}},
     "spaceandstroll": {
-        ":root": {"arrowsBorderRadius": {"xs": {"value": 4, "unit": "px"}, "lg": {"value": 8, "unit": "px"}}},
-        ".color-scheme-main": {"inputBorderWidth": {"value": 0, "unit": "px"}, "arrowsBorderWidth": {"value": 0, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 0, "unit": "px"}},
-        ".color-scheme-inverse": {"inputBorderWidth": {"value": 0, "unit": "px"}, "arrowsBorderWidth": {"value": 0, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 0, "unit": "px"}},
-        ".color-scheme-main-2": {"inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderWidth": {"value": 0, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 0, "unit": "px"}},
-        ".color-scheme-inverse-2": {"inputBorderWidth": {"value": 0, "unit": "px"}, "arrowsBorderWidth": {"value": 0, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 0, "unit": "px"}},
-        ".color-scheme-inverse-3": {"inputBorderWidth": {"value": 0, "unit": "px"}, "arrowsBorderWidth": {"value": 0, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 0, "unit": "px"}},
+        ":root": {"inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderRadius": {"xs": {"value": 4, "unit": "px"}, "lg": {"value": 8, "unit": "px"}}, "arrowsBorderWidth": {"value": 0, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 0, "unit": "px"}},
     },
-    "sunnergy": {
-        ".color-scheme-main": {"arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
-        ".color-scheme-main-2": {"arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
-        ".color-scheme-inverse": {"arrowsBorderWidth": {"value": 0, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 0, "unit": "px"}},
-        ".color-scheme-inverse-2": {"arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
+    "sunnergy": {":root": {"arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}}},
+    "varinthaispa": {
+        ":root": {"inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderRadius": {"value": 0, "unit": "px"}, "arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
     },
     "ventura": {
-        ":root": {"inputRadius": {"value": 2, "unit": "px"}, "inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderRadius": {"value": 2, "unit": "px"}, "arrowsBorderWidth": {"value": 1, "unit": "px"}},
-        ".color-scheme-main": {"arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
-        ".color-scheme-main-1": {"arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
-        ".color-scheme-inverse": {"arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
+        ":root": {"inputRadius": {"value": 2, "unit": "px"}, "inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderRadius": {"value": 2, "unit": "px"}, "arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
     },
 }
 _V3_ARROW_SHAPE = {
-    "x_cozy": {"arrowsBorderRadius": 9999},
-    "x_cozy_fw": {"arrowsBorderRadius": 9999},
-    "x_denim_fw": {"arrowsBorderRadius": 9999},
-    "x_eco": {"arrowsBorderRadius": 9999, "arrowsBorderWidth": 1, "arrowsHoverBorderWidth": 1},
-    "x_julie": {"arrowsBorderRadius": 9999},
-    "x_luxurygold": {"arrowsBorderRadius": 9999, "arrowsBorderWidth": 1, "arrowsHoverBorderWidth": 1},
+    "x_cozy": {"arrowsBorderRadius": 999},
+    "x_cozy_fw": {"arrowsBorderRadius": 999},
+    "x_denim_fw": {"arrowsBorderRadius": 999},
+    "x_eco": {"arrowsBorderRadius": 999, "arrowsBorderWidth": 1, "arrowsHoverBorderWidth": 1},
+    "x_julie": {"arrowsBorderRadius": 999},
+    "x_luxurygold": {"arrowsBorderRadius": 999, "arrowsBorderWidth": 1, "arrowsHoverBorderWidth": 1},
     "x_oasis": {"arrowsBorderRadius": 2},
-    "x_periwinkle": {"arrowsBorderRadius": 9999, "arrowsBorderWidth": 1, "arrowsHoverBorderWidth": 1},
-    "x_petfriendly": {"arrowsBorderRadius": 9999},
+    "x_periwinkle": {"arrowsBorderRadius": 999, "arrowsBorderWidth": 1, "arrowsHoverBorderWidth": 1},
+    "x_petfriendly": {"arrowsBorderRadius": 999},
     "x_solid_wide_fw": {"arrowsBorderWidth": 1, "arrowsHoverBorderWidth": 1},
     "x_swift": {"arrowsBorderWidth": 1, "arrowsHoverBorderWidth": 1},
     "x_void": {"arrowsBorderWidth": 1, "arrowsHoverBorderWidth": 1},
-    "xp_baoji": {"arrowsBorderRadius": 9999, "arrowsBorderWidth": 0, "arrowsHoverBorderWidth": 0},
+    "xp_baoji": {"arrowsBorderRadius": 999, "arrowsBorderWidth": 0, "arrowsHoverBorderWidth": 0},
 }
 _V3_INVERSE_ARROWS = {
     "x_bakery": {"arrowsBgColor": "transparent", "arrowsTextColor": {"slot": 3, "ops": [["tint", 20]]}, "arrowsHoverBgColor": "transparent", "arrowsHoverTextColor": {"slot": 3, "ops": []}},
@@ -10393,7 +10853,7 @@ _V4_NATIVE_INVERSE_ARROWS = {
         "arrowsBorderColor": "var(--color-brand-subtle)",
         "arrowsTextColor": "var(--color-brand-subtle)",
         "arrowsHoverBgColor": "var(--color-brand-subtle)",
-        "arrowsHoverBorderColor": "currentcolor",
+        "arrowsHoverBorderColor": "transparent",
         "arrowsHoverTextColor": "var(--color-brand-bold)",
     },
     "brewhavencoffee": {
@@ -10405,10 +10865,10 @@ _V4_NATIVE_INVERSE_ARROWS = {
     },
     "floating": {
         "arrowsBgColor": "var(--color-neutral-bold)",
-        "arrowsBorderColor": "currentcolor",
+        "arrowsBorderColor": "transparent",
         "arrowsTextColor": "var(--color-neutral-subtle)",
         "arrowsHoverBgColor": "var(--color-brand-bold)",
-        "arrowsHoverBorderColor": "var(--color-brand-bold)",
+        "arrowsHoverBorderColor": "transparent",
         "arrowsHoverTextColor": "var(--color-white)",
     },
     "forma": {"arrowsBgColor": "var(--color-brand)", "arrowsHoverBgColor": "var(--color-brand-bold)", "arrowsTextColor": "var(--color-white)", "arrowsHoverTextColor": "var(--color-neutral-subtle)"},
@@ -10420,7 +10880,14 @@ _V4_NATIVE_INVERSE_ARROWS = {
         "arrowsHoverBorderColor": "currentcolor",
         "arrowsHoverTextColor": "var(--color-neutral-bold)",
     },
-    "neoorderly": {"arrowsBgColor": "var(--color-brand)", "arrowsHoverBgColor": "var(--color-brand-bold)", "arrowsTextColor": "var(--color-white)", "arrowsHoverTextColor": "var(--color-neutral-subtle)"},
+    "neoorderly": {
+        "arrowsHoverBorderColor": "transparent",
+        "arrowsBorderColor": "transparent",
+        "arrowsBgColor": "var(--color-brand)",
+        "arrowsHoverBgColor": "var(--color-brand-bold)",
+        "arrowsTextColor": "var(--color-white)",
+        "arrowsHoverTextColor": "var(--color-neutral-subtle)",
+    },
     "peapea": {
         "arrowsBorderColor": "var(--color-black)",
         "arrowsTextColor": "var(--color-black)",
@@ -10428,6 +10895,14 @@ _V4_NATIVE_INVERSE_ARROWS = {
         "arrowsHoverBgColor": "var(--color-brand)",
         "arrowsHoverBorderColor": "var(--color-black)",
         "arrowsHoverTextColor": "var(--color-black)",
+    },
+    "recta": {
+        "arrowsBgColor": "transparent",
+        "arrowsBorderColor": "#fff",
+        "arrowsTextColor": "#fff",
+        "arrowsHoverBgColor": "transparent",
+        "arrowsHoverBorderColor": "var(--color-brand-subtlest)",
+        "arrowsHoverTextColor": "var(--color-brand-subtlest)",
     },
     "shizuku": {
         "arrowsBgColor": "var(--color-neutral-subtlest)",
@@ -10456,16 +10931,325 @@ _V4_NATIVE_INVERSE_ARROWS = {
         "arrowsBorderColor": "transparent",
         "arrowsTextColor": "var(--color-neutral-boldest)",
         "arrowsHoverBgColor": "var(--color-neutral-boldest)",
-        "arrowsHoverBorderColor": "currentcolor",
+        "arrowsHoverBorderColor": "transparent",
         "arrowsHoverTextColor": "var(--color-white)",
+    },
+    "varinthaispa": {
+        "arrowsBgColor": "var(--color-neutral-subtlest)",
+        "arrowsBorderColor": "currentcolor",
+        "arrowsTextColor": "var(--color-neutral-bold)",
+        "arrowsHoverBgColor": "var(--color-neutral-subtle)",
+        "arrowsHoverBorderColor": "currentcolor",
+        "arrowsHoverTextColor": "var(--color-neutral-bold)",
     },
     "ventura": {
         "arrowsBgColor": "transparent",
-        "arrowsBorderColor": "#fff",
-        "arrowsTextColor": "#fff",
+        "arrowsBorderColor": "var(--color-white)",
+        "arrowsTextColor": "var(--color-white)",
         "arrowsHoverBgColor": "transparent",
         "arrowsHoverBorderColor": "var(--color-neutral-subtle)",
         "arrowsHoverTextColor": "var(--color-neutral-subtle)",
+    },
+}
+_V3_ZONE_GROUND = {
+    "x_adminweb": {"footerDark": {"bg": {"slot": 3, "ops": [["tint", 20]]}, "text": {"slot": 2, "ops": []}}, "headerDark": {"bg": {"slot": 3, "ops": [["tint", 20]]}, "text": {"slot": 2, "ops": []}}},
+    "x_adventure": {
+        "footer": {"bg": {"slot": 1, "ops": []}, "text": {"slot": 3, "ops": []}},
+        "footerDark": {"bg": {"slot": 3, "ops": []}, "text": {"slot": 2, "ops": []}},
+        "header": {"bg": {"slot": 2, "ops": []}},
+        "headerDark": {"bg": {"slot": 3, "ops": []}},
+    },
+    "x_bakery": {
+        "footer": {"bg": {"slot": 1, "ops": []}},
+        "footerDark": {"bg": {"slot": 0, "ops": []}, "text": {"slot": 2, "ops": []}},
+        "header": {"bg": {"slot": 2, "ops": []}},
+        "headerDark": {"bg": {"slot": 1, "ops": []}},
+    },
+    "x_basic": {
+        "footer": {"bg": {"slot": 2, "ops": [["shade", 10]]}, "text": {"slot": 3, "ops": [["tint", 25]]}},
+        "footerDark": {"bg": {"slot": 3, "ops": [["tint", 25]]}, "text": {"slot": 2, "ops": []}},
+        "headerDark": {"bg": {"slot": 3, "ops": [["tint", 25]]}, "text": {"slot": 2, "ops": []}},
+    },
+    "x_bluehorizon": {
+        "footer": {"bg": {"slot": 1, "ops": []}},
+        "footerDark": {"bg": {"slot": 0, "ops": []}, "text": {"slot": 2, "ops": []}},
+        "header": {"bg": {"slot": 4, "ops": []}},
+        "headerDark": {"bg": {"slot": 0, "ops": []}},
+    },
+    "x_bold": {
+        "footer": {"bg": {"slot": 2, "ops": [["shade", 10]]}},
+        "footerDark": {"bg": {"slot": 3, "ops": [["tint", 25]]}, "text": {"slot": 2, "ops": []}},
+        "headerDark": {"bg": {"slot": 3, "ops": [["tint", 25]]}, "text": {"slot": 2, "ops": []}},
+    },
+    "x_borsa": {
+        "footer": {"bg": {"slot": 1, "ops": []}, "text": {"slot": 3, "ops": []}},
+        "footerDark": {"bg": {"slot": 0, "ops": []}, "text": {"slot": 2, "ops": []}},
+        "header": {"bg": {"slot": 0, "ops": []}},
+        "headerDark": {"bg": {"slot": 3, "ops": [["tint", 20]]}, "text": {"slot": 2, "ops": []}},
+    },
+    "x_caution": {
+        "footer": {"bg": {"slot": 3, "ops": [["tint", 25]]}, "text": {"slot": 2, "ops": []}},
+        "footerDark": {"bg": {"slot": 3, "ops": [["tint", 25]]}, "text": {"slot": 2, "ops": []}},
+        "headerDark": {"bg": {"slot": 3, "ops": [["tint", 25]]}, "text": {"slot": 2, "ops": []}},
+    },
+    "x_ceramicstore": {
+        "footer": {"bg": {"slot": 0, "ops": []}, "text": {"slot": 2, "ops": []}},
+        "footerDark": {"bg": {"slot": 3, "ops": [["tint", 20]]}},
+        "header": {"bg": {"slot": 0, "ops": []}},
+        "headerDark": {"bg": {"slot": 3, "ops": []}},
+    },
+    "x_cha": {"footer": {"bg": {"slot": 1, "ops": []}, "text": {"slot": 3, "ops": []}}, "footerDark": {"bg": {"slot": 3, "ops": []}, "text": {"slot": 2, "ops": []}}, "headerDark": {"bg": {"slot": 3, "ops": []}}},
+    "x_clean": {
+        "footer": {"bg": {"slot": 3, "ops": [["tint", 95]]}, "text": {"slot": 3, "ops": []}},
+        "footerDark": {"bg": {"slot": 3, "ops": [["tint", 25]]}, "text": {"slot": 2, "ops": []}},
+        "headerDark": {"bg": {"slot": 3, "ops": [["tint", 25]]}, "text": {"slot": 2, "ops": []}},
+    },
+    "x_cleancolor": {
+        "footer": {"bg": {"slot": 3, "ops": [["tint", 95]]}, "text": {"slot": 3, "ops": []}},
+        "footerDark": {"bg": {"slot": 1, "ops": []}, "text": {"slot": 2, "ops": []}},
+        "headerDark": {"bg": {"slot": 3, "ops": [["tint", 25]]}},
+    },
+    "x_cozy": {"footer": {"bg": {"slot": 4, "ops": []}, "text": {"slot": 3, "ops": []}}, "footerDark": {"bg": {"slot": 3, "ops": []}, "text": {"slot": 2, "ops": []}}, "headerDark": {"bg": {"slot": 3, "ops": []}}},
+    "x_cozy_fw": {"footer": {"bg": {"slot": 4, "ops": []}, "text": {"slot": 3, "ops": []}}, "footerDark": {"bg": {"slot": 3, "ops": []}, "text": {"slot": 2, "ops": []}}, "headerDark": {"bg": {"slot": 3, "ops": []}}},
+    "x_denim_fw": {
+        "footer": {"bg": {"slot": 2, "ops": []}, "text": {"slot": 3, "ops": []}},
+        "footerDark": {"bg": {"slot": 3, "ops": []}, "text": {"slot": 2, "ops": []}},
+        "header": {"bg": {"slot": 2, "ops": []}},
+        "headerDark": {"bg": {"slot": 0, "ops": []}},
+    },
+    "x_downtown": {
+        "footer": {"bg": {"slot": 0, "ops": []}, "text": {"slot": 2, "ops": []}},
+        "footerDark": {"bg": {"slot": 3, "ops": [["tint", 20]]}, "text": {"slot": 2, "ops": []}},
+        "headerDark": {"bg": {"slot": 3, "ops": []}},
+    },
+    "x_eco": {"footer": {"bg": {"slot": 4, "ops": []}}, "footerDark": {"bg": {"slot": 0, "ops": []}}, "header": {"bg": {"slot": 2, "ops": []}}, "headerDark": {"bg": {"slot": 0, "ops": []}}},
+    "x_elite": {"footer": {"bg": "#ffffff"}, "footerDark": {"bg": {"slot": 1, "ops": []}}, "headerDark": {"bg": {"slot": 0, "ops": []}}},
+    "x_fundamental": {"footerDark": {"bg": {"slot": 3, "ops": [["tint", 25]]}, "text": {"slot": 2, "ops": []}}, "headerDark": {"bg": {"slot": 3, "ops": [["tint", 25]]}, "text": {"slot": 2, "ops": []}}},
+    "x_futuristic": {"footer": {"bg": {"slot": 4, "ops": []}}, "footerDark": {"bg": {"slot": 3, "ops": []}, "text": {"slot": 2, "ops": []}}, "headerDark": {"bg": {"slot": 3, "ops": []}, "text": {"slot": 2, "ops": []}}},
+    "x_greenery": {
+        "footer": {"bg": {"slot": 1, "ops": []}, "text": {"slot": 2, "ops": []}},
+        "footerDark": {"bg": {"slot": 3, "ops": [["tint", 25]]}, "text": {"slot": 2, "ops": []}},
+        "headerDark": {"bg": {"slot": 3, "ops": [["tint", 25]]}, "text": {"slot": 2, "ops": []}},
+    },
+    "x_happy": {
+        "footer": {"bg": {"slot": 3, "ops": [["tint", 75]]}, "text": {"slot": 3, "ops": [["tint", 50]]}},
+        "footerDark": {"bg": {"slot": 3, "ops": [["tint", 25]]}, "text": {"slot": 2, "ops": []}},
+        "headerDark": {"bg": {"slot": 3, "ops": [["tint", 25]]}, "text": {"slot": 2, "ops": []}},
+    },
+    "x_julie": {
+        "footer": {"bg": "#d8ddea", "text": {"slot": 5, "ops": []}},
+        "footerDark": {"bg": {"slot": 0, "ops": []}, "text": {"slot": 2, "ops": []}},
+        "headerDark": {"bg": {"slot": 0, "ops": []}, "text": {"slot": 2, "ops": []}},
+    },
+    "x_knowledge": {"footer": {"bg": "#f1f5f9", "text": {"slot": 3, "ops": []}}, "footerDark": {"bg": {"slot": 3, "ops": []}, "text": {"slot": 2, "ops": []}}, "headerDark": {"bg": {"slot": 0, "ops": []}}},
+    "x_luxurygold": {"footerDark": {"bg": {"slot": 3, "ops": []}, "text": {"slot": 2, "ops": []}}, "header": {"bg": {"slot": 2, "ops": []}}, "headerDark": {"bg": {"slot": 3, "ops": []}}},
+    "x_millennium": {
+        "footer": {"bg": {"slot": 1, "ops": []}, "text": {"slot": 2, "ops": []}},
+        "footerDark": {"bg": {"slot": 3, "ops": [["tint", 25]]}, "text": {"slot": 2, "ops": []}},
+        "headerDark": {"bg": {"slot": 3, "ops": [["tint", 25]]}, "text": {"slot": 2, "ops": []}},
+    },
+    "x_mixednuts": {"footer": {"bg": {"slot": 1, "ops": []}, "text": {"slot": 3, "ops": []}}, "footerDark": {"bg": {"slot": 3, "ops": []}, "text": {"slot": 2, "ops": []}}, "headerDark": {"bg": {"slot": 3, "ops": []}}},
+    "x_modernmerce": {"footer": {"bg": "#eeeeee"}, "footerDark": {"bg": {"slot": 3, "ops": []}}, "headerDark": {"bg": {"slot": 3, "ops": []}}},
+    "x_mystorage": {
+        "footerDark": {"bg": {"slot": 0, "ops": []}},
+        "header": {"bg": {"slot": 0, "ops": []}, "text": {"slot": 2, "ops": []}},
+        "headerDark": {"bg": {"slot": 3, "ops": [["tint", 20]]}, "text": {"slot": 2, "ops": []}},
+    },
+    "x_oasis": {
+        "footer": {"bg": {"slot": 4, "ops": []}, "text": {"slot": 3, "ops": []}},
+        "footerDark": {"bg": {"slot": 0, "ops": []}, "text": {"slot": 2, "ops": []}},
+        "header": {"bg": {"slot": 2, "ops": []}},
+        "headerDark": {"bg": {"slot": 0, "ops": []}},
+    },
+    "x_oceanblue": {"footer": {"bg": {"slot": 0, "ops": []}, "text": "#ffffff"}, "header": {"bg": {"slot": 2, "ops": []}}},
+    "x_optic": {"footer": {"bg": {"slot": 1, "ops": []}, "text": {"slot": 3, "ops": []}}, "footerDark": {"bg": {"slot": 3, "ops": []}, "text": {"slot": 2, "ops": []}}, "headerDark": {"bg": {"slot": 3, "ops": []}}},
+    "x_orderly": {"footerDark": {"bg": {"slot": 0, "ops": []}}, "header": {"bg": {"slot": 2, "ops": []}, "text": {"slot": 3, "ops": []}}, "headerDark": {"bg": {"slot": 0, "ops": []}, "text": {"slot": 2, "ops": []}}},
+    "x_ordinary": {"footer": {"bg": "#f9f9f8"}, "footerDark": {"bg": {"slot": 3, "ops": []}}, "headerDark": {"bg": {"slot": 3, "ops": []}}},
+    "x_periwinkle": {
+        "footer": {"bg": "#f3ffff", "text": {"slot": 3, "ops": []}},
+        "footerDark": {"bg": {"slot": 0, "ops": []}, "text": {"slot": 2, "ops": []}},
+        "header": {"bg": {"slot": 2, "ops": []}},
+        "headerDark": {"bg": {"slot": 0, "ops": []}},
+    },
+    "x_petestate": {"footer": {"bg": {"slot": 3, "ops": []}, "text": {"slot": 2, "ops": []}}, "footerDark": {"bg": {"slot": 3, "ops": []}, "text": {"slot": 2, "ops": []}}, "headerDark": {"bg": {"slot": 3, "ops": []}}},
+    "x_petfriendly": {
+        "footer": {"bg": {"slot": 2, "ops": [["shade", 10]]}, "text": {"slot": 3, "ops": []}},
+        "footerDark": {"bg": {"slot": 1, "ops": []}, "text": {"slot": 2, "ops": []}},
+        "header": {"bg": {"slot": 2, "ops": []}},
+        "headerDark": {"bg": {"slot": 0, "ops": []}},
+    },
+    "x_pineforest": {"footerDark": {"bg": {"slot": 3, "ops": [["tint", 25]]}, "text": {"slot": 2, "ops": []}}, "headerDark": {"bg": {"slot": 3, "ops": [["tint", 25]]}, "text": {"slot": 2, "ops": []}}},
+    "x_playground": {
+        "footer": {"bg": {"slot": 1, "ops": []}},
+        "footerDark": {"bg": {"slot": 0, "ops": []}, "text": {"slot": 2, "ops": []}},
+        "header": {"bg": {"slot": 0, "ops": []}, "text": {"slot": 2, "ops": []}},
+        "headerDark": {"bg": {"slot": 1, "ops": []}},
+    },
+    "x_plaza": {
+        "footer": {"bg": "#f0f0f0", "text": {"slot": 3, "ops": []}},
+        "footerDark": {"bg": {"slot": 3, "ops": []}, "text": {"slot": 2, "ops": []}},
+        "header": {"bg": {"slot": 0, "ops": []}},
+        "headerDark": {"bg": {"slot": 3, "ops": []}},
+    },
+    "x_pottery": {
+        "footer": {"bg": "#f5f4f0", "text": {"slot": 3, "ops": []}},
+        "footerDark": {"bg": {"slot": 3, "ops": []}, "text": {"slot": 2, "ops": []}},
+        "headerDark": {"bg": {"slot": 3, "ops": [["tint", 20]]}, "text": {"slot": 2, "ops": []}},
+    },
+    "x_prestige": {
+        "footer": {"bg": {"slot": 1, "ops": []}, "text": {"slot": 2, "ops": [["shade", 10]]}},
+        "footerDark": {"bg": {"slot": 3, "ops": [["tint", 25]]}, "text": {"slot": 2, "ops": []}},
+        "headerDark": {"bg": {"slot": 3, "ops": [["tint", 25]]}, "text": {"slot": 2, "ops": []}},
+    },
+    "x_redvalvet": {"footerDark": {"bg": {"slot": 3, "ops": [["tint", 25]]}, "text": {"slot": 2, "ops": []}}, "headerDark": {"bg": {"slot": 3, "ops": [["tint", 25]]}, "text": {"slot": 2, "ops": []}}},
+    "x_relax": {"footerDark": {"bg": {"slot": 3, "ops": [["tint", 15]]}, "text": {"slot": 2, "ops": []}}, "headerDark": {"bg": {"slot": 3, "ops": [["tint", 15]]}, "text": {"slot": 2, "ops": []}}},
+    "x_seat": {"footer": {"bg": {"slot": 3, "ops": []}, "text": {"slot": 2, "ops": []}}, "footerDark": {"bg": {"slot": 3, "ops": []}}, "headerDark": {"bg": {"slot": 3, "ops": []}}},
+    "x_soda": {"footerDark": {"bg": {"slot": 3, "ops": [["tint", 20]]}, "text": {"slot": 2, "ops": []}}, "headerDark": {"bg": {"slot": 3, "ops": [["tint", 20]]}, "text": {"slot": 2, "ops": []}}},
+    "x_solid_round_fw": {"footerDark": {"bg": {"slot": 3, "ops": []}}, "headerDark": {"bg": {"slot": 3, "ops": []}, "text": {"slot": 2, "ops": []}}},
+    "x_solid_shape_fw": {"footerDark": {"bg": {"slot": 3, "ops": []}}, "headerDark": {"bg": {"slot": 3, "ops": []}, "text": {"slot": 2, "ops": []}}},
+    "x_solid_wide_fw": {"footerDark": {"bg": {"slot": 3, "ops": []}}, "headerDark": {"bg": {"slot": 3, "ops": []}, "text": {"slot": 2, "ops": []}}},
+    "x_solidfw": {
+        "footer": {"bg": {"slot": 3, "ops": [["tint", 95]]}, "text": {"slot": 3, "ops": []}},
+        "footerDark": {"bg": {"slot": 3, "ops": []}, "text": {"slot": 2, "ops": []}},
+        "header": {"bg": {"slot": 2, "ops": []}},
+        "headerDark": {"bg": {"slot": 3, "ops": []}},
+    },
+    "x_street": {
+        "footer": {"bg": {"slot": 3, "ops": [["tint", 25]]}, "text": {"slot": 2, "ops": []}},
+        "footerDark": {"bg": {"slot": 3, "ops": [["tint", 25]]}, "text": {"slot": 2, "ops": []}},
+        "headerDark": {"bg": {"slot": 3, "ops": [["tint", 25]]}, "text": {"slot": 2, "ops": []}},
+    },
+    "x_supercar": {"footerDark": {"bg": {"slot": 3, "ops": []}, "text": {"slot": 2, "ops": []}}, "header": {"bg": {"slot": 3, "ops": []}}, "headerDark": {"bg": {"slot": 3, "ops": []}}},
+    "x_sweetpink": {
+        "footer": {"bg": {"slot": 1, "ops": []}, "text": {"slot": 3, "ops": [["tint", 25]]}},
+        "footerDark": {"bg": {"slot": 3, "ops": [["tint", 25]]}, "text": {"slot": 2, "ops": []}},
+        "headerDark": {"bg": {"slot": 3, "ops": [["tint", 25]]}, "text": {"slot": 2, "ops": []}},
+    },
+    "x_swift": {
+        "footer": {"bg": {"slot": 1, "ops": []}},
+        "footerDark": {"bg": {"slot": 3, "ops": []}, "text": {"slot": 2, "ops": []}},
+        "header": {"bg": {"slot": 0, "ops": []}, "text": {"slot": 2, "ops": []}},
+        "headerDark": {"bg": {"slot": 3, "ops": []}, "text": {"slot": 2, "ops": []}},
+    },
+    "x_testfigurine2216": {"footerDark": {"bg": {"slot": 3, "ops": [["tint", 20]]}, "text": {"slot": 2, "ops": []}}, "headerDark": {"bg": {"slot": 3, "ops": [["tint", 20]]}, "text": {"slot": 2, "ops": []}}},
+    "x_urban": {
+        "footer": {"bg": {"slot": 5, "ops": []}, "text": {"slot": 2, "ops": [["shade", 20]]}},
+        "footerDark": {"bg": {"slot": 3, "ops": [["tint", 25]]}, "text": {"slot": 2, "ops": []}},
+        "headerDark": {"bg": {"slot": 3, "ops": [["tint", 25]]}, "text": {"slot": 2, "ops": []}},
+    },
+    "x_vintage": {
+        "footer": {"bg": {"slot": 1, "ops": []}, "text": {"slot": 2, "ops": []}},
+        "footerDark": {"bg": {"slot": 3, "ops": [["tint", 25]]}, "text": {"slot": 2, "ops": []}},
+        "headerDark": {"bg": {"slot": 3, "ops": [["tint", 25]]}, "text": {"slot": 2, "ops": []}},
+    },
+    "x_voice": {"footer": {"bg": "#f4f4f5", "text": {"slot": 3, "ops": []}}, "footerDark": {"bg": {"slot": 3, "ops": []}, "text": {"slot": 2, "ops": []}}, "headerDark": {"bg": {"slot": 3, "ops": []}}},
+    "x_void": {
+        "footerDark": {"bg": {"slot": 3, "ops": [["tint", 20]]}, "text": {"slot": 2, "ops": []}},
+        "header": {"bg": {"slot": 0, "ops": []}, "text": {"slot": 2, "ops": []}},
+        "headerDark": {"bg": {"slot": 1, "ops": []}, "text": {"slot": 3, "ops": []}},
+    },
+    "x_warehouse": {"footerDark": {"bg": {"slot": 3, "ops": [["tint", 20]]}, "text": {"slot": 2, "ops": []}}, "headerDark": {"bg": {"slot": 3, "ops": [["tint", 20]]}, "text": {"slot": 2, "ops": []}}},
+    "x_wichittra": {
+        "footer": {"bg": {"slot": 4, "ops": []}, "text": {"slot": 3, "ops": []}},
+        "footerDark": {"bg": {"slot": 3, "ops": []}, "text": {"slot": 2, "ops": []}},
+        "header": {"bg": {"slot": 4, "ops": []}},
+        "headerDark": {"bg": {"slot": 3, "ops": []}},
+    },
+    "x_wingwing": {
+        "footer": {"bg": {"slot": 1, "ops": []}, "text": {"slot": 2, "ops": []}},
+        "footerDark": {"bg": {"slot": 3, "ops": [["tint", 25]]}, "text": {"slot": 2, "ops": []}},
+        "headerDark": {"bg": {"slot": 3, "ops": [["tint", 25]]}, "text": {"slot": 2, "ops": []}},
+    },
+    "x_writenow": {
+        "footer": {"bg": {"slot": 1, "ops": []}, "text": {"slot": 3, "ops": []}},
+        "footerDark": {"bg": {"slot": 3, "ops": []}, "text": {"slot": 2, "ops": []}},
+        "header": {"bg": {"slot": 1, "ops": []}},
+        "headerDark": {"bg": {"slot": 3, "ops": []}},
+    },
+}
+_V4_NATIVE_SCHEME_GROUND = {
+    "_base": {"color-scheme-main": ["var(--color-neutral-subtlest)", "var(--color-neutral-bold)"]},
+    "alphafit": {
+        "color-scheme-main": ["var(--color-neutral-subtlest)", "var(--color-neutral-bold)"],
+        "color-scheme-inverse": ["var(--color-neutral-boldest)", "var(--color-neutral-subtlest)"],
+        "color-scheme-inverse-2": ["var(--color-brand)", "var(--color-neutral-subtlest)"],
+    },
+    "brewcocoffee": {
+        "color-scheme-main": ["var(--color-brand-subtlest)", "var(--color-black)"],
+        "color-scheme-main-1": ["var(--color-brand-alt-subtlest)", "var(--color-black)"],
+        "color-scheme-inverse": ["var(--color-brand-boldest)", "var(--color-neutral-subtlest)"],
+    },
+    "brewhavencoffee": {
+        "color-scheme-main": ["var(--color-white)", "var(--color-neutral-bold)"],
+        "color-scheme-main-1": ["var(--color-neutral-subtlest)", "var(--color-neutral-bold)"],
+        "color-scheme-main-2": ["var(--color-neutral-subtle)", "var(--color-neutral-bold)"],
+        "color-scheme-inverse": ["var(--color-brand)", "var(--color-neutral-subtlest)"],
+        "color-scheme-inverse-1": ["var(--color-brand-alt-boldest)", "var(--color-neutral-subtlest)"],
+    },
+    "floating": {
+        "color-scheme-main": ["var(--color-white)", "var(--color-neutral-bold)"],
+        "color-scheme-main-2": ["transparent", "var(--color-neutral-bold)"],
+        "color-scheme-main-3": ["var(--color-brand-subtlest)", "var(--color-neutral-bold)"],
+        "color-scheme-main-4": ["var(--color-neutral-subtlest)", "var(--color-neutral-bold)"],
+        "color-scheme-inverse": ["var(--color-brand-boldest)", "var(--color-white)"],
+        "color-scheme-inverse-2": ["var(--color-neutral-boldest)", "var(--color-white)"],
+    },
+    "forma": {
+        "color-scheme-main": ["var(--color-white)", "var(--color-neutral-bold)"],
+        "color-scheme-main-1": ["var(--color-neutral-subtlest)", "var(--color-neutral-bold)"],
+        "color-scheme-inverse": ["var(--color-black)", "var(--color-neutral-subtle)"],
+        "color-scheme-inverse-1": ["var(--color-neutral-boldest)", "var(--color-neutral-subtle)"],
+    },
+    "kiara": {
+        "color-scheme-main": ["var(--color-neutral-subtlest)", "var(--color-brand-boldest)"],
+        "color-scheme-inverse": ["var(--color-neutral-boldest)", "var(--color-neutral-subtlest)"],
+        "color-scheme-inverse-1": ["var(--color-neutral-boldest)", "var(--color-neutral-subtlest)"],
+        "color-scheme-inverse-2": ["var(--color-neutral-boldest)", "var(--color-neutral-subtlest)"],
+    },
+    "neoorderly": {
+        "color-scheme-main": ["var(--color-white)", "var(--color-black)"],
+        "color-scheme-main-2": ["var(--color-neutral-subtlest)", "var(--color-black)"],
+        "color-scheme-inverse": ["var(--color-black)", "var(--color-white)"],
+    },
+    "peapea": {
+        "color-scheme-main": ["var(--color-neutral)", "var(--color-black)"],
+        "color-scheme-main-2": ["var(--color-brand)", "var(--color-black)"],
+        "color-scheme-inverse": ["var(--color-brand-alt-boldest)", "var(--color-white)"],
+    },
+    "recta": {
+        "color-scheme-main": ["var(--color-white)", "var(--color-neutral-boldest)"],
+        "color-scheme-main-1": ["var(--color-neutral-subtlest)", None],
+        "color-scheme-inverse": ["var(--color-black)", "var(--color-neutral-subtlest)"],
+    },
+    "shizuku": {
+        "color-scheme-main": ["var(--color-neutral-subtlest)", "var(--color-neutral-bold)"],
+        "color-scheme-main-2": ["var(--color-neutral-subtle)", "var(--color-neutral-bold)"],
+        "color-scheme-main-3": ["var(--color-brand-alt-subtlest)", None],
+        "color-scheme-inverse": ["var(--color-neutral-boldest)", "var(--color-neutral-subtlest)"],
+    },
+    "simplydelight": {
+        "color-scheme-main": ["var(--color-neutral-subtlest)", "var(--color-black)"],
+        "color-scheme-main-2": ["var(--color-white)", "var(--color-brand-bold)"],
+        "color-scheme-inverse": ["var(--color-brand-bold)", "var(--color-white)"],
+    },
+    "spaceandstroll": {
+        "color-scheme-main": ["var(--color-white)", "var(--color-neutral-bold)"],
+        "color-scheme-main-2": ["var(--color-neutral-subtlest)", "var(--color-neutral-bold)"],
+        "color-scheme-inverse": ["var(--color-brand-boldest)", "var(--color-white)"],
+        "color-scheme-inverse-2": ["var(--color-brand-boldest)", "var(--color-white)"],
+        "color-scheme-inverse-3": ["transparent", "var(--color-white)"],
+    },
+    "sunnergy": {
+        "color-scheme-main": ["var(--color-neutral-subtlest)", "var(--color-neutral-bold)"],
+        "color-scheme-main-2": ["var(--color-brand-subtlest)", "var(--color-neutral-bold)"],
+        "color-scheme-inverse": ["var(--color-neutral-bold)", "var(--color-neutral-subtlest)"],
+        "color-scheme-inverse-2": ["var(--color-brand-alt-bold)", "var(--color-neutral-subtlest)"],
+    },
+    "varinthaispa": {"color-scheme-main": ["var(--color-neutral-subtlest)", "var(--color-brand-boldest)"], "color-scheme-inverse": ["var(--color-brand)", "var(--color-brand-alt-subtlest)"]},
+    "ventura": {
+        "color-scheme-main": ["var(--color-white)", "var(--color-neutral-bold)"],
+        "color-scheme-main-1": ["var(--color-neutral-subtlest)", "var(--color-neutral-bold)"],
+        "color-scheme-inverse": ["var(--color-neutral-boldest)", "var(--color-neutral-subtlest)"],
     },
 }
 # --- END gen_scheme_roles ---
@@ -10797,9 +11581,9 @@ def _main_scheme_by_role(colors, v3_theme, v4_theme, new_root, v3_style=True):
 #: to 4px outside the slick mixin. Every other arrow comes from
 #: `_V3_ARROW_SHAPE`.
 _V3_SHAPE_HAND = {
-    "x_julie": {"inputRadius": 9999},
+    "x_julie": {"inputRadius": 999},
     "x_orderly": {"arrowsBorderRadius": 4},
-    "x_cozy_fw": {"inputRadius": 9999},
+    "x_cozy_fw": {"inputRadius": 999},
 }
 
 
@@ -10833,7 +11617,7 @@ def _v3_control_shape(tid):
 
 def _same_size(a, b):
     """Two size tokens draw the same: equal at every breakpoint, or both
-    fully rounded (v3's 9999, a native theme's 50% or 99px)."""
+    fully rounded (999, a native theme's 50% or 99px)."""
     def values(v):
         if isinstance(v, dict) and "value" in v:
             return [v]
@@ -10852,33 +11636,26 @@ def _same_size(a, b):
 
 
 def _control_shape(v3_theme, v4_theme):
-    """{selector: tokens} that give form fields and slider arrows v3's shape
-    on the target theme (user, 2026-10-14). Only what differs is written.
+    """{":root": tokens} that give form fields and slider arrows v3's shape
+    on the target theme (user, 2026-10-14). Only what differs from the
+    theme's `:root` (over Base) is written.
 
-    `:root` is not enough on its own: several native themes state the border
-    widths inside each colour scheme (Space and Stroll draws its fields with
-    `inputBorderWidth: 0` in `.color-scheme-main`), and a scheme block beats
-    `:root`. So v3's value is also written into every scheme block where the
-    theme states a different one."""
+    `:root` only (user, 2026-10-15): nothing but colours goes into a colour
+    scheme. Several native themes state the border widths inside each scheme
+    (Space and Stroll draws its fields with `inputBorderWidth: 0` in every
+    scheme but main-2), and such a scheme still beats the site's `:root` --
+    there the theme's width shows. 1.82 wrote v3's width into those scheme
+    blocks as well; that left blocks holding a single width and was taken
+    out until it is known how v4 layers a site's scheme over the theme's."""
     tid = v3_theme if (v3_theme in _V3_MAIN_ROLES or v3_theme in _V3_SHAPE_HAND) else None
     if tid is None:
         return {}
     v3 = _v3_control_shape(tid)
     base = _V4_NATIVE_SHAPE["_base"]
     native = _V4_NATIVE_SHAPE.get((v4_theme or "").lower(), {})
-    out = {}
     root = dict(base.get(":root", {}), **native.get(":root", {}))
     got = {k: v for k, v in v3.items() if not _same_size(v, root.get(k))}
-    if got:
-        out[":root"] = got
-    for sel in dict.fromkeys(list(base) + list(native)):
-        if sel == ":root":
-            continue
-        blk = dict(base.get(sel, {}), **native.get(sel, {}))
-        got = {k: v3[k] for k, v in blk.items() if k in v3 and not _same_size(v3[k], v)}
-        if got:
-            out[sel] = got
-    return out
+    return {":root": got} if got else {}
 
 
 def _v3_tag_has_border(colors, v3_theme):
@@ -12338,10 +13115,11 @@ _THEME_TAG_BORDER_WIDTH = {
 # arrows at all make them round, so the default is visibly wrong for them.
 # Root-level, theme-wide -- radius has no `.color-scheme-*` presence at all.
 #
-# A value of 9999 is v4's SEMANTIC "fully rounded" preset, not a measurement
-# (the customer-facing admin reads 9999 as "rounded", anything else as a
-# custom value) -- so a v3 `50%` maps to 9999, unambiguously and without
-# needing the element's rendered size. A v3 literal px is NOT auto-promoted:
+# A fully rounded radius is written as 999px -- big enough to round any
+# element, and v4 takes no `%` on a radius. (Until 2026-10-16 this was 9999,
+# read as v4's "pill" preset; v4 no longer has that preset, user 2026-10-16.)
+# So a v3 `50%` maps to 999, unambiguously and without needing the element's
+# rendered size. A v3 literal px is NOT auto-promoted:
 # see the "fully rounded" note in `_THEME_WIDGET_STYLE_OVERRIDES["x_playground"]`
 # for why that judgement can't be automated, and `v4-themes/VERIFIED.md`'s
 # Phase 5 section for the standing rule (default to v3's literal, promote only
@@ -12413,7 +13191,7 @@ _THEME_TAG_BORDER_WIDTH = {
 #                  This retires a whole strand of work rather than adjusting it:
 #                  the 11 explicit `radius: 0` entries added on 2026-08-14 existed
 #                  only to cancel `_V3_DEFAULT_INPUT_RADIUS` for search boxes, and
-#                  x_bakery's and x_cha's `9999` came from live-demo QA. All gone.
+#                  x_bakery's and x_cha's `999` came from live-demo QA. All gone.
 #                  `:root`'s `inputRadius` is unaffected -- that is about general
 #                  form fields and still stands.
 # `borderColor` <- v3 `.searchInput { border-color }`, but ONLY where it is a real
@@ -12603,11 +13381,11 @@ _THEME_RADIUS = {
     # "states nothing", and that silence was read wrongly twice (square tag,
     # then a 5px input). The real values are in v3's base stylesheet, which
     # isn't in this repo. See [[feedback-rounded-radius-is-9999]].
-    "x_bakery": {"tag": 9999, "input": 0},
+    "x_bakery": {"tag": 999, "input": 0},
     "x_borsa": {"tag": 0},
     "x_ceramicstore": {"tag": 0},
     "x_downtown": {"tag": 0},
-    "x_elite": {"tag": 0, "arrows": 9999},
+    "x_elite": {"tag": 0, "arrows": 999},
     "x_knowledge": {"tag": 0},
     "x_modernmerce": {"tag": 0},
     "x_pottery": {"tag": 0},
@@ -12619,11 +13397,11 @@ _THEME_RADIUS = {
     # 2px is scoped to `.detailArea .moreButtonRow`, one button on one page.
     "x_plaza": {"tag": 2},
     "x_voice": {"tag": 0},
-    "x_void": {"tag": 0, "arrows": 9999},
+    "x_void": {"tag": 0, "arrows": 999},
     "x_wichittra": {"tag": 0},
     # x_swift: arrows only -- `.slick-arrow { border-radius: 50% }`, no button/
     # tag/input radius anywhere in its CSS.
-    "x_swift": {"arrows": 9999},
+    "x_swift": {"arrows": 999},
     # x_bluehorizon: one `var(--border-radius)` = 2px used for button, input
     # and arrows alike.
     "x_bluehorizon": {"button": 2, "arrows": 2},
@@ -12636,7 +13414,7 @@ _THEME_RADIUS = {
     # fully round" case the Phase 5 notes warn about. Tag keeps its literal 15
     # (a shorter element, still visibly a rounded rectangle) and `input` keeps
     # the dropdown's 4; only the SEARCH box is a pill, via _THEME_SEARCH_FORM.
-    "x_cha": {"button": 9999, "tag": 15, "input": 4},
+    "x_cha": {"button": 999, "tag": 15, "input": 4},
     "x_mixednuts": {"button": 25, "tag": 15, "input": 4},
     "x_petestate": {"button": 25, "tag": 15, "input": 4},
     "x_seat": {"button": 25, "tag": 15, "input": 4},
@@ -12646,38 +13424,38 @@ _THEME_RADIUS = {
     # x_writenow: same family; tag has two conflicting rules (17px and 15px) so
     # tag is left unset pending QA, and its `input` shorthand is multi-corner
     # (`18px 0 0 18px`) so `.selectBox`'s 15px is used instead.
-    "x_writenow": {"button": 25, "tag": 15, "input": 15, "arrows": 9999, "listTab": 18},
+    "x_writenow": {"button": 25, "tag": 15, "input": 15, "arrows": 999, "listTab": 18},
     # x_denim_fw: only the tag mixin is live (16px); its button/input CSS is 0
     # = v4-base default, and its arrow radius sits in a dead mixin.
     "x_denim_fw": {"tag": 16, "listTab": 30},
     # x_eco: `var(--border_radius_10)` = 10px across button and input; tag is
     # its own 8px; arrows `var(--border_radius_rounded)` = 50% -> pill.
-    "x_eco": {"button": 10, "tag": 8, "input": 10, "arrows": 9999},
+    "x_eco": {"button": 10, "tag": 8, "input": 10, "arrows": 999},
     # x_oasis: `var(--border-radius-sm)` = 2px button; tag mixin is live at
     # 16px (its `.proTag` 2px is the more specific of two, mixin wins as the
     # theme-wide value). Arrow radius is in a dead mixin -- not set.
     "x_oasis": {"button": 2, "tag": 16, "input": 2, "listTab": 30},
     # x_periwinkle: one `var(--border_radius)` = 4px everywhere. tag is
     # deliberately absent -- 4px IS v4-base's tagRadius default, nothing to say.
-    "x_periwinkle": {"button": 4, "input": 4, "arrows": 9999},
+    "x_periwinkle": {"button": 4, "input": 4, "arrows": 999},
     # x_petfriendly: looked like THE per-family exception -- `--button_lightBG_style`
     # 50px, `--sbutton_lightBG_style` 20px, `--tbutton_lightBG_style` 30px, all
     # genuinely @apply'd, against a v4 that buckets radius by SIZE not family.
     # **It dissolved once the user checked the demo (2026-08-11): every one of
     # them is a pill.** The three literals were never a design distinction --
     # they're three different button HEIGHTS each needing its own half-height
-    # number to round fully. v4's semantic preset says that directly, so 9999
-    # is not an approximation here, it's more faithful than any literal.
+    # number to round fully. 999 says "fully round" directly, so it is not an
+    # approximation here, it's more faithful than any literal.
     # Its arrow radius is in a dead mixin -- not set.
-    "x_petfriendly": {"button": 9999, "tag": 16, "input": 15},
+    "x_petfriendly": {"button": 999, "tag": 16, "input": 15},
     # x_playground: `var(--border-radius)` = 30px for button and search input.
     # Arrows: v3 says a literal `36px` (`--slick_allBG_style`), which the
     # standing rule kept as-is rather than auto-promoting -- 36px only reads as
     # a pill if the arrow is <=72px tall, and that height isn't CSS-grounded.
-    # **User confirmed on the demo 2026-08-11 that it IS a pill**, so it's 9999
+    # **User confirmed on the demo 2026-08-11 that it IS a pill**, so it's 999
     # now. Exactly the case the "never automate the promotion" rule exists for:
     # the answer was right but only a human could supply it.
-    "x_playground": {"button": 30, "tag": 24, "arrows": 9999, "listTab": 30},
+    "x_playground": {"button": 30, "tag": 24, "arrows": 999, "listTab": 30},
 }
 
 
@@ -12902,7 +13680,7 @@ _THEME_WIDGET_STYLE_OVERRIDES = {
     # theme has the same answer.
     "x_cha": {
         ".widget-product-summary": {
-            "quantityButtonBorderRadius": {"value": 9999, "unit": "px"},
+            "quantityButtonBorderRadius": {"value": 999, "unit": "px"},
         },
     },
     # x_adventure (2026-08-11, user-supplied). This theme DOES define a
@@ -12956,12 +13734,12 @@ _THEME_WIDGET_STYLE_OVERRIDES = {
     # confirmed as the true render source -- but per the user's decision
     # 2026-08-11, using the CSS-derived values where they exist:
     #   border-radius: var(--border-radius) = 30px  -> quantityPickerBorderRadius,
-    #     but emitted as 9999px, NOT 30px -- see the "fully-rounded" note below
+    #     but emitted as 999px, NOT 30px -- see the "fully-rounded" note below
     #   border: 1px dashed var(--color_schemeB)      -> BorderWidth=1px, BorderColor=brand-alt
     #   button { background: transparent;            -> matches "ghost" variant
     #            &:hover { background: var(--color_schemeB) } } (also matches this
     #            theme's own buttonGhostHoverFillColor=brand-alt, independent corroboration)
-    #   button border-radius: 50%                    -> kept as 9999px (the
+    #   button border-radius: 50%                    -> kept as 999px (the
     #     standard "always circular regardless of size" representation used
     #     elsewhere in this codebase; exact 50%-of-actual-px isn't computable
     #     since the button's real dimensions aren't confirmed CSS-grounded)
@@ -12977,22 +13755,21 @@ _THEME_WIDGET_STYLE_OVERRIDES = {
     # (not a quantity-picker-specific choice), so this belongs as a general
     # theme-wide border-radius setting (Phase 5 territory, still not
     # started) rather than a one-off override here.
-    # "Fully rounded" is a SEMANTIC value in v4, not a number (user, 2026-08-11).
     # v3 gets a pill by setting a literal px at/above half the element's height
     # (playground: 30px on a <=60px-tall picker -- CSS clamps radius to half the
-    # box, so 30px renders fully round). Copying 30px into v4 is numerically
-    # faithful but semantically WRONG: v4's customer-facing UI reads 9999 as the
-    # "rounded" preset and anything else as a custom value, so a converted theme
-    # would show as custom when the designer intended the preset. Hence 9999 here.
+    # box, so 30px renders fully round). Copying 30px into v4 only stays round
+    # while the element keeps that height; 999 says "fully round" whatever the
+    # height, which is what the designer meant. Hence 999 here. (It was 9999,
+    # v4's old "pill" preset, until v4 dropped the preset -- user, 2026-10-16.)
     # DO NOT AUTOMATE THIS. Deciding whether a given literal means "pill" needs the
     # element's real rendered height, which isn't reliably derivable from v3 CSS.
     # The standing rule for Phase 5: default to carrying v3's literal value, and
-    # promote to 9999 only where a human has confirmed the intent was a pill.
+    # promote to 999 only where a human has confirmed the intent was a pill.
     # x_playground was confirmed by the user; it is the exception, not the pattern.
     "x_playground": {
         ".widget-product-summary": {
             "quantityPickerBorderColor": "var(--color-brand-alt)",
-            "quantityPickerBorderRadius": {"value": 9999, "unit": "px"},
+            "quantityPickerBorderRadius": {"value": 999, "unit": "px"},
             "quantityPickerBorderWidth": {"value": 1, "unit": "px"},
             "quantityInputBgColor": "transparent",
         },
@@ -17675,7 +18452,9 @@ def _write_theme_checklist(outdir: str, rows: list) -> None:
         f.write("\n".join(lines))
 
 
-def convert_zones(site_json: dict, warnings: list = None) -> dict:
+def convert_zones(site_json: dict, warnings: list = None, *,
+                  include_colors: bool = True,
+                  generate_color_scale: bool = True) -> dict:
     """Extract global zones from a v3 site JSON.
 
     Returns {"header_zone": {...}|None, "footer_zone": {...}|None, "free_zone": {...}}.
@@ -17692,16 +18471,21 @@ def convert_zones(site_json: dict, warnings: list = None) -> dict:
     Sets the same one-run theme context `convert_site` does -- the header's
     colour scheme needs the theme id, and `convert_zones` is called on its own
     in site mode, after `convert_site` has already cleared it.
+
+    `include_colors` / `generate_color_scale` are the ones `convert_global` gets:
+    a ground becomes `var(--color-…)` only for a step the site's `:root` writes.
     """
-    global _V3_THEME_ID, _V3_SITE_COLORS
-    _previous_theme, _previous_colors = _V3_THEME_ID, _V3_SITE_COLORS
+    global _V3_THEME_ID, _V3_SITE_COLORS, _V3_SITE_CFG, _V3_ROOT_FLAGS
+    _previous = _V3_THEME_ID, _V3_SITE_COLORS, _V3_SITE_CFG, _V3_ROOT_FLAGS
+    _V3_ROOT_FLAGS = (include_colors, generate_color_scale)
     if isinstance(site_json, dict):
         _V3_THEME_ID = site_json.get("currentTheme")
         _V3_SITE_COLORS = site_json.get("currentColors")
+        _V3_SITE_CFG = site_json
     try:
-        return _convert_zones(site_json, warnings)
+        return _ground_refs_in(_convert_zones(site_json, warnings))
     finally:
-        _V3_THEME_ID, _V3_SITE_COLORS = _previous_theme, _previous_colors
+        _V3_THEME_ID, _V3_SITE_COLORS, _V3_SITE_CFG, _V3_ROOT_FLAGS = _previous
 
 
 def _convert_zones(site_json: dict, warnings: list = None) -> dict:
@@ -18132,6 +18916,15 @@ _TYPO_PLAN = None
 # `convert_site` for the length of one run, exactly like the flag above; `None`
 # in single-section mode, where no theme is on offer and those rules stay quiet.
 _V3_THEME_ID = None
+
+# The whole v3 site JSON, for the zones' grounds (`_zone_scheme`), which need
+# the shop's colours and its v4 theme. Same one-run lifetime as the two above.
+_V3_SITE_CFG = None
+
+# (include_colors, generate_color_scale) of the run, as the browser's toggles
+# pass them to `convert_global`: `_ground_ref` writes a `var` only for a step
+# the site's `:root` really carries. Set by `convert_site` / `convert_zones`.
+_V3_ROOT_FLAGS = (True, True)
 
 #: v3 themes whose own CSS paints the header with the brand colour and makes
 #: every piece of text in it light:
@@ -18839,6 +19632,13 @@ def convert_section(old_json: dict, warnings: list = None) -> dict:
     # `_is_dark_ground`. BannerSlick handles its own dark mode.
     if result is not None and name != "BannerSlick" and _is_dark_ground(props):
         result["info"]["colorScheme"] = "color-scheme-inverse"
+    # Every v3 section renders inside the same `SectionElementor`, which paints
+    # `sectionStyle` -- ground, padding, image -- whatever the section type.
+    # Nine builders never read one or more (a navy banner strip on the page ground,
+    # 10px banner padding at v4's 64-96px; user, 2026-10-16), so it is
+    # carried here for any builder that left it out of the whole section.
+    if result is not None and result.get("type") == "section":
+        _carry_section_style(result, props)
     # A section the merchant switched off in v3 stays off in v4. Same field on
     # every node, and BannerSlick has mapped it since its builder was written --
     # it was simply never promoted, so the five hidden sections in the real files
@@ -19784,7 +20584,9 @@ def _apply_theme_alt_ground(pages, site_json: dict) -> int:
 
 
 def convert_site(site_json: dict, warnings: list = None,
-                 generate_pages: bool = True) -> list:
+                 generate_pages: bool = True, *,
+                 include_colors: bool = True,
+                 generate_color_scale: bool = True) -> list:
     """Convert a full site JSON containing multiple pages.
 
     Returns an ordered list of v4 page objects:
@@ -19797,20 +20599,30 @@ def convert_site(site_json: dict, warnings: list = None,
     cap differs per shop, so adding two uninvited ones can push a shop over it.
     With it off the showroom links stay exactly as v3 wrote them and each one is
     reported as `kind: "dead-link"` instead (user, 2026-09-10).
+
+    A section's, row's or column's ground that one of the shop's steps holds
+    is written `var(--color-…)` (`_ground_refs_in`); `include_colors` /
+    `generate_color_scale` are the ones `convert_global` gets, so a `var`
+    never points at a step the site's `:root` leaves to the theme.
     """
-    global _GENERATE_CUSTOM_PAGES, _V3_THEME_ID, _TYPO_PLAN
+    global _GENERATE_CUSTOM_PAGES, _V3_THEME_ID, _TYPO_PLAN, _V3_SITE_CFG, _V3_ROOT_FLAGS
     _previous = _GENERATE_CUSTOM_PAGES
     _previous_theme = _V3_THEME_ID
     _previous_typo = _TYPO_PLAN
+    _previous_site = _V3_SITE_CFG, _V3_ROOT_FLAGS
     _GENERATE_CUSTOM_PAGES = generate_pages
     _V3_THEME_ID = site_json.get("currentTheme")
     _TYPO_PLAN = _typo_plan(site_json)
     try:
-        return _convert_site(site_json, warnings, generate_pages)
+        pages = _convert_site(site_json, warnings, generate_pages)
+        _V3_SITE_CFG = site_json
+        _V3_ROOT_FLAGS = (include_colors, generate_color_scale)
+        return _ground_refs_in(pages)
     finally:
         _GENERATE_CUSTOM_PAGES = _previous
         _V3_THEME_ID = _previous_theme
         _TYPO_PLAN = _previous_typo
+        _V3_SITE_CFG, _V3_ROOT_FLAGS = _previous_site
 
 
 def _convert_site(site_json: dict, warnings: list, generate_pages: bool) -> list:
@@ -20180,7 +20992,8 @@ def main():
             "nickname":    "Imported",
             "theme_key":   v4_theme_key(data),
             "info":        globals_["info"],
-            "style":       site_style(globals_["style"], pages, zones),
+            "style":       site_style(globals_["style"], pages, zones,
+                                      theme_key=v4_theme_key(data)),
             "css":         site_css(pages, zones),
             "header_zone": zones["header_zone"],
             "footer_zone": zones["footer_zone"],
