@@ -163,6 +163,8 @@
   .cfg-chip:hover{background:var(--hover)}
   .cfg-chip input{accent-color:var(--accent);margin:0;cursor:pointer}
   .cfg-chip.off{color:var(--muted-2);border-color:var(--border)}
+  .cfg-select{font:inherit;font-size:12px;color:var(--fg);background:transparent;border:none;outline:none;cursor:pointer;max-width:190px}
+  .cfg-select option{color:#111;background:#fff}
 
   /* ── OUTPUT ────────────────────────────────────────────────────────── */
   .out-head{height:46px;flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 13px;border-bottom:1px solid var(--border);background:var(--panel-head)}
@@ -362,6 +364,8 @@
           <label class="cfg-chip"><input type="checkbox" id="cfgV3Style" checked title="ติ๊กไว้: tag ป้ายส่วนลด ลูกศร slider และช่องกรอก ดึง style จาก v3 (มุม เส้นขอบ แบบขอบหรือพื้นทึบ และสีของ tag) — เอาติ๊กออก: ใช้ style ของธีม v4 ที่แปลงไป · สีอื่นไม่เปลี่ยน"> ดึง style จาก v3</label>
           <label class="cfg-chip"><input type="checkbox" id="cfgGlobal" checked> ตั้งค่ารวม</label>
           <label class="cfg-chip"><input type="checkbox" id="cfgAutoPages" checked title="v3 มีหน้าสำเร็จรูปที่ v4 ไม่มี (สินค้าแนะนำ / สินค้าลดราคา) — ติ๊กไว้เพื่อให้สร้างหน้าพวกนี้ให้อัตโนมัติเมื่อมีลิงก์ชี้มา ถ้าแพ็กเกจของร้านมีโควตา custom page จำกัด ให้เอาติ๊กออก แล้วลิงก์จะคงเป็นของ v3 พร้อมรายการให้ไปแก้เอง"> สร้างหน้าที่ขาดให้</label>
+          <label class="cfg-chip" title="ธีม v4 ที่จะแปลงไป — “ตามตาราง matching” ใช้คู่ของธีม v3 ตามตาราง (ค่าเดิม) · เลือกธีมอื่นได้ สี รูปทรง และ scheme ทุกตัวจะคิดตามธีมที่เลือก · ฝั่ง v3 ยังอ่านจากธีมเดิมของร้าน">ธีม v4
+            <select id="cfgV4Theme" class="cfg-select"><option value="">ตามตาราง matching</option></select></label>
         </div>
         <div class="foot-row">
           <span class="foot-meta" id="inputMeta">0 บรรทัด</span>
@@ -579,7 +583,7 @@
 
   // ── Output config (what to include) — persisted in localStorage ─────
   const CONFIG_KEY = "converter2v4_outputConfig";
-  const CONFIG_DEFAULT = { content: true, themeColor: true, autoColor: true, themeFont: true, v3Style: true, global: true, autoPages: true };
+  const CONFIG_DEFAULT = { content: true, themeColor: true, autoColor: true, themeFont: true, v3Style: true, global: true, autoPages: true, v4Theme: "" };
   function loadConfig() {
     try {
       const v = JSON.parse(localStorage.getItem(CONFIG_KEY) || "{}");
@@ -884,6 +888,28 @@
     } catch (e) {
       console.warn("Could not read backend version metadata:", e);
     }
+
+    // The v4 theme picker: options come from converter.py itself
+    // (v4_theme_choices), so a new native theme needs no change here.
+    try {
+      pyodide.runPython("import json as _json\n_choices = _json.dumps(v4_theme_choices(), ensure_ascii=False)");
+      const sel = $("cfgV4Theme");
+      for (const t of JSON.parse(pyodide.globals.get("_choices"))) {
+        const o = document.createElement("option");
+        o.value = t.theme_key;
+        o.textContent = t.name + (t.status && t.status !== "public" ? " (" + t.status + ")" : "");
+        sel.appendChild(o);
+      }
+      sel.value = [...sel.options].some(o => o.value === state.config.v4Theme) ? state.config.v4Theme : "";
+      sel.closest(".cfg-chip").classList.toggle("off", !sel.value);
+      sel.addEventListener("change", () => {
+        state.config.v4Theme = sel.value;
+        sel.closest(".cfg-chip").classList.toggle("off", !sel.value);
+        saveConfig(state.config);
+      });
+    } catch (e) {
+      console.warn("Could not list v4 themes:", e);
+    }
   } catch (e) {
     setStatus("Failed to load", "error");
     showErrState("Init failed: " + e.message + "\n\nTip: serve over http(s). For local testing: `python3 -m http.server 8000`.");
@@ -950,6 +976,9 @@
     pyodide.globals.set("_input_json", JSON.stringify(data));
     pyodide.runPython("import json\n_input = json.loads(_input_json)");
     const cfg = state.config;
+    // a hand-picked v4 theme rides on the input; every step reads it through v4_theme_key
+    pyodide.globals.set("_v4_theme_pick", cfg.v4Theme || "");
+    pyodide.runPython("if _v4_theme_pick and isinstance(_input, dict):\n    _input[V4_THEME_OVERRIDE] = _v4_theme_pick");
     const py = (b) => (b ? "True" : "False");   // JS bool → Python literal
     const gkw = `include_components=${py(cfg.global)}, include_colors=${py(cfg.themeColor)}, include_fonts=${py(cfg.themeFont)}, generate_color_scale=${py(cfg.autoColor)}, v3_style=${py(cfg.v3Style)}`;
     // the shop's colour toggles reach the content too: a ground is written as
