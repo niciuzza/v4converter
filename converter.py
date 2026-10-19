@@ -26,8 +26,8 @@ from urllib.parse import quote, unquote
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.87"
-LAST_UPDATED = "2026-10-16"
+__version__ = "1.89"
+LAST_UPDATED = "2026-10-19"
 
 # Short summary of what the converter handles — shown in the browser popup.
 # Plain strings; inline HTML (e.g. <code>) is allowed for rendering there.
@@ -41,6 +41,17 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.89", "type": "fix", "date": "2026-10-19", "items": [
+        "<b>ไม่สร้างหน้าจากลิงก์ที่ v3 ไม่ได้แสดง</b> — เมนูใน footer ที่ปิดไว้ (และแถบเมนูย่อยใน header ที่ปิดไว้) "
+        "v3 ยังเก็บลิงก์ไว้ในไฟล์ converter เห็นลิงก์ <code>/showroom/sale</code> ในนั้นจึงสร้างหน้า <code>/sale</code> ให้ "
+        "ทั้งที่ไม่มีใครเห็นเมนูนั้น · ตอนนี้ดูเฉพาะลิงก์ที่ v3 แสดงจริง ใช้กับหน้าศูนย์ช่วยเหลือด้วย",
+    ]},
+    {"version": "1.88", "type": "feat", "date": "2026-10-16", "items": [
+        "<b>สีของ FAQ</b> — พื้นกล่องคำถามตามที่ธีม v3 วาด เป็นเฉดของร้านที่ตรงกัน (ค่าตั้งต้นของ v3 <code>#f9f9f9</code> → "
+        "<code>var(--color-neutral-subtle)</code>) · ตัวอักษรใช้สีของ color scheme: กล่องพื้นเข้ม (เช่นแถบคำถามสีหลัก) ได้ "
+        "<code>color-scheme-inverse</code> ตัวอักษรขาว · กล่องพื้นอ่อนใน section dark mode ได้ <code>color-scheme-main</code>",
+        "มุมกล่อง FAQ ใช้ของธีม v4 แทน 2px ของ v3",
+    ]},
     {"version": "1.87", "type": "feat", "date": "2026-10-16", "items": [
         "<b>สีใน color-scheme-inverse ตามที่ v3 วาดบนพื้นเข้ม</b> — แบบเดียวกับ main ที่ทำใน 1.81 · section / header / footer "
         "ที่เป็น dark mode จะได้ตัวอักษร ลิงก์ ปุ่ม tag ช่องกรอก และจุด slider เป็นเฉดของร้านที่ใกล้กับที่ v3 วาดใน dark mode ที่สุด "
@@ -2700,7 +2711,8 @@ YOUTUBE_BG_CSS = (
 )
 
 
-def site_style(style, *parts, theme_key=None):
+def site_style(style, *parts, theme_key=None, site=None,
+               include_colors=True, generate_color_scale=True):
     """The site's top-level `style`, plus the blocks the converted content
     needs: `.widget-accordion` when any page or zone holds an accordion (only
     FAQs make one), and each scheme's ground where the shop's content clearly
@@ -2730,6 +2742,14 @@ def site_style(style, *parts, theme_key=None):
         block = out.setdefault(".widget-accordion", {})
         for k, v in _FAQ_ACCORDION_STYLE.items():
             block.setdefault(k, json.loads(json.dumps(v)))
+        if isinstance(site, dict):
+            global _V3_SITE_CFG, _V3_ROOT_FLAGS
+            previous = _V3_SITE_CFG, _V3_ROOT_FLAGS
+            _V3_SITE_CFG, _V3_ROOT_FLAGS = site, (include_colors, generate_color_scale)
+            try:
+                _faq_colours(block, parts)
+            finally:
+                _V3_SITE_CFG, _V3_ROOT_FLAGS = previous
     return out
 
 
@@ -5716,8 +5736,84 @@ _FAQ_ACCORDION_STYLE = {
     "listTabsGap":         {"xs": {"value": 20, "unit": "px"}, "lg": {"value": 20, "unit": "px"}},
     "listTabPaddingY":     {"xs": {"value": 16, "unit": "px"}, "lg": {"value": 16, "unit": "px"}},
     "listTabPaddingX":     {"xs": {"value": 16, "unit": "px"}, "lg": {"value": 16, "unit": "px"}},
-    "listTabBorderRadius": {"xs": {"value": 2, "unit": "px"}, "lg": {"value": 2, "unit": "px"}},
 }
+
+#: The ground v3 paints behind each FAQ question (`.linkFaqs`, or the brand
+#: question bar some themes draw), on a light page and inside `.darkMode`:
+#: a hex, or a palette slot (0 schemeA, 1 schemeB, 2 light, 3 dark) with ops.
+#: The platform's own is `#f9f9f9` on both (`FaqsSection.css`; the themes that
+#: restyle only the text in dark mode turn it dark, i.e. the box stays light).
+#: Read off `v3/themes` with `tools/scan_nested_css.py` (2026-10-16); a theme
+#: absent here draws the platform's.
+_V3_FAQ_GROUND = {
+    "_platform":   ({"hex": "#f9f9f9"}, {"hex": "#f9f9f9"}),
+    "x_julie":     ({"hex": "#f2f3f8"}, {"slot": 2}),      # schemeA_l75 / light
+    "x_oasis":     ({"hex": "#f9f9f9"}, {"slot": 2}),
+    "x_swift":     ({"hex": "#ffffff"}, {"hex": "#ffffff"}),
+    "x_bakery":    ({"hex": "#ffffff"}, {"hex": "#ffffff"}),  # .flexibleBox
+    "x_orderly":   ({"slot": 0}, {"slot": 0}),             # brand question bar, light text
+    "x_mystorage": ({"slot": 0}, {"slot": 0}),
+    "x_void":      ({"slot": 0}, {"slot": 0}),
+    "x_elite":     ({"slot": 0, "ops": [["alpha", 0.25]]}, {"slot": 0, "ops": [["alpha", 0.25]]}),
+}
+
+
+def _faq_colours(block, parts):
+    """The FAQ's colours (user, 2026-10-16). The box ground v3 paints goes in
+    the site's `.widget-accordion` as the shop step nearest it; the platform's
+    `#f9f9f9` is `var(--color-neutral-subtle)` (the user's pick). Text colour
+    is the scheme's, so each accordion takes the scheme that reads on that
+    ground: `inverse` on a dark one (white text), `main` on a light one --
+    stated on the widget only where it differs from the section it sits in.
+    Corners stay the theme's. Needs a site run (`convert_site` sets the
+    shop) -- `site_style` sets it from its `site`; otherwise nothing changes."""
+    cfg = _V3_SITE_CFG if isinstance(_V3_SITE_CFG, dict) else None
+    if not cfg:
+        return
+    colors, _root = _site_colour_root(cfg)
+    tid = cfg.get("currentTheme") or ""
+    light, dark = _V3_FAQ_GROUND.get(tid) or _V3_FAQ_GROUND.get(re.sub(r"_fw$", "", tid)) \
+        or _V3_FAQ_GROUND["_platform"]
+    page = (_norm_hex(colors[2]) if colors and len(colors) > 2 and _hex(colors[2]) else "#ffffff")
+
+    def ground(spec):
+        h = _scheme_v3_spec(spec, colors or [], page) if (colors or "hex" in spec) else None
+        return h
+
+    def ref(h):
+        if h == "#f9f9f9":
+            return "var(--color-neutral-subtle)"
+        r = _ground_ref(h)
+        return r
+
+    g_light = ground(light)
+    if g_light:
+        block["bgColor"] = ref(g_light)
+
+    def scheme_for(h):
+        if not h:
+            return None
+        return "color-scheme-inverse" if _is_dark_hex(h) else "color-scheme-main"
+
+    def walk(n, scheme):
+        if isinstance(n, list):
+            for x in n:
+                walk(x, scheme)
+            return
+        if not isinstance(n, dict):
+            return
+        info = n.get("info") if isinstance(n.get("info"), dict) else {}
+        here = info.get("colorScheme") or scheme
+        if n.get("kind") == "WidgetAccordion":
+            dark_section = here != "color-scheme-main"
+            want = scheme_for(ground(dark if dark_section else light))
+            if want and want != here:
+                n.setdefault("info", {})["colorScheme"] = want
+            return
+        for k, v in n.items():
+            if k != "info" and isinstance(v, (dict, list)):
+                walk(v, here)
+    walk(list(parts), "color-scheme-main")
 
 
 def build_faqscontent_section(props: dict) -> dict:
@@ -22426,6 +22522,42 @@ def _showroom_page_section(title: str, showroom: str) -> dict:
     return make_node("section", "Products", None, {}, [row])
 
 
+#: v3 lists kept in the file while their switch is off, by owner and switch.
+#: v3 never draws them, and neither do the zone builders.
+_V3_HIDDEN_LISTS = (
+    ("footer", "FooterSection", "isCustomFooter", "customFooterListObjects"),
+    ("footer", "FooterSection", "isCustomFooter2", "customFooter2ListObjects"),
+    ("footer", "FooterSection", "isCustomFooter3", "customFooter3ListObjects"),
+    ("header", "HeaderSection", "isShowSubMenuPane", "subMenuListObjects"),
+)
+
+
+def _shown_v3(site_json):
+    """`site_json` without the lists v3 does not show.
+
+    v3 keeps a footer list's links after its switch is turned off, so a
+    link scan over the raw file finds menus nobody sees: a hidden footer list
+    pointing at `/showroom/sale` generated a `/sale` page for nothing (user,
+    2026-10-19). Every scan that decides whether a page is needed reads this.
+    Returns the input itself when nothing is hidden.
+    """
+    if not isinstance(site_json, dict):
+        return site_json
+    out = site_json
+    for zone, section, switch, key in _V3_HIDDEN_LISTS:
+        props = (out.get(zone) or {}).get(section) if isinstance(out.get(zone), dict) else None
+        if not isinstance(props, dict) or props.get(switch) or not props.get(key):
+            continue
+        if out is site_json:
+            out = dict(site_json)
+        if out[zone] is site_json.get(zone):
+            out[zone] = dict(out[zone])
+        if out[zone][section] is site_json[zone][section]:
+            out[zone][section] = dict(out[zone][section])
+        out[zone][section].pop(key)
+    return out
+
+
 def _plain_links(site_json) -> set:
     """Every internal path the v3 file links to, ignoring query and fragment."""
     found = set()
@@ -23949,7 +24081,7 @@ def _convert_site(site_json: dict, warnings: list, generate_pages: bool) -> list
             page = _build_help_page(
                 value if isinstance(value, dict) else {},
                 generate_pages, warnings,
-                linked="/help" in _plain_links(site_json))
+                linked="/help" in _plain_links(_shown_v3(site_json)))
             if page is not None:
                 results.append(page)
             continue
@@ -24058,11 +24190,12 @@ def _convert_site(site_json: dict, warnings: list, generate_pages: bool) -> list
     # and a shop that never used the showroom should not gain two pages it did
     # not ask for. A page already at that path -- a customRoute, say -- wins;
     # the shop authored it, and its links now resolve to it either way.
-    needed = _showroom_pages_needed(site_json)
+    shown = _shown_v3(site_json)
+    needed = _showroom_pages_needed(shown)
     for path, (fallback, showroom) in _SHOWROOM_PAGES.items():
         if path not in needed:
             continue
-        title = _showroom_page_title(site_json, path.lstrip("/")) or fallback
+        title = _showroom_page_title(shown, path.lstrip("/")) or fallback
 
         if not generate_pages:
             # Links were left as v3 wrote them, so say which ones and where.
@@ -24071,7 +24204,7 @@ def _convert_site(site_json: dict, warnings: list, generate_pages: bool) -> list
             if warnings is not None:
                 warnings.append({
                     "path": path, "kind": "dead-link", "title": title,
-                    "links": sorted(_showroom_link_sites(site_json, path)),
+                    "links": sorted(_showroom_link_sites(shown, path)),
                     "msg": f"ลิงก์ไปหน้า “{title}” ({path}) ยังกดไม่ได้ — "
                            f"ปิดการสร้างหน้าอัตโนมัติไว้ ลิงก์จึงคงเป็นของ v3 "
                            f"ต้องสร้างหน้าเองแล้วแก้ลิงก์",
@@ -24294,7 +24427,7 @@ def main():
             "theme_key":   v4_theme_key(data),
             "info":        globals_["info"],
             "style":       site_style(globals_["style"], pages, zones,
-                                      theme_key=v4_theme_key(data)),
+                                      theme_key=v4_theme_key(data), site=data),
             "css":         site_css(pages, zones),
             "header_zone": zones["header_zone"],
             "footer_zone": zones["footer_zone"],
