@@ -68,10 +68,16 @@ import collections
 import copy
 import re
 
-MERGE_VERSION = "1.7"
-MERGE_LAST_UPDATED = "2026-10-09"
+MERGE_VERSION = "1.8"
+MERGE_LAST_UPDATED = "2026-10-19"
 
 MERGE_CHANGELOG = [
+    {"version": "1.8", "type": "fix", "date": "2026-10-19", "items": [
+        "<b>โหมดต่อท้าย: section ที่แปลงมาอยู่ตามลำดับเดิม</b> — เดิมเอา section ใหม่ไปต่อท้ายหน้าเสมอ "
+        "หัวข้อที่ v3 วางไว้บนสุดของหน้าระบบ (ติดต่อเรา, หมวดสินค้า ฯลฯ) จึงไปอยู่ใต้ส่วนที่ร้านปลายทางมีอยู่แล้ว",
+        "ตอนนี้ section ใหม่วางรอบ ๆ section ที่จับคู่กับของร้านปลายทางได้ ตามลำดับในโค้ดที่แปลงมา · "
+        "ถ้าไม่มีอันไหนจับคู่ได้ ยังต่อท้ายเหมือนเดิม",
+    ]},
     {"version": "1.7", "type": "fix", "date": "2026-10-09", "items": [
         "<b>รวม <code>css</code> ของ site ด้วย</b> — เดิมใช้ของร้านปลายทางอย่างเดียว css ที่ converter ใส่มาจึงหายไป "
         "(เช่นกฎที่ทำให้วิดีโอ YouTube เต็มพื้นหลังบนมือถือ)",
@@ -186,8 +192,12 @@ def _shape_key(node) -> str:
 
 
 def _append_deduped(kids: list, new_children: list):
-    """Append `new_children` onto `kids`, skipping duplicates. Returns
+    """Add `new_children` to `kids`, skipping duplicates. Returns
     (added, same_content, same_shape).
+
+    A new section keeps its place relative to the ones it matched: those
+    before the first match go before that slot section, the rest go after the
+    latest match. Only when nothing matches are they simply appended.
 
     Two passes, both keeping what the v4 slot already has:
 
@@ -207,22 +217,49 @@ def _append_deduped(kids: list, new_children: list):
     `(Standard, [WidgetHeading])` would swallow every heading-only section the
     shop wrote.
     """
-    seen = {_content_key(c) for c in kids}
-    shapes = collections.Counter(_shape_key(c) for c in kids)
+    seen = {}                           # content key -> the slot's section
+    for c in kids:
+        seen.setdefault(_content_key(c), c)
+    by_shape = collections.defaultdict(list)   # shape -> slot sections, unconsumed
+    for c in kids:
+        by_shape[_shape_key(c)].append(c)
     added = same_content = same_shape = 0
+    lead, after = [], {}                # new sections before the first match / after a match
+    first = prev = None                 # the first slot section matched / the latest
     for c in new_children:
         key = _content_key(c)
-        if key in seen:
+        match = seen.get(key)
+        if match is not None:
             same_content += 1
+        else:
+            free = by_shape.get(_shape_key(c))
+            if free:
+                match = free.pop(0)     # consumed; one-to-one
+                same_shape += 1
+        if match is not None:
+            if match is not True:       # True: a duplicate of a section added here
+                prev = match
+                if first is None:
+                    first = match
             continue
-        shape = _shape_key(c)
-        if shapes.get(shape):
-            shapes[shape] -= 1          # consumed; one-to-one
-            same_shape += 1
-            continue
-        kids.append(copy.deepcopy(c))
-        seen.add(key)
+        new = copy.deepcopy(c)
+        (lead if prev is None else after.setdefault(id(prev), [])).append(new)
+        seen[key] = True
         added += 1
+    if prev is None:                    # nothing matched: plain append
+        kids.extend(lead)
+        return added, same_content, same_shape
+    # Matched sections stay where the slot has them; the new ones keep their
+    # place around them, as the input ordered them. Appending them all broke
+    # the converter's own order: a v3 heading above a system page's built-in
+    # part came out under it, because that part is what the slot already has.
+    out = []
+    for c in kids:
+        if c is first:
+            out.extend(lead)
+        out.append(c)
+        out.extend(after.get(id(c), []))
+    kids[:] = out
     return added, same_content, same_shape
 
 
@@ -353,7 +390,7 @@ def merge_v3_into_v4(v3: dict, v4: dict, mode: str = "append"):
                     kids = []
                     v4comp["children"] = kids
                 added, same_content, same_shape = _append_deduped(kids, v3_children)
-                msg = "หน้า %r: เพิ่ม %d section ต่อท้าย (คง id เดิม)" % (path, added)
+                msg = "หน้า %r: เพิ่ม %d section ตามลำดับของ v3 (คง id เดิม)" % (path, added)
                 if same_content or same_shape:
                     if same_content:
                         msg += " · ข้าม %d section ที่เนื้อหาซ้ำกับ v4" % same_content
@@ -394,7 +431,7 @@ def merge_v3_into_v4(v3: dict, v4: dict, mode: str = "append"):
                     kids = []
                     v4zone["children"] = kids
                 added, same_content, same_shape = _append_deduped(kids, v3_zchildren)
-                msg = "%s: เพิ่ม %d block ต่อท้าย (คง id เดิม)" % (zk, added)
+                msg = "%s: เพิ่ม %d block ตามลำดับของ v3 (คง id เดิม)" % (zk, added)
                 if same_content or same_shape:
                     if same_content:
                         msg += " · ข้าม %d block ที่เนื้อหาซ้ำกับ v4" % same_content

@@ -318,7 +318,7 @@
             <button class="mode-btn" id="modeReplaceBtn" type="button" data-mode="replace">แทนที่</button>
             <button class="mode-btn" id="modeMigrateBtn" type="button" data-mode="migrate">ย้ายร้าน</button>
           </div>
-          <span class="mode-hint" id="modeHint">หน้า/zone ที่มีทั้งคู่: เอาเนื้อหา v3 ต่อท้าย v4 เดิม (ไม่ทับ)</span>
+          <span class="mode-hint" id="modeHint">หน้า/zone ที่มีทั้งคู่: เพิ่มเนื้อหา v3 เข้าไปตามลำดับของ v3 (ไม่ทับของเดิม)</span>
         </div>
         <div class="foot-row">
           <span class="foot-meta" id="inputMeta">v3: 0 · v4: 0 บรรทัด</span>
@@ -533,7 +533,7 @@
   };
 
   const MODE_HINTS = {
-    append: "หน้า/zone ที่มีทั้งคู่: เอาเนื้อหา v3 ต่อท้าย v4 เดิม (ไม่ทับ)",
+    append: "หน้า/zone ที่มีทั้งคู่: เพิ่มเนื้อหา v3 เข้าไปตามลำดับของ v3 (ไม่ทับของเดิม)",
     replace: "หน้า/zone ที่มีทั้งคู่: ใช้เนื้อหาจาก v3 เท่านั้น ตัดของ v4 ทิ้ง (หน้าที่มีแค่ใน v4 ไม่โดนแตะ)",
     migrate: "ย้ายเนื้อหาข้ามร้าน: ช่อง INPUT 1 เป็น v4 export ของร้านเดิม (มี id ร้านเดิมติดมา) — ตัด id นั้นออกทั้งหมดก่อน แล้วใช้แทนเนื้อหาของร้านปลายทาง โดยคง id ของร้านปลายทางไว้",
   };
