@@ -26,8 +26,8 @@ from urllib.parse import quote, unquote
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.89"
-LAST_UPDATED = "2026-10-19"
+__version__ = "1.91"
+LAST_UPDATED = "2026-10-20"
 
 # Short summary of what the converter handles — shown in the browser popup.
 # Plain strings; inline HTML (e.g. <code>) is allowed for rendering there.
@@ -41,6 +41,22 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.91", "type": "feat", "date": "2026-10-20", "items": [
+        "<b>การ์ดสินค้าตาม v3</b> — ตั้งที่ระดับเว็บ: สีชื่อ ราคา ราคาลด และขอบการ์ด อ่านจาก CSS ของธีม v3 "
+        "แล้วชี้ไปที่เฉดของร้านที่ใกล้ที่สุด (ราคาลดสีแดงที่ร้านไม่มีเฉดแดง ใช้สีแดงของ v4) · ราคาเดิมและขอบการ์ดใช้สีของ v3 ตรง ๆ "
+        "· ตั้งเฉพาะที่ต่างจากธีม v4",
+        "พื้นการ์ดเป็น <code>transparent</code> เพราะ v4 ระบายพื้นการ์ดเสมอ แต่การ์ด v3 ไม่มีพื้น · ธีม v3 ที่ระบายพื้นการ์ด ใช้สีนั้น",
+        "มุมของการ์ดและรูปตาม v3 รวมถึงมุมเหลี่ยม · รูปที่มนเฉพาะมุมที่ชนขอบการ์ด ใช้มุมของการ์ดตัดแทน",
+        "เงาตอนชี้การ์ดตาม v3 · ธีม v4 ที่มีเงาตอนชี้ แต่ v3 ไม่มี ปิดเงานั้น",
+        "Typography ของชื่อ ราคา ราคาเดิม และรหัสสินค้า ตามขนาดหรือน้ำหนักที่ธีม v3 ตั้งไว้ "
+        "หรือที่ร้านตั้งชื่อสินค้าเอง · ที่ไม่ได้ตั้ง ใช้ของธีม v4 · ระยะห่างข้างในส่วนข้อมูล 10px ที่จอใหญ่ ตาม v3",
+    ]},
+    {"version": "1.90", "type": "fix", "date": "2026-10-20", "items": [
+        "<b>การ์ดบล็อกเป็นแบบ simple ตาม v3</b> — รายการบล็อกที่ไม่ได้ตั้งการ์ดเอง (เช่นหน้า <code>/blog</code> ของ v4) "
+        "เดิมใช้การ์ดของธีม v4 บางธีมเป็นรูปเต็มมีตัวอักษรขาวทับบนพื้นเข้ม · ตอนนี้ตั้งที่ระดับเว็บให้เป็นรูปอยู่บน ตัวอักษรอยู่ใต้รูป "
+        "ไม่มีชั้นทับ ใช้ scheme main เหมือนหน้าบล็อกของ v3 · ตั้งเฉพาะธีมที่ต่างจากนี้ ปุ่มและตัวอักษรของการ์ดยังเป็นของธีม",
+        "รายการบล็อกที่อยู่ใน section พื้นเข้ม ยังใช้ scheme ของ section นั้น",
+    ]},
     {"version": "1.89", "type": "fix", "date": "2026-10-19", "items": [
         "<b>ไม่สร้างหน้าจากลิงก์ที่ v3 ไม่ได้แสดง</b> — เมนูใน footer ที่ปิดไว้ (และแถบเมนูย่อยใน header ที่ปิดไว้) "
         "v3 ยังเก็บลิงก์ไว้ในไฟล์ converter เห็นลิงก์ <code>/showroom/sale</code> ในนั้นจึงสร้างหน้า <code>/sale</code> ให้ "
@@ -2723,6 +2739,8 @@ def site_style(style, *parts, theme_key=None, site=None,
     out = json.loads(json.dumps(style or {}))
     if theme_key:
         _scheme_grounds_by_use(out, parts, theme_key)
+        if "colorScheme" in _blog_card_setting(theme_key):
+            _blog_lists_keep_their_scheme(parts)
     found = []
 
     def walk(n):
@@ -2751,6 +2769,30 @@ def site_style(style, *parts, theme_key=None, site=None,
             finally:
                 _V3_SITE_CFG, _V3_ROOT_FLAGS = previous
     return out
+
+
+def _blog_lists_keep_their_scheme(parts):
+    """A blog list that states no scheme, inside a section that is not on
+    main, states its section's. The site's `info.Widget.BlogList` sets main
+    where the theme sets another (`_blog_card_setting`), and without this a
+    list in a dark section would come out light. In place."""
+    def walk(n, scheme):
+        if isinstance(n, list):
+            for x in n:
+                walk(x, scheme)
+            return
+        if not isinstance(n, dict):
+            return
+        info = n.get("info") if isinstance(n.get("info"), dict) else {}
+        here = info.get("colorScheme") or scheme
+        if (n.get("kind") == "WidgetBlogList" and "colorScheme" not in info
+                and here != "color-scheme-main"):
+            n.setdefault("info", {})["colorScheme"] = here
+        for k, v in n.items():
+            if k != "info" and isinstance(v, (dict, list)):
+                walk(v, here)
+    for part in parts:
+        walk(part, "color-scheme-main")
 
 
 def _scheme_grounds_by_use(out, parts, theme_key):
@@ -14583,7 +14625,100 @@ _V4_NATIVE_INVERSE = {
         "inputIconColor": "var(--color-brand-subtlest)",
     },
 }
+_V4_NATIVE_BLOG_CARD = {
+    "_base": {"variant": "full-image"},
+    "alphafit": {"variant": "full-image", "isOverlay": False, "isOverlayGradient": False},
+    "brewcocoffee": {"variant": "full-image", "isOverlay": True, "isOverlayGradient": False},
+    "brewhavencoffee": {"variant": "fit-image", "isOverlay": True, "isOverlayGradient": False},
+    "kiara": {"variant": "full-image", "isOverlay": True, "isOverlayGradient": False},
+    "neoorderly": {"variant": "bg-image-info", "isOverlay": True, "isOverlayGradient": True, "colorScheme": "color-scheme-inverse"},
+    "peapea": {"variant": "full-image", "isOverlay": True, "isOverlayGradient": False},
+    "ventura": {"variant": "fit-image"},
+}
 # --- END gen_scheme_roles ---
+
+#: What each v3 theme's product card says (`_V3_CARD`) and what each native
+#: theme's card draws over Base (`_V4_NATIVE_CARD`), for `_card_setting`.
+#: Regenerate with `python3 tools/gen_card_v3.py --write`.
+# --- BEGIN gen_card_v3 (tools/gen_card_v3.py) ---
+_V3_CARD = {
+    "x_adventure": {"name": {"bold": False}, "price": {"color": {"slot": 3, "ops": [["tint", 20]]}}, "discount": {"color": {"slot": 0, "ops": []}}, "regular": {"color": "#8e8e8e"}, "code": {"bold": False}},
+    "x_bakery": {"name": {"color": {"slot": 3, "ops": []}}, "price": {"bold": True}, "regular": {"color": "#d7d7d7"}},
+    "x_basic": {"card": {"bg": {"slot": 2, "ops": []}}},
+    "x_bluehorizon": {"name": {"color": {"slot": 3, "ops": []}}, "price": {"bold": True, "color": {"slot": 0, "ops": []}}, "discount": {"color": "#d62839"}, "regular": {"color": "#c1c1c1"}},
+    "x_bold": {"card": {"bg": {"slot": 2, "ops": []}}},
+    "x_borsa": {"name": {"bold": False}, "discount": {"color": {"slot": 3, "ops": []}}, "regular": {"color": "#cccccc"}, "code": {"bold": False}},
+    "x_caution": {"card": {"bg": {"slot": 2, "ops": []}}},
+    "x_ceramicstore": {"name": {"bold": False, "color": {"slot": 3, "ops": []}}, "price": {"color": {"slot": 0, "ops": []}}, "discount": {"color": {"slot": 1, "ops": []}}, "regular": {"color": "#999999"}, "code": {"bold": False}},
+    "x_cha": {"name": {"size": 16}, "price": {"size": 20, "bold": True}, "discount": {"bold": True, "color": {"slot": 0, "ops": []}}, "regular": {"bold": False, "color": "#cccccc"}, "code": {"size": 16}},
+    "x_clean": {"name": {"size": 16}, "code": {"size": 16}, "card": {"bg": {"slot": 2, "ops": []}}},
+    "x_cleancolor": {"name": {"size": 16}, "price": {"bold": True}, "regular": {"bold": False}, "code": {"size": 16}, "card": {"bg": {"slot": 2, "ops": []}}},
+    "x_cozy": {"name": {"bold": False}, "price": {"bold": False}, "discount": {"color": {"slot": 0, "ops": []}}, "regular": {"color": {"slot": 2, "ops": [["shade", 30]]}}, "code": {"bold": False}, "image": {"radius": [4]}},
+    "x_cozy_fw": {"name": {"bold": False}, "price": {"bold": False}, "discount": {"color": {"slot": 0, "ops": []}}, "regular": {"color": {"slot": 2, "ops": [["shade", 30]]}}, "code": {"bold": False}, "image": {"radius": [4]}},
+    "x_denim_fw": {"name": {"bold": False}, "price": {"bold": False}, "discount": {"color": "#ff0000"}, "regular": {"color": {"slot": 2, "ops": [["shade", 30]]}}, "code": {"bold": False}},
+    "x_downtown": {"discount": {"color": {"slot": 1, "ops": []}}, "regular": {"color": "#cccccc"}},
+    "x_eco": {"name": {"bold": True, "color": {"slot": 5, "ops": []}}, "price": {"bold": True, "color": {"slot": 0, "ops": []}}, "discount": {"color": "#bc6c25"}, "code": {"bold": True}, "image": {"radius": [10]}},
+    "x_elite": {"name": {"size": 16, "bold": False, "color": {"slot": 3, "ops": [["tint", 20]]}}, "price": {"size": 20, "bold": False}, "discount": {"color": {"slot": 3, "ops": []}}, "regular": {"size": 20, "color": {"slot": 2, "ops": [["shade", 20]]}}, "code": {"size": 16, "bold": False}, "card": {"bg": {"slot": 2, "ops": []}}},
+    "x_fundamental": {"name": {"size": 16}, "code": {"size": 16}, "card": {"bg": {"slot": 2, "ops": []}}},
+    "x_futuristic": {"name": {"color": {"slot": 3, "ops": []}}, "price": {"color": {"slot": 0, "ops": []}}, "discount": {"color": "#dc0537"}, "regular": {"color": "#cdcdcd"}},
+    "x_greenery": {"name": {"color": {"slot": 3, "ops": [["tint", 50]]}}, "price": {"bold": False, "color": {"slot": 3, "ops": [["tint", 25]]}}, "card": {"bg": {"slot": 2, "ops": []}}},
+    "x_happy": {"card": {"bg": {"slot": 2, "ops": []}}},
+    "x_julie": {"name": {"size": 16, "bold": False}, "price": {"size": 18}, "code": {"size": 16, "bold": False}, "card": {"bg": {"slot": 2, "ops": []}, "borderWidth": 1, "borderColor": {"slot": 0, "ops": []}, "radius": [10]}},
+    "x_knowledge": {"price": {"size": 22}, "discount": {"color": {"slot": 1, "ops": []}}, "regular": {"color": "#cccccc"}},
+    "x_luxurygold": {"name": {"bold": False}, "discount": {"color": {"slot": 5, "ops": []}}, "regular": {"color": "#8e8e8e"}, "code": {"bold": False}},
+    "x_millennium": {"card": {"bg": {"slot": 2, "ops": []}}},
+    "x_mixednuts": {"price": {"bold": True}, "discount": {"bold": True, "color": {"slot": 0, "ops": []}}, "regular": {"bold": False, "color": "#cccccc"}},
+    "x_modernmerce": {"discount": {"color": {"slot": 3, "ops": []}}, "regular": {"color": "#cccccc"}},
+    "x_mystorage": {"name": {"size": 16}, "price": {"size": 16}, "regular": {"size": 16, "color": {"slot": 3, "ops": [["alpha", 0.15]]}}, "code": {"size": 16}, "card": {"bg": "#ffffff"}, "image": {"bg": "#ffffff"}},
+    "x_oasis": {"name": {"bold": False}, "price": {"color": {"slot": 0, "ops": []}}, "discount": {"color": "#dc0000"}, "regular": {"color": {"slot": 2, "ops": [["shade", 30]]}}, "code": {"bold": False}, "card": {"radius": [2]}, "hoverShadow": {"shadow": "0px 10px 10px -10px", "color": "#2123261a"}},
+    "x_oceanblue": {"name": {"size": 14, "bold": False, "color": {"slot": 3, "ops": []}}, "price": {"size": 16, "bold": True, "color": {"slot": 0, "ops": []}}, "regular": {"size": 16, "color": {"slot": 4, "ops": []}}, "code": {"size": 14, "bold": False}, "card": {"bg": {"slot": 2, "ops": []}}, "hoverShadow": {"shadow": "0px 2px 8px 0px", "color": "#63636333"}},
+    "x_optic": {"name": {"bold": False}, "price": {"bold": True}, "discount": {"bold": True, "color": {"slot": 0, "ops": []}}, "regular": {"bold": False, "color": "#cccccc"}, "code": {"bold": False}},
+    "x_orderly": {"name": {"size": 16}, "price": {"size": 16}, "regular": {"size": 16, "color": {"slot": 3, "ops": [["alpha", 0.15]]}}, "code": {"size": 16}, "card": {"radius": [6], "bg": {"slot": 2, "ops": []}}, "image": {"radius": [6, 6, 0, 0], "bg": {"slot": 2, "ops": []}}, "hoverShadow": {"shadow": "0px 10px 18px 0px", "color": "#00000017"}},
+    "x_ordinary": {"price": {"bold": True}},
+    "x_periwinkle": {"name": {"size": 16, "bold": False, "color": {"slot": 3, "ops": []}}, "price": {"size": 16, "bold": True}, "discount": {"color": "#de2335"}, "regular": {"size": 16, "color": {"slot": 2, "ops": [["shade", 30]]}}, "code": {"size": 16, "bold": False}},
+    "x_petestate": {"price": {"bold": True}, "discount": {"bold": True, "color": {"slot": 1, "ops": []}}, "regular": {"bold": False, "color": "#cccccc"}, "image": {"radius": [10]}},
+    "x_petfriendly": {"name": {"bold": False}, "price": {"bold": True}, "discount": {"color": "#dd403a"}, "regular": {"color": {"slot": 2, "ops": [["shade", 30]]}}, "code": {"bold": False}, "card": {"bg": {"slot": 2, "ops": []}, "borderWidth": 1, "borderColor": {"slot": 2, "ops": [["shade", 10]]}, "radius": [8]}},
+    "x_pineforest": {"price": {"bold": True}},
+    "x_playground": {"name": {"bold": False, "color": {"slot": 3, "ops": []}}, "price": {"bold": False, "color": {"slot": 0, "ops": []}}, "discount": {"color": {"slot": 5, "ops": []}}, "regular": {"color": "#999999"}, "code": {"bold": False}, "card": {"borderWidth": 1, "borderColor": "#e9e9e9", "radius": [20]}, "image": {"radius": [19, 19, 0, 0]}},
+    "x_plaza": {"discount": {"color": {"slot": 0, "ops": []}}, "regular": {"color": "#999999"}},
+    "x_pottery": {"name": {"bold": False}, "discount": {"color": {"slot": 4, "ops": []}}, "regular": {"color": "#cccccc"}, "code": {"bold": False}},
+    "x_prestige": {"card": {"bg": {"slot": 2, "ops": []}}},
+    "x_relax": {"price": {"bold": True}},
+    "x_seat": {"price": {"bold": True}, "discount": {"bold": True, "color": {"slot": 0, "ops": []}}, "regular": {"bold": False, "color": {"slot": 1, "ops": []}}},
+    "x_solid_round_fw": {"name": {"size": 16, "bold": False, "color": {"slot": 3, "ops": [["tint", 20]]}}, "price": {"size": 18, "bold": True}, "discount": {"color": "#cb1217"}, "regular": {"size": 18, "color": {"slot": 3, "ops": [["tint", 40]]}}, "code": {"size": 16, "bold": False}, "image": {"bg": {"slot": 2, "ops": []}}},
+    "x_solid_shape_fw": {"name": {"size": 16, "bold": False, "color": {"slot": 3, "ops": [["tint", 20]]}}, "price": {"size": 18, "bold": True}, "discount": {"color": "#cb1217"}, "regular": {"size": 18}, "code": {"size": 16, "bold": False}, "image": {"bg": {"slot": 2, "ops": []}}},
+    "x_solid_wide_fw": {"name": {"size": 16, "bold": True, "color": {"slot": 0, "ops": []}}, "price": {"size": 16}, "regular": {"size": 14}, "code": {"size": 16, "bold": True}, "card": {"bg": {"slot": 2, "ops": []}}, "image": {"bg": {"slot": 2, "ops": []}}},
+    "x_solidfw": {"name": {"size": 18, "bold": False}, "price": {"size": 18, "bold": True}, "discount": {"color": "#ca210f"}, "regular": {"size": 18, "bold": False}, "code": {"size": 18, "bold": False}, "card": {"bg": {"slot": 2, "ops": []}}, "image": {"bg": {"slot": 2, "ops": []}}},
+    "x_street": {"card": {"bg": {"slot": 2, "ops": []}}},
+    "x_supercar": {"name": {"bold": False}, "discount": {"color": {"slot": 5, "ops": []}}, "regular": {"color": "#8e8e8e"}, "code": {"bold": False}},
+    "x_sweetpink": {"name": {"bold": False}, "price": {"bold": False}, "code": {"bold": False}, "card": {"bg": {"slot": 2, "ops": []}}},
+    "x_urban": {"card": {"bg": {"slot": 2, "ops": []}}},
+    "x_vintage": {"card": {"bg": {"slot": 2, "ops": []}}},
+    "x_voice": {"price": {"size": 22}, "discount": {"color": {"slot": 1, "ops": []}}, "regular": {"color": "#cccccc"}},
+    "x_void": {"name": {"color": {"slot": 2, "ops": []}}, "price": {"color": {"slot": 2, "ops": []}}, "discount": {"color": {"slot": 2, "ops": []}}, "regular": {"color": "#cccccc"}},
+    "x_wichittra": {"price": {"size": 18}, "discount": {"color": {"slot": 1, "ops": []}}, "regular": {"color": "#cccccc"}},
+    "x_wingwing": {"card": {"bg": {"slot": 2, "ops": []}}},
+    "x_writenow": {"price": {"bold": True, "color": {"slot": 3, "ops": []}}, "discount": {"bold": True, "color": {"slot": 0, "ops": []}}, "regular": {"bold": False, "color": {"slot": 3, "ops": [["tint", 60]]}}},
+}
+_V4_NATIVE_CARD = {
+    "_base": {"cardProductBorderRadius": {"value": 0, "unit": "px"}, "cardProductThumbnailBorderRadius": {"value": 0, "unit": "px"}, "cardProductInfoPadding": {"xs": {"value": 20, "unit": "px"}}, "nameTypoStyle": "typo_paragraph_small_bold", "priceTypoStyle": "typo_paragraph_small_bold", "regularPriceTypoStyle": "typo_paragraph_small", "codeTypoStyle": "typo_paragraph_xsmall"},
+    "alphafit": {"cardProductBorderRadius": "0px", "cardProductThumbnailBorderRadius": "4px", "cardProductInfoPadding": "20px"},
+    "brewcocoffee": {"cardProductBorderRadius": {"value": 20, "unit": "px"}, "cardProductThumbnailBorderRadius": "4px", "cardProductInfoPadding": "20px", "cardProductDiscountPriceColor": "var(--color-status-critical)", "cardProductBgColor": "white", "nameTypoStyle": "typo_paragraph_medium_bold"},
+    "brewhavencoffee": {"cardProductBorderRadius": "0px", "cardProductThumbnailBorderRadius": "4px", "cardProductInfoPadding": "20px"},
+    "floating": {"cardProductBorderRadius": {"value": 1, "unit": "rem"}, "cardProductInfoPadding": {"xs": {"value": 1, "unit": "rem"}}, "cardProductPriceColor": "var(--color-brand-boldest)", "cardProductBgColor": "var(--bg-color)", "nameTypoStyle": "typo_paragraph_medium", "priceTypoStyle": "typo_paragraph_medium_bold"},
+    "forma": {"cardProductBorderRadius": {"lg": {"value": 20, "unit": "px"}, "xs": {"value": 8, "unit": "px"}}, "cardProductThumbnailBorderRadius": {"value": 8, "unit": "px"}, "cardProductThumbnailBgColor": "var(--bg-color)", "nameTypoStyle": "typo_paragraph_medium", "priceTypoStyle": "typo_paragraph_large_bold"},
+    "kiara": {"cardProductThumbnailBorderRadius": {"value": 4, "unit": "px"}, "cardProductInfoPadding": {"xs": {"value": 20, "unit": "px"}, "lg": {"value": 20, "unit": "px"}}},
+    "neoorderly": {"cardProductThumbnailBorderRadius": "0", "cardProductInfoPadding": {"xs": {"value": 0, "unit": "px"}, "lg": {"value": 0, "unit": "px"}}, "cardProductPriceColor": "var(--color-black)", "cardProductDiscountPriceColor": "var(--color-black)", "cardProductRegularPriceColor": "var(--color-neutral)", "cardProductBgColor": "var(--color-white)", "cardProductThumbnailBgColor": "var(--color-white)", "cardProductHoverBoxShadow": "5px 5px 20px", "cardProductHoverBoxShadowColor": "#00000011"},
+    "peapea": {"cardProductBorderRadius": {"value": 30, "unit": "px"}, "cardProductThumbnailBorderRadius": {"value": 20, "unit": "px"}, "cardProductInfoPadding": {"xs": {"value": 0, "unit": "px"}}, "cardProductBorderWidth": {"value": 2, "unit": "px"}, "cardProductBorderColor": "black"},
+    "recta": {"cardProductBorderRadius": {"lg": {"value": 0, "unit": "px"}, "xs": {"value": 0, "unit": "px"}}, "cardProductThumbnailBgColor": "var(--bg-color)", "nameTypoStyle": "typo_paragraph_medium", "priceTypoStyle": "typo_paragraph_large_bold"},
+    "shizuku": {"cardProductBorderRadius": "0px", "cardProductThumbnailBorderRadius": "4px", "cardProductInfoPadding": "20px"},
+    "simplydelight": {"cardProductBorderRadius": "0px", "cardProductThumbnailBorderRadius": "4px", "cardProductInfoPadding": {"xs": {"value": 0, "unit": "px"}, "lg": {"value": 0, "unit": "px"}}, "cardProductPriceColor": "var(--color-brand-bold)"},
+    "spaceandstroll": {"cardProductInfoPadding": {"xs": {"value": 16, "unit": "px"}, "lg": {"value": 16, "unit": "px"}}, "cardProductPriceColor": "var(--color-black)", "cardProductDiscountPriceColor": "var(--color-black)", "cardProductRegularPriceColor": "var(--color-neutral)", "nameTypoStyle": "typo_paragraph_small", "priceTypoStyle": "typo_paragraph_small"},
+    "sunnergy": {"cardProductThumbnailBorderRadius": {"value": 4, "unit": "px"}, "cardProductInfoPadding": {"xs": {"value": 20, "unit": "px"}, "lg": {"value": 20, "unit": "px"}}},
+    "varinthaispa": {"cardProductBorderRadius": "0px", "cardProductThumbnailBorderRadius": "4px", "cardProductInfoPadding": "20px"},
+    "ventura": {"cardProductBorderRadius": {"lg": {"value": 0, "unit": "px"}, "xs": {"value": 0, "unit": "px"}}, "cardProductBgColor": "transparent", "cardProductThumbnailBgColor": "var(--bg-color)", "nameTypoStyle": "typo_heading_medium_bold", "priceTypoStyle": "typo_paragraph_medium", "regularPriceTypoStyle": "typo_paragraph_medium", "codeTypoStyle": "typo_heading_xsmall"},
+}
+# --- END gen_card_v3 ---
 
 #: Below this OKLab gap two colours read as the same: nothing to change.
 _SCHEME_SAME = 0.02
@@ -15005,6 +15140,267 @@ def _control_shape(v3_theme, v4_theme):
     root = dict(base.get(":root", {}), **native.get(":root", {}))
     got = {k: v for k, v in v3.items() if not _same_size(v, root.get(k))}
     return {":root": got} if got else {}
+
+
+#: v3's simple blog card: the picture above, the text below it on the page's
+#: ground, no scrim. What v3's own blog page lists posts with.
+_V3_BLOG_CARD = {"variant": "full-image", "isOverlay": False, "isOverlayGradient": False}
+
+
+def _blog_card_setting(v4_theme):
+    """The site's `info.Widget.BlogList` that gives a blog list with no card of
+    its own v3's simple card on `v4_theme`, or {} when the theme already draws
+    it. A blog list that states nothing -- the one on v4's own `/blog` page --
+    took the theme's: on one theme a picture card with white text on a dark
+    ground (user, 2026-10-20). Only the card and its scheme: the rest of a
+    theme's blog list (button, typography) stays the theme's."""
+    native = dict(_V4_NATIVE_BLOG_CARD.get("_base") or {},
+                  **(_V4_NATIVE_BLOG_CARD.get((v4_theme or "").lower()) or {}))
+    card = {k: v for k, v in _V3_BLOG_CARD.items()
+            if native.get(k, False if k != "variant" else None) != v}
+    out = {"layoutCard": card} if card else {}
+    if native.get("colorScheme") not in (None, "color-scheme-main"):
+        out["colorScheme"] = "color-scheme-main"
+    return out
+
+
+#: v4's paragraph slots by their size at lg (px).
+_CARD_TYPO_SLOTS = (("xsmall", 12), ("small", 14), ("medium", 16), ("large", 20), ("xlarge", 24))
+#: card text: v3 element -> (colour token, `cardConfig` typography key)
+_CARD_TEXT = {
+    "name": ("cardProductNameColor", "nameTypoStyle"),
+    "price": ("cardProductPriceColor", "priceTypoStyle"),
+    "discount": ("cardProductDiscountPriceColor", None),
+    "regular": ("cardProductRegularPriceColor", "regularPriceTypoStyle"),
+    "code": (None, "codeTypoStyle"),
+}
+
+
+def _card_typo(v3, native_cls):
+    """The typography class for a card text v3 sized or weighted, or None
+    when v3 states neither (user, 2026-10-20: a theme that says nothing keeps
+    the v4 theme's). The size picks the nearest paragraph slot to v3's lg
+    size, a tie going up; a weight alone keeps the v4 theme's class and only
+    turns `_bold` on or off."""
+    if not v3 or ("size" not in v3 and "bold" not in v3):
+        return None
+    m = re.fullmatch(r"(typo_[a-z]+)_([a-z]+?)(_bold)?", native_cls or "")
+    family, slot, bold = (m.group(1), m.group(2), bool(m.group(3))) if m else \
+        ("typo_paragraph", "small", False)
+    if "size" in v3:
+        n = v3["size"]
+        best = min(_CARD_TYPO_SLOTS, key=lambda s: (abs(s[1] - n), -s[1]))
+        family, slot = "typo_paragraph", best[0]
+    if "bold" in v3:
+        bold = v3["bold"]
+    return "%s_%s%s" % (family, slot, "_bold" if bold else "")
+
+
+def _shop_title_style(pb):
+    """The shop's own product-name style (`ProductBox.pTitleStyle`) as a
+    `_V3_CARD` entry: v3 puts it on the name's text itself, so it beats the
+    theme. A blank weight is no choice, and a 0px size -- which hides the name
+    in v3 -- is skipped (user, 2026-10-20)."""
+    ps = pb.get("pTitleStyle") if isinstance(pb, dict) else None
+    if not isinstance(ps, dict):
+        return {}
+    out = {}
+    w = ps.get("fontWeight")
+    if isinstance(w, str) and w.strip():
+        w = w.strip().lower()
+        out["bold"] = w in ("bold", "bolder") or (w.isdigit() and int(w) >= 600)
+    sizes = ps.get("fontSize") if isinstance(ps.get("fontSize"), dict) else {}
+    for bp in ("xl", "md", "sm"):
+        n = parse_size(sizes.get(bp)) if sizes.get(bp) else None
+        if isinstance(n, dict) and n.get("unit") == "px" and n.get("value"):
+            out["size"] = n["value"]
+            break
+    return out
+
+
+def _card_setting(site_json, colors, new_root, v4_theme):
+    """The site's product card as v3 drew it, on `v4_theme` (user,
+    2026-10-20): {"scheme": main-scheme colours, "card": `.element-card-product`
+    tokens, "config": `cardConfig` typography}. Only what differs from the v4
+    theme's card is written.
+
+    - **Colours** (name, price, sale price) go to the main scheme as the
+      step of the shop's ramps nearest what v3 drew, the same rule as
+      `_main_scheme_by_role`; a red sale price may take v4's status red. The
+      old price and the card's border are v3's colour as a hex, on the card.
+      `colors` None leaves them all to the theme.
+    - **Ground**: `transparent` unless v3 paints the card, because v4 Base
+      fills a card with `--bg-color` and v3's has no ground of its own. In
+      `.element-card-product`, so no theme layer brings the fill back. The
+      picture's ground likewise.
+    - **Hover shadow** as v3 draws it, split into v4's offsets and colour; a
+      theme's own hover shadow is turned off where v3 has none.
+    - **Corners** follow v3 on the card and its picture, `0` included: v3's
+      card is square unless the theme rounds it. A picture rounded only where
+      it meets a card of the same radius gets `0`, since v4's card clips what
+      overflows it (user, tested 2026-10-20).
+    - **Typography** only where the theme or the shop (`pTitleStyle`) states a
+      size or weight; the code's only when the shop shows it.
+    - **Info padding**: the horizontal `_apply_card_info_padding` gives a
+      theme, at lg, keeping the v4 theme's phone value.
+    Padding and gaps otherwise stay the v4 theme's (user, 2026-10-20)."""
+    cfg = site_json if isinstance(site_json, dict) else {}
+    tid = cfg.get("currentTheme")
+    if tid not in _V3_CARD and tid not in _THEME_V3_PALETTE:
+        return {"scheme": {}, "card": {}, "config": {}}     # no v3 theme to follow
+    v3 = _V3_CARD.get(tid) or {}
+    native = dict(_V4_NATIVE_CARD.get("_base") or {},
+                  **(_V4_NATIVE_CARD.get((v4_theme or "").lower()) or {}))
+    pb = (cfg.get("components") or {}).get("ProductBox") or {}
+    scheme, card, config = {}, {}, {}
+    px = lambda n: {"value": n, "unit": "px"}  # noqa: E731
+
+    # colours
+    if isinstance(colors, list) and len(colors) >= 6 and new_root:
+        cols = [_norm_hex(c) if _hex(c) is not None else "" for c in colors[:6]]
+        page = cols[2] or "#ffffff"
+        vars_ = {_scheme_var(k): v for k, v in dict(_SCHEME_BASE_ROOT, **new_root).items()}
+        steps = {k: _norm_hex(new_root[k]) for k in _SCHEME_STEPS
+                 if _hex(new_root.get(k)) is not None}
+        critical = _SCHEME_BASE_ROOT.get("colorStatusCritical")
+
+        def v3_colour(spec):
+            if isinstance(spec, dict):
+                return _scheme_v3_spec(spec, cols, page)
+            return _scheme_resolve(spec, {})
+
+        def want(tok, spec, sale=False):
+            colour = v3_colour(spec)
+            if not isinstance(colour, str) or _hex(colour) is None:
+                return
+            ref = native.get(tok)
+            now = _scheme_resolve(ref, vars_)
+            if isinstance(now, str) and _hex(now) is not None and \
+                    _oklab_gap(now, colour) < _SCHEME_SAME:
+                return
+            if tok in ("cardProductRegularPriceColor", "cardProductBorderColor"):
+                # the crossed-out price and the card's border are v3's own
+                # colour, as drawn (user, 2026-10-20): a shop's ramps seldom
+                # hold their light greys, so the nearest step was a tinted
+                # brand one or a near-white. Not a scheme colour, so it sits
+                # on the card itself.
+                card[tok] = _norm_hex(colour)
+                return
+            step = _scheme_nearest_step(tok, colour, steps, ref)
+            # a red sale price the shop's ramps hold no red for: v4's status red
+            if sale and critical and _oklab_gap(colour, critical) < _oklab_gap(colour, steps[step]):
+                step = "colorStatusCritical"
+            value = "var(%s)" % _scheme_var(step)
+            if value != ref:
+                scheme[tok] = value
+
+        text = {el: (v3.get(el) or {}).get("color") for el in ("name", "price", "discount", "regular")}
+        # v3's sale price is a `.realprice` too: the price's colour reaches it
+        text["discount"] = text["discount"] if text["discount"] is not None else text["price"]
+        for el, spec in text.items():
+            if spec is not None and _CARD_TEXT[el][0]:
+                want(_CARD_TEXT[el][0], spec, sale=(el == "discount"))
+        frame = v3.get("card") or {}
+        if frame.get("borderWidth") and frame.get("borderColor") is not None:
+            want("cardProductBorderColor", frame["borderColor"])
+
+    # the ground and the frame
+    frame = v3.get("card") or {}
+    bg = frame.get("bg")
+    if bg is None or bg == "transparent":
+        if native.get("cardProductBgColor") != "transparent":
+            card["cardProductBgColor"] = "transparent"
+    elif isinstance(colors, list) and len(colors) >= 6 and new_root:
+        colour = _scheme_v3_spec(bg, [_norm_hex(c) if _hex(c) is not None else ""
+                                      for c in colors[:6]], None) if isinstance(bg, dict) else bg
+        steps = {k: _norm_hex(new_root[k]) for k in _SCHEME_STEPS
+                 if _hex(new_root.get(k)) is not None}
+        if isinstance(colour, str) and _hex(colour) is not None and steps:
+            card["cardProductBgColor"] = "var(%s)" % _scheme_var(_scheme_nearest_step(
+                "cardProductBgColor", colour, steps, native.get("cardProductBgColor")))
+    # the picture's own ground: v3's, else none (a contained picture shows it)
+    img_bg = (v3.get("image") or {}).get("bg")
+    if img_bg is None or img_bg == "transparent":
+        if native.get("cardProductThumbnailBgColor") not in (None, "transparent"):
+            card["cardProductThumbnailBgColor"] = "transparent"
+    elif isinstance(colors, list) and len(colors) >= 6 and new_root:
+        colour = _scheme_v3_spec(img_bg, [_norm_hex(c) if _hex(c) is not None else ""
+                                          for c in colors[:6]], None) \
+            if isinstance(img_bg, dict) else img_bg
+        steps = {k: _norm_hex(new_root[k]) for k in _SCHEME_STEPS
+                 if _hex(new_root.get(k)) is not None}
+        if isinstance(colour, str) and _hex(colour) is not None and steps:
+            value = "var(%s)" % _scheme_var(_scheme_nearest_step(
+                "cardProductThumbnailBgColor", colour, steps, native.get("cardProductThumbnailBgColor")))
+            if value != native.get("cardProductThumbnailBgColor"):
+                card["cardProductThumbnailBgColor"] = value
+    # the shadow on hover: v4 keeps its offsets and colour apart; a theme's
+    # shadow where v3 draws none is turned off
+    shadow = v3.get("hoverShadow")
+    if shadow:
+        col = shadow["color"]
+        if isinstance(col, dict):
+            alpha = 1.0
+            ops = []
+            for op, n in col.get("ops") or []:
+                if op == "alpha":
+                    alpha = n
+                else:
+                    ops.append([op, n])
+            base = _scheme_v3_spec(dict(col, ops=ops), [_norm_hex(c) if _hex(c) is not None else ""
+                                                        for c in (colors or [])[:6]], None) \
+                if isinstance(colors, list) and len(colors) >= 6 else None
+            col = (_norm_hex(base) + "%02x" % round(alpha * 255)) if base else None
+        if col:
+            for tok, v in (("cardProductHoverBoxShadow", shadow["shadow"]),
+                           ("cardProductHoverBoxShadowColor", col)):
+                if native.get(tok) != v:
+                    card[tok] = v
+    elif native.get("cardProductHoverBoxShadow") not in (None, "none"):
+        card["cardProductHoverBoxShadow"] = "none"
+    width = frame.get("borderWidth", 0)
+    if not _same_size(px(width), native.get("cardProductBorderWidth") or px(0)):  # noqa
+        card["cardProductBorderWidth"] = px(width)
+
+    # corners: the card, then its picture
+    radius = (frame.get("radius") or [0])
+    card_r = max(radius)
+    img = (v3.get("image") or {}).get("radius") or [0]
+    if len(set(img)) > 1:
+        rounded = [n for n in img if n]
+        img_r = 0 if card_r and all(n == card_r for n in rounded) else max(rounded)
+    else:
+        img_r = img[0]
+    def size(v):
+        # a native theme may write a bare "0"
+        if isinstance(v, str) and re.fullmatch(r"\d+(\.\d+)?(px)?", v.strip()):
+            return px(float(v.strip().rstrip("px")))
+        return v or px(0)
+    for tok, n in (("cardProductBorderRadius", card_r), ("cardProductThumbnailBorderRadius", img_r)):
+        if not _same_size(px(n), size(native.get(tok))):
+            card[tok] = px(n)
+
+    # typography
+    name = dict(v3.get("name") or {}, **_shop_title_style(pb))
+    texts = dict(v3, name=name)
+    for el, (_, key) in _CARD_TEXT.items():
+        if not key or (el == "code" and pb.get("isShowCode") is not True):
+            continue
+        cls = _card_typo(texts.get(el), native.get(key))
+        if cls and cls != native.get(key):
+            config[key] = cls
+
+    # the info's side padding
+    nat_pad = native.get("cardProductInfoPadding")
+    nat_pad = nat_pad if isinstance(nat_pad, dict) and "value" not in nat_pad else \
+        ({"xs": nat_pad} if isinstance(nat_pad, dict) else {})
+    if tid in _THEME_CARD_INFO_PADDING_ZERO:
+        pad = {"xs": px(0)}
+    else:
+        pad = dict(nat_pad, lg=px(_V3_CARD_INFO_PADDING))
+    if pad != nat_pad:
+        card["cardProductInfoPadding"] = pad
+    return {"scheme": scheme, "card": card, "config": config}
 
 
 def _v3_tag_has_border(colors, v3_theme):
@@ -21079,6 +21475,28 @@ def convert_global(site_json: dict, warnings: list = None, *,
     if map_to_v4_theme and v3_style and (include_colors or include_fonts):
         for sel, toks in _control_shape(cfg.get("currentTheme"), v4_theme_key(cfg)).items():
             (root if sel == ":root" else style.setdefault(sel, {})).update(toks)
+    # The product card as v3 drew it (user, 2026-10-20): colours by role into
+    # the main scheme, ground / frame / corners / info padding into the card's
+    # own block, typography into cardConfig.
+    if map_to_v4_theme and v3_style:
+        got = _card_setting(cfg, colors if include_colors else None,
+                            {k: v for k, v in root.items() if k.startswith("color")},
+                            v4_theme_key(cfg))
+        if got["scheme"]:
+            style.setdefault(".color-scheme-main", {}).update(got["scheme"])
+        if got["card"]:
+            style.setdefault(".element-card-product", {}).update(
+                {k: v for k, v in got["card"].items()
+                 if k not in style.get(".element-card-product", {})})
+        if got["config"]:
+            info.setdefault("Element", {}).setdefault("CardProduct", {}) \
+                .setdefault("cardConfig", {}).update(got["config"])
+    # The blog card a list that states nothing gets: v3's simple card, as on
+    # v3's own blog page (user, 2026-10-20), where the theme's differs.
+    if map_to_v4_theme and v3_style:
+        blog = _blog_card_setting(v4_theme_key(cfg))
+        if blog:
+            info.setdefault("Widget", {}).setdefault("BlogList", {}).update(blog)
     if include_fonts and isinstance(cfg.get("currentFonts"), dict):
         # {"google": [...]} when the shop uses Google fonts, else {} (the key is
         # still emitted to match the v4 shape).
