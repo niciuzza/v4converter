@@ -26,8 +26,8 @@ from urllib.parse import quote, unquote
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.91"
-LAST_UPDATED = "2026-10-20"
+__version__ = "1.92"
+LAST_UPDATED = "2026-10-28"
 
 # Short summary of what the converter handles — shown in the browser popup.
 # Plain strings; inline HTML (e.g. <code>) is allowed for rendering there.
@@ -41,6 +41,21 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.92", "type": "fix", "date": "2026-10-28", "items": [
+        "<b>แกลเลอรีไม่แสดงชื่อรูปแล้ว</b> — v3 ใช้ชื่อรูปเป็นแค่ alt ไม่ได้แสดงบนหน้า แต่ v4 แสดงใต้ทุกรูป "
+        "ซึ่งส่วนใหญ่เป็นชื่อตั้งต้น \"gallery 1, gallery 2\" · ตอนนี้เก็บเป็น alt เฉพาะชื่อที่ร้านพิมพ์เอง",
+        "จำนวนรูปต่อแถวตามค่าตั้งต้นของ v3 (5 รูป, มือถือ 2 รูป) และแท็บเล็ตใช้จำนวนเดียวกับจอใหญ่ตาม v3 "
+        "· เดิมใช้ 4 รูป และแท็บเล็ตได้ของธีม",
+        "รูปในแกลเลอรีคงสัดส่วนเดิมตาม v3 (<code>auto</code>) · ตัดเป็นจัตุรัสเฉพาะที่ร้านเปิด crop ไว้ "
+        "· เดิมธีม v4 ตัดทุกรูปเป็นจัตุรัส",
+        "แกลเลอรีบนมือถือขึ้นบรรทัดใหม่เป็นตารางตาม v3 · เดิมตั้ง <code>isOverflowX: true</code> ไว้ทุกตัว "
+        "รูปจึงเรียงยาวเลื่อนไปทางขวา ทั้งที่ v3 ไม่เคยทำแบบนั้น",
+        "<b>น้ำหนักตัวอักษรของหัวข้อและคำอธิบายที่ร้านตั้งไว้ไม่หายแล้ว</b> — <code>titleStyle</code> / "
+        "<code>descriptionStyle</code> ที่ตั้งตัวหนาไว้ เดิมไม่ได้อ่านเลย หัวข้อที่ร้านตั้งขนาดไว้จึงออกมาเป็นตัวปกติ "
+        "· ตอนนี้ตัวหนาใช้ typography แบบ <code>_bold</code> · ถ้าไม่ได้ตั้งขนาด ใช้ของธีม v4 แล้วสลับแค่ตัวหนา "
+        "· ถ้าตั้งขนาดแต่ไม่ได้ตั้งน้ำหนัก หนาตามธีม v4 (หัวข้อของทุกธีมเป็นตัวหนา) "
+        "· ตั้งเฉพาะที่ต่างจากธีม",
+    ]},
     {"version": "1.91", "type": "feat", "date": "2026-10-20", "items": [
         "<b>การ์ดสินค้าตาม v3</b> — ตั้งที่ระดับเว็บ: สีชื่อ ราคา ราคาลด และขอบการ์ด อ่านจาก CSS ของธีม v3 "
         "แล้วชี้ไปที่เฉดของร้านที่ใกล้ที่สุด (ราคาลดสีแดงที่ร้านไม่มีเฉดแดง ใช้สีแดงของ v4) · ราคาเดิมและขอบการ์ดใช้สีของ v3 ตรง ๆ "
@@ -4462,6 +4477,29 @@ def _producttab_media_widget(props: dict) -> dict:
 # GallerySection helpers
 # ---------------------------------------------------------------------------
 
+#: the v3 editor's placeholder picture titles: "gallery", "gallery 3"
+_GALLERY_PLACEHOLDER = re.compile(r"\s*gallery\s*\d*\s*", re.I)
+
+
+def _gallery_alt(title):
+    """A gallery picture's alt text: the name the shop typed, or None for a
+    blank or the editor's placeholder."""
+    if not isinstance(title, str) or not title.strip() or _GALLERY_PLACEHOLDER.fullmatch(title):
+        return None
+    return title.strip()
+
+
+def _gallery_cropped(obj, crop_all):
+    """Whether v3 draws a gallery picture cropped square (GallerySection.js)."""
+    if not isinstance(obj, dict) or obj.get("isFullSize"):
+        return False
+    if obj.get("isCropImage") is True:
+        return True
+    if obj.get("isCropImage") is False:
+        return False
+    return bool(crop_all)
+
+
 def build_gallerysection_section(props: dict) -> dict:
     section_info = {}
     if props.get("isFullScreen"):
@@ -4477,20 +4515,42 @@ def build_gallerysection_section(props: dict) -> dict:
     heading = make_node("widget", "WidgetHeading", None,
                         _apply_heading_text_style(props, h_info))
 
-    images = [
-        {"src": obj["image"], "alt": obj.get("title", ""), "headline": {"text": obj.get("title", "")}}
-        for obj in (props.get("galleryObjects") or [])
-    ]
+    # v3 (GallerySection.js) puts a picture's `title` only in its `alt` and
+    # `title` attributes -- never on the page -- so it is no `headline` here
+    # (user, 2026-10-21: "gallery 1, gallery 2 …" showed under every picture).
+    # The `alt` keeps a name the shop typed, not the editor's placeholder.
+    images = []
+    for obj in props.get("galleryObjects") or []:
+        image = {"src": obj["image"]}
+        alt = _gallery_alt(obj.get("title"))
+        if alt:
+            image["alt"] = alt
+        images.append(image)
+    # v3's own defaults are 5 in a row and 2 on a phone; the phone's count is
+    # used only on the mobile template, so a tablet takes the desktop one --
+    # stated at `md` too, or the theme's (Base: 3) shows there.
+    per_row = props.get("galleryNumberInRow") or 5
     gallery_info = {
         "images": images,
-        "layoutGrid": {"isOverflowX": True},
+        # v3 wraps the pictures onto new rows at every width -- its flex
+        # layout (the one every real gallery uses) states `flex-wrap: wrap`,
+        # no theme scrolls it, and the section has no prop for it. Stated
+        # false so a theme cannot turn it into a strip.
+        "layoutGrid": {"isOverflowX": False},
         "layoutGridCols": {
-            "lg": props.get("galleryNumberInRow", 4),
-            "xs": props.get("galleryNumberMobileInRow", 2),
+            "lg": per_row,
+            "md": per_row,
+            "xs": props.get("galleryNumberMobileInRow") or 2,
         },
     }
-    if props.get("isCropAllImages"):
-        gallery_info["elementPictureAspectRatio"] = "1 / 1"
+    # v3 crops a picture square only when told to: the picture's own
+    # `isCropImage` first, else `isCropAllImages`, and `isFullSize` never.
+    # Uncropped keeps the picture's own ratio, stated as "auto" (user,
+    # 2026-10-21) because v4 Base and the themes crop to 1 / 1. One ratio per
+    # widget, so a mix takes what most pictures do.
+    crops = [_gallery_cropped(obj, props.get("isCropAllImages")) for obj in props.get("galleryObjects") or []]
+    gallery_info["elementPictureAspectRatio"] = \
+        "1 / 1" if crops and sum(crops) * 2 > len(crops) else "auto"
     gallery = make_node("widget", "WidgetGalleryList", None, gallery_info)
 
     col_widgets = [heading, gallery]
@@ -14635,6 +14695,16 @@ _V4_NATIVE_BLOG_CARD = {
     "peapea": {"variant": "full-image", "isOverlay": True, "isOverlayGradient": False},
     "ventura": {"variant": "fit-image"},
 }
+_V4_NATIVE_HEADING_TYPO = {
+    "_base": {"titleTypoStyle": "typo_heading_large_bold", "descriptionTypoStyle": "typo_paragraph_xlarge", "captionTypoStyle": "typo_paragraph_small_bold"},
+    "floating": {"titleTypoStyle": "typo_heading_medium_bold", "descriptionTypoStyle": "typo_paragraph_medium"},
+    "forma": {"descriptionTypoStyle": "typo_paragraph_large_bold"},
+    "neoorderly": {"descriptionTypoStyle": "typo_heading_medium"},
+    "recta": {"descriptionTypoStyle": "typo_paragraph_large_bold"},
+    "spaceandstroll": {"descriptionTypoStyle": "typo_paragraph_medium"},
+    "sunnergy": {"descriptionTypoStyle": "typo_paragraph_medium", "captionTypoStyle": "typo_paragraph_medium_bold"},
+    "varinthaispa": {"descriptionTypoStyle": "typo_paragraph_large"},
+}
 # --- END gen_scheme_roles ---
 
 #: What each v3 theme's product card says (`_V3_CARD`) and what each native
@@ -22711,6 +22781,8 @@ _V3_SITE_COLORS = None
 # The plan for the site being converted, set by `convert_site` for one run --
 # the same lifetime and the same reason as `_V3_THEME_ID` below.
 _TYPO_PLAN = None
+#: the v4 theme the site converts onto, while `convert_site` runs
+_V4_THEME_KEY = None
 
 # The shop's v3 theme id (`currentTheme`), for the handful of rules whose answer
 # lives in the theme's CSS rather than in the section's own props. Set by
@@ -23135,18 +23207,38 @@ def _headings_keep_line_breaks(section: dict) -> int:
     return count
 
 
+def _v3_font_bold(weight):
+    """A v3 `fontWeight` (`bold`, `bolder`, `normal`, `lighter`, `700`) as
+    bold or not; None for the editor's blank."""
+    if not isinstance(weight, (str, int)) or str(weight).strip() == "":
+        return None
+    w = str(weight).strip().lower()
+    if w.isdigit():
+        return int(w) >= 600
+    if w in ("bold", "bolder"):
+        return True
+    if w in ("normal", "lighter"):
+        return False
+    return None
+
+
 def _apply_typo_slots(section: dict, props: dict) -> int:
     """Name the typo slot a heading should use, from the size v3 states.
 
     `titleStyle.fontSize` / `descriptionStyle.fontSize` are per-section px
     values; `_TYPO_PLAN` has already decided which of v4's ten slots each one
-    belongs to for this shop. The title takes the `_bold` twin, as every v4
-    native theme does for a heading.
+    belongs to for this shop. A `fontWeight` the shop set makes it the
+    `_bold` twin (or not); with no weight, the slot is as bold as the target
+    theme draws that part. With no size of its own, the weight turns the
+    target theme's class for that part (`_V4_NATIVE_HEADING_TYPO`) bold or
+    not, written only when that differs from the theme's (user, 2026-10-20).
 
     Only the `WidgetHeading`s built from these props are touched, and only
     when the shop actually stated a size -- a section that said nothing keeps
     whatever the theme gives it.
     """
+    native = dict(_V4_NATIVE_HEADING_TYPO.get("_base") or {},
+                  **(_V4_NATIVE_HEADING_TYPO.get((_V4_THEME_KEY or "").lower()) or {}))
     pairs = []
     for key, family, part in (("titleStyle", "heading", "title"),
                               ("descriptionStyle", "paragraph", "description"),
@@ -23154,14 +23246,31 @@ def _apply_typo_slots(section: dict, props: dict) -> int:
         style = props.get(key)
         if not isinstance(style, dict):
             continue
+        bold = _v3_font_bold(style.get("fontWeight"))
         size = style.get("fontSize")
         values = list(size.values()) if isinstance(size, dict) else [size]
+        name = None
         for value in values:
             px_value = _typo_px(value)
             slot = _TYPO_PLAN["lookup"].get((family, px_value)) if px_value else None
             if slot:
-                pairs.append((part, f"typo_{family}_{slot}"))
+                # no weight of its own: as bold as the target theme draws
+                # that part (user, 2026-10-21)
+                weight = bold if bold is not None else \
+                    (native.get(part + "TypoStyle") or "").endswith("_bold")
+                name = f"typo_{family}_{slot}" + ("_bold" if weight else "")
                 break
+        if name is None and bold is not None:
+            # a weight with no size of its own: the theme's class for the
+            # part, its `_bold` twin turned on or off (user, 2026-10-20)
+            theme = native.get(part + "TypoStyle") or ""
+            m = re.fullmatch(r"(typo_[a-z]+_[a-z]+?)(_bold)?", theme)
+            if m:
+                want = m.group(1) + ("_bold" if bold else "")
+                if want != theme:
+                    name = want
+        if name:
+            pairs.append((part, name))
     if not pairs:
         return 0
 
@@ -24442,10 +24551,13 @@ def convert_site(site_json: dict, warnings: list = None,
     `generate_color_scale` are the ones `convert_global` gets, so a `var`
     never points at a step the site's `:root` leaves to the theme.
     """
-    global _GENERATE_CUSTOM_PAGES, _V3_THEME_ID, _TYPO_PLAN, _V3_SITE_CFG, _V3_ROOT_FLAGS
+    global _GENERATE_CUSTOM_PAGES, _V3_THEME_ID, _TYPO_PLAN, _V3_SITE_CFG, _V3_ROOT_FLAGS, \
+        _V4_THEME_KEY
     _previous = _GENERATE_CUSTOM_PAGES
     _previous_theme = _V3_THEME_ID
     _previous_typo = _TYPO_PLAN
+    _previous_v4 = _V4_THEME_KEY
+    _V4_THEME_KEY = v4_theme_key(site_json)
     _previous_site = _V3_SITE_CFG, _V3_ROOT_FLAGS
     _GENERATE_CUSTOM_PAGES = generate_pages
     _V3_THEME_ID = site_json.get("currentTheme")
@@ -24459,6 +24571,7 @@ def convert_site(site_json: dict, warnings: list = None,
         _GENERATE_CUSTOM_PAGES = _previous
         _V3_THEME_ID = _previous_theme
         _TYPO_PLAN = _previous_typo
+        _V4_THEME_KEY = _previous_v4
         _V3_SITE_CFG, _V3_ROOT_FLAGS = _previous_site
 
 
