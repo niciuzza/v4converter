@@ -26,8 +26,8 @@ from urllib.parse import quote, unquote
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.92"
-LAST_UPDATED = "2026-10-28"
+__version__ = "1.93"
+LAST_UPDATED = "2026-10-29"
 
 # Short summary of what the converter handles — shown in the browser popup.
 # Plain strings; inline HTML (e.g. <code>) is allowed for rendering there.
@@ -41,6 +41,13 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.93", "type": "fix", "date": "2026-10-29", "items": [
+        "<b>Banner ไม่แสดงชื่อรูปแล้ว</b> — v3 ไม่ได้แสดงชื่อรูปบนหน้า แต่เดิมแบบรูปเล็กผสมรูปใหญ่ใส่ชื่อเป็นข้อความบนรูป "
+        "(และลบช่องว่างออก) · ตอนนี้ทุกแบบเก็บเป็น alt เฉพาะชื่อที่ร้านพิมพ์เอง ชื่อตั้งต้น \"banner 1, banner 2\" ทิ้งไป",
+        "BannerSlick (สไลด์ banner) ก็เช่นกัน — ชื่อสไลด์เป็น alt · แสดงบนสไลด์เฉพาะที่ร้านเปิดแถบชื่อใต้รูปไว้ตาม v3",
+        "<b>Headline แบบรูปครึ่งจอ (<code>imageAlignBg</code>) ที่ตั้งไว้ 1 คอลัมน์ รูปไม่หายแล้ว</b> — v3 แสดงรูปครึ่งจอเสมอ "
+        "ไม่ว่าจะตั้งกี่คอลัมน์ แต่เดิม converter ทำเฉพาะ 2 คอลัมน์ · ตอนนี้แบ่งเป็นคอลัมน์เนื้อหาและคอลัมน์รูปเหมือนกัน",
+    ]},
     {"version": "1.92", "type": "fix", "date": "2026-10-28", "items": [
         "<b>แกลเลอรีไม่แสดงชื่อรูปแล้ว</b> — v3 ใช้ชื่อรูปเป็นแค่ alt ไม่ได้แสดงบนหน้า แต่ v4 แสดงใต้ทุกรูป "
         "ซึ่งส่วนใหญ่เป็นชื่อตั้งต้น \"gallery 1, gallery 2\" · ตอนนี้เก็บเป็น alt เฉพาะชื่อที่ร้านพิมพ์เอง",
@@ -2617,7 +2624,10 @@ def build_headline_section(props: dict) -> dict:
     pt, pb = merge_classname2_padding(pt, pb, props.get("className2"))
 
     # --- Build columns ---
-    if bg_media_type == "imageAlignBg" and column == 2:
+    # Whatever `column` says: v3 draws the half picture from `.hasImageBGStyle
+    # .imageAlign` (absolute, 50% wide from 750px), which no column count
+    # reaches, so a one-column section still shows it.
+    if bg_media_type == "imageAlignBg":
         # This layout puts a full-bleed background image in one column and content in
         # the other, side by side — section-level padding would inset BOTH columns,
         # breaking the image's full-bleed edge. So whenever there IS a computed padding
@@ -4256,15 +4266,21 @@ def build_bannerslick_section(props: dict) -> dict:
         col_children.append(make_node("widget", "WidgetHeading", None,
                                       _apply_heading_text_style(props, h_info)))
 
+    # v3 prints a slide's title only under `isShowBannerFooter` or on a
+    # `fullpromotion` slide (`BannerSlick.js`) -- no real section sets either --
+    # and otherwise uses it as the picture's alt (`alt || title`).
     banner_objects = props.get("bannerObjects") or []
-    sliders = [
-        {
-            "mediaType": "image",
-            "image": {"src": obj.get("image", "")},
-            "title": {"text": obj.get("title", "")},
-        }
-        for obj in banner_objects
-    ]
+    sliders = []
+    for obj in banner_objects:
+        title = (obj.get("title") or "").strip()
+        image = {"src": obj.get("image", "")}
+        alt = (obj.get("alt") or "").strip() or title
+        if alt:
+            image["alt"] = alt
+        slide = {"mediaType": "image", "image": image}
+        if title and (props.get("isShowBannerFooter") or obj.get("template") == "fullpromotion"):
+            slide["title"] = {"text": title}
+        sliders.append(slide)
     slider_info: dict = {"sliders": sliders}
     if props.get("isCropAllImages"):
         slider_info["cardRatio"] = {"xs": "1 / 1", "lg": "1 / 1"}
@@ -5532,9 +5548,24 @@ def _banner_extract_nickname(title: str):
     return None
 
 
-def _banner_alt_from_title(title: str) -> str:
-    """Convert banner object title to alt text by removing spaces. 'banner 1' → 'banner1'."""
-    return (title or "").replace(" ", "")
+_BANNER_PLACEHOLDER = re.compile(r"\s*banner\s*\d*\s*", re.I)
+
+
+def _banner_alt(title):
+    """A banner picture's alt text: the name the shop typed, or None for a
+    blank or the editor's placeholder ("banner 3" -- 51 of 66 real pictures).
+    v3 never shows it on the page, the same as a gallery picture's title."""
+    if not isinstance(title, str) or not title.strip() or _BANNER_PLACEHOLDER.fullmatch(title):
+        return None
+    return title.strip()
+
+
+def _banner_image(b: dict) -> dict:
+    image = {"src": b["image"]}
+    alt = _banner_alt(b.get("title"))
+    if alt:
+        image["alt"] = alt
+    return image
 
 
 def _banner_effect_hover(props: dict):
@@ -5568,10 +5599,7 @@ def _banner_grid_cols(template: str) -> str:
 def _banner_gallery_list_widget(props: dict) -> dict:
     """WidgetGalleryList — used when hasModalClick is true."""
     banner_objects = props.get("bannerObjects") or []
-    images = [
-        {"src": b["image"], "alt": _banner_alt_from_title(b.get("title", ""))}
-        for b in banner_objects
-    ]
+    images = [_banner_image(b) for b in banner_objects]
     template = props.get("bannerDesktopTemplate", "") or props.get("bannerTemplate", "")
     info = {
         "images":         images,
@@ -5590,8 +5618,7 @@ def _banner_banner_widget(props: dict) -> dict:
     banners = [
         {
             "mediaType": "image",
-            "image":     {"src": b["image"]},
-            "title":     {"text": _banner_alt_from_title(b.get("title", ""))},
+            "image":     _banner_image(b),
             "to":        b.get("link", ""),
         }
         for b in banner_objects
@@ -5613,7 +5640,7 @@ def _banner_feature_list_widget(props: dict) -> dict:
     features = [
         {
             "mediaType":   "image",
-            "image":       {"src": b["image"], "alt": _banner_alt_from_title(b.get("title", ""))},
+            "image":       _banner_image(b),
             "to":          b.get("link", ""),
             "isShowMedia": True,
         }
