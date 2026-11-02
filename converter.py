@@ -26,7 +26,7 @@ from urllib.parse import quote, unquote
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.93"
+__version__ = "1.94"
 LAST_UPDATED = "2026-10-29"
 
 # Short summary of what the converter handles — shown in the browser popup.
@@ -41,6 +41,10 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.94", "type": "fix", "date": "2026-10-29", "items": [
+        "<b>เมนูข้างในมือถือไม่กลับสีแล้ว</b> — v3 ปิด dark mode ของเมนูข้างไว้ (พื้นขาว) แต่เดิม converter ใส่ "
+        "<code>color-scheme-inverse</code> ให้ และเปิด dark mode กลับได้ <code>color-scheme-main</code> · ตอนนี้ตรงกับ v3 แล้ว",
+    ]},
     {"version": "1.93", "type": "fix", "date": "2026-10-29", "items": [
         "<b>Banner ไม่แสดงชื่อรูปแล้ว</b> — v3 ไม่ได้แสดงชื่อรูปบนหน้า แต่เดิมแบบรูปเล็กผสมรูปใหญ่ใส่ชื่อเป็นข้อความบนรูป "
         "(และลบช่องว่างออก) · ตอนนี้ทุกแบบเก็บเป็น alt เฉพาะชื่อที่ร้านพิมพ์เอง ชื่อตั้งต้น \"banner 1, banner 2\" ทิ้งไป",
@@ -7029,10 +7033,13 @@ def _header_mnl_extra(props: dict) -> dict:
             extra["isDrawerLogo"] = True
             extra["drawerLogoMode"] = "custom"
             extra["drawerLogo"] = {"src": logo_side or logo}
+    # v3's side pane is white (`Global.css` `.sideZone .sidePane`) and turns
+    # to the theme's dark ground only under `isDarkMode` -- the same way round
+    # as every other pane. Both states are written so a theme cannot flip it.
     side = props.get("sideMenuPane") or {}
     dark = side.get("isDarkMode")
     if dark is not None:
-        extra["sidePaneColorScheme"] = "color-scheme-main" if dark else "color-scheme-inverse"
+        extra["sidePaneColorScheme"] = "color-scheme-inverse" if dark else "color-scheme-main"
     return extra
 
 
