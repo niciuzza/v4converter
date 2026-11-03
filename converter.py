@@ -26,8 +26,8 @@ from urllib.parse import quote, unquote
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.94"
-LAST_UPDATED = "2026-10-29"
+__version__ = "1.96"
+LAST_UPDATED = "2026-11-03"
 
 # Short summary of what the converter handles — shown in the browser popup.
 # Plain strings; inline HTML (e.g. <code>) is allowed for rendering there.
@@ -41,6 +41,18 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.96", "type": "feat", "date": "2026-11-03", "items": [
+        "<b>ระยะบน-ล่างของ section ใช้ของธีม v4 แทนค่าที่ร้านตั้งไว้ใน v3</b> — ระยะของธีมดูสม่ำเสมอกว่า "
+        "· ยกเว้น <b>0</b> และค่าเล็ก ๆ ไม่เกิน <b>24px</b> ซึ่งร้านตั้งใจให้ section ชิดกัน จะคงไว้ตาม v3 "
+        "· ตัดสินแยกทีละด้าน (บน/ล่าง) และทีละขนาดจอ",
+        "Section แบบรูปครึ่งจอ (<code>imageAlignBg</code>) ยังใช้ระยะของ v3 เต็ม ๆ เพราะระยะนั้นอยู่ที่คอลัมน์ ซึ่งธีมไม่มีค่าให้",
+    ]},
+    {"version": "1.95", "type": "fix", "date": "2026-11-03", "items": [
+        "<b>Blog ที่ตั้งเต็มความกว้างใน v3 ออกมาเต็มความกว้างแล้ว</b> — เดิม converter ไม่อ่านค่านี้ของ BlogSection เลย "
+        "ออกมาเป็นกรอบปกติ · ตอนนี้ใส่ <code>isFullwidth</code> ให้ ระยะขอบซ้ายขวาคงไว้ตาม v3",
+        "<b>Banner (รูปแบนเนอร์หลายรูป) ที่ตั้งเต็มความกว้าง ออกมาเต็มความกว้างแล้ว</b> — เป็น section สุดท้ายที่ยังไม่อ่านค่านี้ "
+        "· ตอนนี้ทุก section ที่ v3 ตั้งเต็มความกว้าง ได้ <code>isFullwidth</code> เหมือนกันหมด",
+    ]},
     {"version": "1.94", "type": "fix", "date": "2026-10-29", "items": [
         "<b>เมนูข้างในมือถือไม่กลับสีแล้ว</b> — v3 ปิด dark mode ของเมนูข้างไว้ (พื้นขาว) แต่เดิม converter ใส่ "
         "<code>color-scheme-inverse</code> ให้ และเปิด dark mode กลับได้ <code>color-scheme-main</code> · ตอนนี้ตรงกับ v3 แล้ว",
@@ -1501,14 +1513,50 @@ def parse_classname2_padding(class2) -> tuple:
     return pt, pb
 
 
-def merge_classname2_padding(pt: dict, pb: dict, class2) -> tuple:
+#: The largest v3 section padding still carried (v1.96). At or below it the
+#: merchant asked for a *tight* section -- the same intent as `0`, and 67 real
+#: sections set 1-24px; above it the value is v3's version of normal spacing
+#: (93 sections at 64-120px, against Base's 64/72/96), so the theme says it.
+_DELIBERATE_PADDING_MAX_PX = 24
+
+_PX_PER_UNIT = {"px": 1, "rem": 16, "em": 16}
+
+
+def _keep_deliberate_padding(pt: dict, pb: dict) -> tuple:
+    """Drop every padding the theme should own, per side and per breakpoint.
+
+    User, 2026-11-03: a v4 theme's section padding looks better than the
+    custom px a v3 shop typed in -- except `0`, which is set on purpose
+    (flush to the next section), and small values, which are the same wish.
+    So `0` and anything up to `_DELIBERATE_PADDING_MAX_PX` stay; larger
+    values go and the theme's `sectionPadding*` applies. A unit that cannot
+    be read as px (`%`, `vw`) is kept: there is no telling what it means.
+    """
+    def keep(size):
+        if not isinstance(size, dict):
+            return True
+        factor = _PX_PER_UNIT.get(size.get("unit"))
+        value = size.get("value")
+        if factor is None or not isinstance(value, (int, float)):
+            return True
+        return value * factor <= _DELIBERATE_PADDING_MAX_PX
+    return ({bp: v for bp, v in pt.items() if keep(v)},
+            {bp: v for bp, v in pb.items() if keep(v)})
+
+
+def merge_classname2_padding(pt: dict, pb: dict, class2, keep_all: bool = False) -> tuple:
     """Layer `className2`'s utility-class padding UNDER explicit `sectionStyle.padding`
     (`pt`/`pb`, already breakpoint-keyed) -- v3 renders an explicit padding value as
     inline style, which wins over the `!important` utility class at that exact
     breakpoint+side (confirmed by the user, 2026-08-05); className2 only fills in
-    breakpoints/sides the explicit padding leaves unset."""
+    breakpoints/sides the explicit padding leaves unset.
+
+    Then only the deliberate values survive (`_keep_deliberate_padding`, v1.96).
+    `keep_all` is for a layout that moves the padding onto a column, where no
+    theme default exists to fall back on."""
     c2_pt, c2_pb = parse_classname2_padding(class2)
-    return {**c2_pt, **pt}, {**c2_pb, **pb}
+    pt, pb = {**c2_pt, **pt}, {**c2_pb, **pb}
+    return (pt, pb) if keep_all else _keep_deliberate_padding(pt, pb)
 
 
 def section_padding_info(props: dict) -> dict:
@@ -2199,7 +2247,8 @@ def build_content_col_imagealignbg(props: dict, image_align: str) -> dict:
     col_info = {"span": {"xs": 12, "lg": 6}}
     if image_align != "imageRight":
         col_info["order"] = {"xs": 2}
-    pt, pb = _paragraph_padding(props)
+    # a column has no theme padding to fall back on, so v3's value is kept whole
+    pt, pb = _paragraph_padding(props, keep_all=True)
     if pt: col_info["paddingTop"]    = pt
     if pb: col_info["paddingBottom"] = pb
     return make_node("col", None, None, col_info, build_content_widgets(props))
@@ -2276,7 +2325,7 @@ def build_single_col(props: dict) -> dict:
 # Row builder
 # ---------------------------------------------------------------------------
 
-def _paragraph_padding(props: dict):
+def _paragraph_padding(props: dict, keep_all: bool = False):
     """`(paddingTop, paddingBottom)` for a ParagraphSection, from
     `sectionStyle.padding` merged with `className2`.
 
@@ -2292,7 +2341,7 @@ def _paragraph_padding(props: dict):
     if xl_pad.get("top")    is not None: pt["lg"] = parse_size(xl_pad["top"])
     if sm_pad.get("bottom") is not None: pb["xs"] = parse_size(sm_pad["bottom"])
     if xl_pad.get("bottom") is not None: pb["lg"] = parse_size(xl_pad["bottom"])
-    return merge_classname2_padding(pt, pb, props.get("className2"))
+    return merge_classname2_padding(pt, pb, props.get("className2"), keep_all)
 
 
 def build_row(props: dict) -> dict:
@@ -2361,7 +2410,7 @@ def build_paragraph_section(props: dict) -> dict:
         section_info["isFullwidth"] = True
 
     # --- Padding ---
-    pt, pb = _paragraph_padding(props)
+    pt, pb = _paragraph_padding(props, keep_all=True)
     if (props.get("bgMediaType") == "imageAlignBg" and props.get("column") == 2
             and (pt or pb)):
         # Same rule Headline has had since 2026-08-06: this layout puts a
@@ -2383,6 +2432,7 @@ def build_paragraph_section(props: dict) -> dict:
             section_info["isFullwidth"] = True
         section_info["paddingX"] = dict(zero)
     else:
+        pt, pb = _keep_deliberate_padding(pt, pb)
         if pt: section_info["paddingTop"]    = pt
         if pb: section_info["paddingBottom"] = pb
 
@@ -2625,7 +2675,11 @@ def build_headline_section(props: dict) -> dict:
     for src, bp in ((sm_pad, "xs"), (xl_pad, "lg"), (md_pad, "md")):
         if src.get("top")    is not None: pt[bp] = parse_size(src["top"])
         if src.get("bottom") is not None: pb[bp] = parse_size(src["bottom"])
-    pt, pb = merge_classname2_padding(pt, pb, props.get("className2"))
+    # whole for the imageAlignBg content column below; every other layout puts
+    # it on the section, where only the deliberate values stay (v1.96)
+    pt, pb = merge_classname2_padding(pt, pb, props.get("className2"), keep_all=True)
+    if bg_media_type != "imageAlignBg":
+        pt, pb = _keep_deliberate_padding(pt, pb)
 
     # --- Build columns ---
     # Whatever `column` says: v3 draws the half picture from `.hasImageBGStyle
@@ -3446,7 +3500,9 @@ def build_slideshow_section(props: dict) -> dict:
     for src, bp in ((sm_pad, "xs"), (xl_pad, "lg"), (md_pad, "md")):
         if src.get("top")    is not None: pt[bp] = parse_size(src["top"])
         if src.get("bottom") is not None: pb[bp] = parse_size(src["bottom"])
-    pt, pb = merge_classname2_padding(pt, pb, props.get("className2"))
+    stated_pt, stated_pb = merge_classname2_padding(pt, pb, props.get("className2"),
+                                                    keep_all=True)
+    pt, pb = _keep_deliberate_padding(stated_pt, stated_pb)
     # A slideshow with no text over it is `.onlySlideshow` in v3, and that
     # class zeroes the container's VERTICAL padding at every width
     # (`ContentSection.css:1095`). Only `>=1200px` puts it back, and only when
@@ -3479,9 +3535,13 @@ def build_slideshow_section(props: dict) -> dict:
         # one overrides it, so `md` between two zeroes is noise (user,
         # 2026-09-22). Same shape as `containerPaddingX` above.
         for bp in ("xs", "lg"):
-            # v3's own JSON wins wherever the shop set a value by hand.
-            pt.setdefault(bp, {"value": 0, "unit": "px"})
-            pb.setdefault(bp, {"value": 0, "unit": "px"})
+            # Only where the shop set nothing: a value typed by hand is still
+            # the shop's choice of spacing, and since v1.96 a normal-sized one
+            # goes to the theme -- the 0 must not take its place.
+            if bp not in stated_pt:
+                pt[bp] = {"value": 0, "unit": "px"}
+            if bp not in stated_pb:
+                pb[bp] = {"value": 0, "unit": "px"}
     if pt: section_info["paddingTop"]    = pt
     if pb: section_info["paddingBottom"] = pb
 
@@ -5145,7 +5205,11 @@ def build_blog_section(props: dict) -> dict:
         if src.get("top")    is not None: pt[bp] = parse_size(src["top"])
         if src.get("bottom") is not None: pb[bp] = parse_size(src["bottom"])
     pt, pb = merge_classname2_padding(pt, pb, props.get("className2"))
-    section_info = {}
+    # v3 adds `fullwidth` to the container (`BlogSection.js`), which
+    # `Global.css` widens to `max-width: none` and keeps its side padding --
+    # so the flag alone, no `containerPaddingX`. `false` is not written: no
+    # theme sets `isFullwidth`, so silence already means the boxed container.
+    section_info = {"isFullwidth": True} if props.get("isFullScreen") else {}
     if pt: section_info["paddingTop"]    = pt
     if pb: section_info["paddingBottom"] = pb
     bg = _section_bg_color(props)
@@ -5668,6 +5732,8 @@ def build_bannersection_section(props: dict) -> dict:
     section.kind:
       bannerDesktopTemplate starts with 'r' → null
       otherwise                             → "About"
+
+    isFullScreen → section.info.isFullwidth: true
     """
     template = props.get("bannerDesktopTemplate", "") or props.get("bannerTemplate", "")
 
@@ -5699,7 +5765,10 @@ def build_bannersection_section(props: dict) -> dict:
 
     col = make_node("col", None, None, {}, col_children)
     row = make_node("row", None, None, {}, [col])
-    return make_node("section", kind, nickname, {}, [row])
+    # v3's `isFullScreen` is the same container switch on every section;
+    # this builder was the last one not reading it (v1.95).
+    section_info = {"isFullwidth": True} if props.get("isFullScreen") else {}
+    return make_node("section", kind, nickname, section_info, [row])
 
 
 # ---------------------------------------------------------------------------
