@@ -26,7 +26,7 @@ from urllib.parse import quote, unquote
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.96"
+__version__ = "1.98"
 LAST_UPDATED = "2026-11-03"
 
 # Short summary of what the converter handles — shown in the browser popup.
@@ -41,6 +41,16 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.98", "type": "fix", "date": "2026-11-03", "items": [
+        "<b>สไลด์ที่ไม่มีจุดและไม่มีข้อความ ไม่มีช่องว่างใต้รูปแล้ว</b> — เดิมระยะ padding และ gap ของการ์ดสไลด์ (28px จากธีม) "
+        "เหลือเป็นแถบว่างใต้รูป ดูเหมือนมี padding ด้านล่าง · ตอนนี้ใส่ 0 ให้สไลด์แบบนี้ทุกตัว ทั้งมือถือและจอใหญ่",
+    ]},
+    {"version": "1.97", "type": "fix", "date": "2026-11-03", "items": [
+        "<b>ลูกศรและจุดของสไลด์ตรงตาม v3 ทุกแบบแล้ว</b> — ที่ร้านปิดไว้ใน v3 จะปิดใน v4 ด้วย ที่เปิดไว้ก็เปิด",
+        "BannerSlick (สไลด์ banner): เดิมไม่อ่านค่านี้เลย จุดที่ v3 แสดงจึงหายไป · ตอนนี้แสดงตาม v3",
+        "สไลด์คูปองและโปรโมชัน: เดิมเปิดลูกศรและแถบเลื่อนไว้ตลอด · ตอนนี้ตามค่าของ v3 (จุดของ v3 = แถบเลื่อนของ v4 เพราะ v4 ไม่มีจุดในแบบนี้)",
+        "SlideShow ที่วางลูกศรไว้ด้านล่าง: ถ้าปิดลูกศรไว้ จะไม่กลับมาแสดงแล้ว",
+    ]},
     {"version": "1.96", "type": "feat", "date": "2026-11-03", "items": [
         "<b>ระยะบน-ล่างของ section ใช้ของธีม v4 แทนค่าที่ร้านตั้งไว้ใน v3</b> — ระยะของธีมดูสม่ำเสมอกว่า "
         "· ยกเว้น <b>0</b> และค่าเล็ก ๆ ไม่เกิน <b>24px</b> ซึ่งร้านตั้งใจให้ section ชิดกัน จะคงไว้ตาม v3 "
@@ -3227,6 +3237,25 @@ def _slideshow_outer_button(props: dict):
     return make_node("widget", "WidgetButtonGroup", None, info)
 
 
+_FLUSH_CARD_KEYS = ("cardPadding", "cardPaddingTop", "cardPaddingRight",
+                    "cardPaddingBottom", "cardPaddingLeft", "cardGap")
+
+
+def _flush_slider_card(info: dict) -> None:
+    """Zero the card padding and gap of a slider with nothing to space out.
+
+    v4's slider card takes `:root`'s `cardPadding` / `cardGap` (Base 28px at
+    `xs`; several themes also set `lg`), and with no dots and no text on the
+    card that space is left as an empty band under the picture -- a slider
+    that looks like it has bottom padding (user, on a real shop's home page,
+    2026-11-03). The keys are the ones the v4 editor writes for that (user's
+    export); `xs` and `lg` both, because the theme states both.
+    """
+    zero = {"xs": {"value": 0, "unit": "px"}, "lg": {"value": 0, "unit": "px"}}
+    for key in _FLUSH_CARD_KEYS:
+        info[key] = {bp: dict(v) for bp, v in zero.items()}
+
+
 def _slideshow_widget(props: dict) -> dict:
     """WidgetSlider — the main slider widget."""
     is_show_content = props.get("isShowSlideContent", True)
@@ -3345,13 +3374,13 @@ def _slideshow_widget(props: dict) -> dict:
     if has_dots:
         config["paginationType"] = "bullets"
 
+    # Always stated, and independent of the position: `arrowsBottomInside`
+    # used to write the position *instead of* `hasArrows`, so a shop that
+    # turned the arrows off there got them back (v1.97).
+    config["hasArrows"] = bool(has_arrows)
     arrows_pos = props.get("arrowsPosition") or ""
-    if arrows_pos == "arrowsBottomInside":
+    if has_arrows and arrows_pos == "arrowsBottomInside":
         config["arrowsPosition"] = "bottom"
-    elif not has_arrows:
-        config["hasArrows"] = False
-    else:
-        config["hasArrows"] = True
 
     # Autoplay -- strongest signal first, so an inference can never overrule a
     # value v3 actually stated.
@@ -3436,6 +3465,10 @@ def _slideshow_widget(props: dict) -> dict:
             info["mediaRatio"] = "1 / 1"
         else:
             info["cardRatio"] = {"xs": "1 / 1", "lg": "1 / 1"}
+
+    # v1.98: no dots and no content -> the card's spacing is an empty band
+    if not has_dots and not is_show_content:
+        _flush_slider_card(info)
 
     return make_node("widget", "WidgetSlider", None, info)
 
@@ -4348,7 +4381,21 @@ def build_bannerslick_section(props: dict) -> dict:
     slider_info: dict = {"sliders": sliders}
     if props.get("isCropAllImages"):
         slider_info["cardRatio"] = {"xs": "1 / 1", "lg": "1 / 1"}
-    slider_info["slideConfig"] = {"slidesPerView": 4}
+    # v3 hands `hasDots` / `hasArrows` straight to slick (`BannerSlick.js`,
+    # both default `true`); this builder read neither until v1.97, so the
+    # dots v3 drew were missing and a shop's "off" was ignored. Both states
+    # are written, like the slideshow's.
+    has_dots = bool(props.get("hasDots", True))
+    slide_config = {"slidesPerView": 4,
+                    "hasArrows": bool(props.get("hasArrows", True)),
+                    "hasPagination": has_dots}
+    if has_dots:
+        slide_config["paginationType"] = "bullets"
+    slider_info["slideConfig"] = slide_config
+    # no dots and no caption on any slide: nothing for the card's spacing to
+    # hold (`isShowContent` is Base's `false` here), see `_flush_slider_card`
+    if not has_dots and not any("title" in sl for sl in sliders):
+        _flush_slider_card(slider_info)
     col_children.append(make_node("widget", "WidgetSlider", None, slider_info))
 
     # The ground the shop picked, like every other section (2026-10-16: a
@@ -5775,6 +5822,23 @@ def build_bannersection_section(props: dict) -> dict:
 # Section builder: PromotionSlick → PromotionList
 # ---------------------------------------------------------------------------
 
+def _slick_carousel_grid(props: dict) -> dict:
+    """`layoutGrid` for a PromotionSlick / CouponSlick carousel.
+
+    v4's carousel grid has arrows and a scrollbar, no dots, so v3's dots
+    become the scrollbar -- the pairing the hand-made examples use
+    (`example/sections/output-coupon.json`, `output-promotion.json`). Both
+    were hardcoded on until v1.97; a v3 section that says nothing keeps them
+    on, as before.
+    """
+    return {
+        "template":                "carousel",
+        "isCarouselOverflowRight": True,
+        "isCarouselArrows":        bool(props.get("hasArrows", True)),
+        "isCarouselScrollbar":     bool(props.get("hasDots", True)),
+    }
+
+
 def build_promotionslick_section(props: dict) -> dict:
     """Build PromotionSlick → section > row > col > [WidgetHeading, WidgetPromotionList, WidgetButtonGroup?].
 
@@ -5803,12 +5867,7 @@ def build_promotionslick_section(props: dict) -> dict:
     # WidgetPromotionList
     promo_info = {}
     if props.get("isUseSlick"):
-        promo_info["layoutGrid"] = {
-            "template":               "carousel",
-            "isCarouselOverflowRight": True,
-            "isCarouselArrows":        True,
-            "isCarouselScrollbar":     True,
-        }
+        promo_info["layoutGrid"] = _slick_carousel_grid(props)
         if props.get("bannerAnimation"):
             promo_info["layoutCard"] = {"effectHover": {"item": "grow"}}
     col_children.append(make_node("widget", "WidgetPromotionList", None, promo_info))
@@ -5857,12 +5916,7 @@ def build_couponslick_section(props: dict) -> dict:
     # WidgetCouponList
     coupon_info = {}
     if props.get("isUseSlick"):
-        coupon_info["layoutGrid"] = {
-            "template":               "carousel",
-            "isCarouselOverflowRight": True,
-            "isCarouselScrollbar":     True,
-            "isCarouselArrows":        True,
-        }
+        coupon_info["layoutGrid"] = _slick_carousel_grid(props)
     col_children.append(make_node("widget", "WidgetCouponList", None, coupon_info))
 
     # WidgetButtonGroup (when button text is present)
