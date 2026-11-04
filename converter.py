@@ -26,7 +26,7 @@ from urllib.parse import quote, unquote
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.100"
+__version__ = "1.101"
 LAST_UPDATED = "2026-11-04"
 
 # Short summary of what the converter handles — shown in the browser popup.
@@ -41,6 +41,10 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.101", "type": "fix", "date": "2026-11-04", "items": [
+        "<b>ไอคอนข้างช่องค้นหา (searchBox) เรียงเป็นแถวเดียวแล้ว</b> — เดิมตั้ง grid ไว้ 2 คอลัมน์ตายตัว ไอคอน 6 อันจึงแตกเป็น 3 แถว · "
+        "ตอนนี้จำนวนคอลัมน์เท่ากับจำนวนไอคอนในฝั่งนั้น",
+    ]},
     {"version": "1.100", "type": "fix", "date": "2026-11-04", "items": [
         "<b>สไลด์ banner (BannerSlick) เล่นแบบเดียวกับ v3</b> — ภาพแรกอยู่กลาง วนต่อเนื่อง และเลื่อนเองทุก 4 วินาที "
         "(เดิม v4 เริ่มชิดซ้าย ไม่วน ไม่เลื่อนเอง) · จำนวนภาพที่เห็นพร้อมกันยังเป็น 4 เหมือนเดิม",
@@ -7291,12 +7295,15 @@ def _searchbox_bullet_list(image_objects: list):
 
     if not bullets:
         return None
+    # v3 has no column count for these areas; the items sit in one line, so
+    # the grid gets one column per item (user, 2026-11-04 -- was a flat "2"
+    # copied from an example that happened to have two).
     return {
         "bulletLists": bullets,
         "elementBulletListDirection": "row",
         "elementBulletListAlign": "center",
         "layout": "grid",
-        "bulletGridCols": {"lg": "2"},
+        "bulletGridCols": {"lg": str(len(bullets))},
     }
 
 
