@@ -26,7 +26,7 @@ from urllib.parse import quote, unquote
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.99"
+__version__ = "1.100"
 LAST_UPDATED = "2026-11-04"
 
 # Short summary of what the converter handles — shown in the browser popup.
@@ -41,6 +41,11 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.100", "type": "fix", "date": "2026-11-04", "items": [
+        "<b>สไลด์ banner (BannerSlick) เล่นแบบเดียวกับ v3</b> — ภาพแรกอยู่กลาง วนต่อเนื่อง และเลื่อนเองทุก 4 วินาที "
+        "(เดิม v4 เริ่มชิดซ้าย ไม่วน ไม่เลื่อนเอง) · จำนวนภาพที่เห็นพร้อมกันยังเป็น 4 เหมือนเดิม",
+        "สไลด์ banner เต็มความกว้างเสมอ (v3 ตั้ง padding ซ้ายขวาเป็น 0 ทุกกรณี) และแสดงภาพเต็มรูป (<code>fit-image</code>) ไม่ครอปตามการ์ด",
+    ]},
     {"version": "1.99", "type": "fix", "date": "2026-11-04", "items": [
         "<b>สไลด์สินค้าที่มีจุด มีที่ให้จุดแล้ว</b> — เดิมจุดใต้รายการสินค้าไม่มีที่ว่าง ไปทับ section ถัดไป · "
         "ตอนนี้เว้นระยะด้านล่าง 40px ให้สไลด์สินค้าที่เปิดจุดไว้",
@@ -4358,9 +4363,10 @@ def build_productsection_section(props: dict) -> dict:
 
 
 def build_bannerslick_section(props: dict) -> dict:
-    section_info = {}
-    if props.get("isFullScreen"):
-        section_info["isFullwidth"] = True
+    # Always full width, whatever `isFullScreen` says: v3 sets this section's
+    # side padding to 0 either way, so the strip runs edge to edge. v4 has no
+    # padding-only switch, and full width is the same look (user, 2026-11-04).
+    section_info = {"isFullwidth": True}
     title_text = props.get("title") or ""
     desc_text  = props.get("description") or ""
     col_children = []
@@ -4388,7 +4394,8 @@ def build_bannerslick_section(props: dict) -> dict:
         if title and (props.get("isShowBannerFooter") or obj.get("template") == "fullpromotion"):
             slide["title"] = {"text": title}
         sliders.append(slide)
-    slider_info: dict = {"sliders": sliders}
+    # the whole picture, not cropped to the card (user, 2026-11-04)
+    slider_info: dict = {"sliders": sliders, "variant": "fit-image"}
     if props.get("isCropAllImages"):
         slider_info["cardRatio"] = {"xs": "1 / 1", "lg": "1 / 1"}
     # v3 hands `hasDots` / `hasArrows` straight to slick (`BannerSlick.js`,
@@ -4401,6 +4408,17 @@ def build_bannerslick_section(props: dict) -> dict:
                     "hasPagination": has_dots}
     if has_dots:
         slide_config["paginationType"] = "bullets"
+    # v3's slick defaults (`BannerSlick.js`): centred, looping, autoplaying
+    # every 4s, each read from `slideContentConfig` when the shop set it.
+    # Base has all three off and 5000ms, so they are stated. The count stays 4
+    # -- v3 shows as many as fit (`variableWidth`), v4 takes one number, and
+    # the user chose to leave it (2026-11-04).
+    slick = props.get("slideContentConfig") or {}
+    slide_config["isCenter"] = bool(slick.get("centerMode", True))
+    slide_config["isLoop"] = bool(slick.get("infinite", True))
+    slide_config["isAutoplay"] = bool(slick.get("autoplay", True))
+    if slide_config["isAutoplay"]:
+        slide_config["autoplaySpeed"] = _to_int(slick.get("autoplaySpeed"), 4000)
     slider_info["slideConfig"] = slide_config
     # no dots and no caption on any slide: nothing for the card's spacing to
     # hold (`isShowContent` is Base's `false` here), see `_flush_slider_card`
