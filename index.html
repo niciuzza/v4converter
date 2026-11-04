@@ -1021,7 +1021,9 @@
         "    _result = []\n    _errors = []\n" +
         "    for i, section in enumerate(_input):\n" +
         "        try:\n" +
-        "            _result.append(convert_section(section, _twarns))\n" +
+        "            _sec = convert_section(section, _twarns)\n" +
+        "            if _sec is not None:\n" +
+        "                _result.append(_sec)\n" +
         "        except ValueError as e:\n" +
         "            _errors.append((i, section.get('name', '?'), str(e)))\n" +
         "else:\n" +

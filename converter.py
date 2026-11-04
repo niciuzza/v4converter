@@ -26,7 +26,7 @@ from urllib.parse import quote, unquote
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.101"
+__version__ = "1.102"
 LAST_UPDATED = "2026-11-04"
 
 # Short summary of what the converter handles — shown in the browser popup.
@@ -41,6 +41,10 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.102", "type": "fix", "date": "2026-11-04", "items": [
+        "<b>สไลด์ที่ไม่มีภาพเลย ไม่สร้างแล้ว</b> — v3 ไม่แสดงอะไรเลยเมื่อไม่มีภาพ แต่เดิม v4 ได้สไลด์ว่าง · "
+        "ถ้า section นั้นไม่มีอย่างอื่นอีก จะข้ามทั้ง section · ถ้ามีเนื้อหาอื่น (ข้อความ ปุ่ม) จะเก็บ section ไว้ แค่ไม่ใส่สไลด์",
+    ]},
     {"version": "1.101", "type": "fix", "date": "2026-11-04", "items": [
         "<b>ไอคอนข้างช่องค้นหา (searchBox) เรียงเป็นแถวเดียวแล้ว</b> — เดิมตั้ง grid ไว้ 2 คอลัมน์ตายตัว ไอคอน 6 อันจึงแตกเป็น 3 แถว · "
         "ตอนนี้จำนวนคอลัมน์เท่ากับจำนวนไอคอนในฝั่งนั้น",
@@ -23711,6 +23715,29 @@ def _is_section_hidden(props: dict) -> bool:
     return (props.get("displayStatus") or "") == "hide"
 
 
+def _drop_empty_sliders(node: dict) -> bool:
+    """Remove every `WidgetSlider` with no slides under `node`; True if any went."""
+    dropped = False
+    kids = node.get("children") or []
+    keep = []
+    for ch in kids:
+        if (isinstance(ch, dict) and ch.get("kind") == "WidgetSlider"
+                and not (ch.get("info") or {}).get("sliders")):
+            dropped = True
+            continue
+        if isinstance(ch, dict) and _drop_empty_sliders(ch):
+            dropped = True
+        keep.append(ch)
+    if dropped:
+        node["children"] = keep
+    return dropped
+
+
+def _has_widget(node: dict) -> bool:
+    return any(isinstance(ch, dict) and (ch.get("type") == "widget" or _has_widget(ch))
+               for ch in node.get("children") or [])
+
+
 def convert_section(old_json: dict, warnings: list = None) -> dict:
     name    = old_json.get("name", "")
     props   = old_json.get("props", {})
@@ -23721,6 +23748,13 @@ def convert_section(old_json: dict, warnings: list = None) -> dict:
             "Add a builder function and register it in SECTION_BUILDERS."
         )
     result = builder(props)
+    # A slider with no pictures draws nothing in v3 (an empty `slideObjects`),
+    # so it is not emitted; a section left with no widget at all is skipped,
+    # the way v1.72 stopped emitting an empty page (user, 2026-11-04). Its
+    # empty column stays when the section has other content -- it holds the
+    # layout.
+    if result is not None and _drop_empty_sliders(result) and not _has_widget(result):
+        return None
     # CustomHtml: the widget is empty by design — the v3 HTML is not embedded
     # (v4 keeps custom HTML in the shop's manage area). Warn so the designer
     # knows to paste it there.
@@ -25253,7 +25287,9 @@ def main():
         result = []
         for i, section in enumerate(data):
             try:
-                result.append(convert_section(section, sec_warnings))
+                converted = convert_section(section, sec_warnings)
+                if converted is not None:
+                    result.append(converted)
             except ValueError as e:
                 print(f"⚠️  Skipping section {i} ({section.get('name', '?')}): {e}")
     else:
