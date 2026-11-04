@@ -26,8 +26,8 @@ from urllib.parse import quote, unquote
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.98"
-LAST_UPDATED = "2026-11-03"
+__version__ = "1.99"
+LAST_UPDATED = "2026-11-04"
 
 # Short summary of what the converter handles — shown in the browser popup.
 # Plain strings; inline HTML (e.g. <code>) is allowed for rendering there.
@@ -41,6 +41,10 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.99", "type": "fix", "date": "2026-11-04", "items": [
+        "<b>สไลด์สินค้าที่มีจุด มีที่ให้จุดแล้ว</b> — เดิมจุดใต้รายการสินค้าไม่มีที่ว่าง ไปทับ section ถัดไป · "
+        "ตอนนี้เว้นระยะด้านล่าง 40px ให้สไลด์สินค้าที่เปิดจุดไว้",
+    ]},
     {"version": "1.98", "type": "fix", "date": "2026-11-03", "items": [
         "<b>สไลด์ที่ไม่มีจุดและไม่มีข้อความ ไม่มีช่องว่างใต้รูปแล้ว</b> — เดิมระยะ padding และ gap ของการ์ดสไลด์ (28px จากธีม) "
         "เหลือเป็นแถบว่างใต้รูป ดูเหมือนมี padding ด้านล่าง · ตอนนี้ใส่ 0 ให้สไลด์แบบนี้ทุกตัว ทั้งมือถือและจอใหญ่",
@@ -4221,6 +4225,12 @@ def _product_widget_product_list(props: dict, layout_type: str, is_slick: bool) 
     api_value = (props.get("apiOptions") or {}).get("value") or {}
     if api_value.get("is_showonlymain"):
         info["cardConfig"] = {"isShowSubproduct": False}
+
+    # A product slider's dots sit below the cards, but the widget leaves them no
+    # room -- they land on the next section. 40px is the user's own fix from the
+    # v4 editor (2026-11-04); a slider without dots needs nothing.
+    if is_slick and layout_grid["slideConfig"].get("hasPagination"):
+        info["widgetPaddingBottom"] = {"lg": {"value": 40, "unit": "px"}}
 
     return make_node("widget", "WidgetProductList", None, info)
 
