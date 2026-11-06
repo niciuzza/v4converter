@@ -26,8 +26,8 @@ from urllib.parse import quote, unquote
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.103"
-LAST_UPDATED = "2026-11-05"
+__version__ = "1.104"
+LAST_UPDATED = "2026-11-06"
 
 # Short summary of what the converter handles — shown in the browser popup.
 # Plain strings; inline HTML (e.g. <code>) is allowed for rendering there.
@@ -41,6 +41,12 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.104", "type": "fix", "date": "2026-11-06", "items": [
+        "<b>footer ที่ไม่มีอะไรบอก scheme ได้ <code>color-scheme-main</code></b> — เดิมไม่ได้ตั้งเลย "
+        "จึงไปใช้ค่าของธีม v4 ซึ่งอาจไม่ใช่ main · footer ที่ v3 บอกว่าเป็นพื้นเข้ม หรือธีม v3 ทาพื้นไว้ ยังได้ scheme ตามเดิม",
+        "<b>สีระดับร้านเขียนเฉพาะสีที่ต่างจากธีม</b> — เดิมเขียนชุดสีครบทุกค่าแม้จะตรงกับธีม v4 ที่เลือก "
+        "ตอนนี้สีที่ธีมมีอยู่แล้วไม่ถูกเขียนซ้ำ (เฉพาะชุดสี ส่วนอื่นเหมือนเดิม)",
+    ]},
     {"version": "1.103", "type": "feat", "date": "2026-11-05", "items": [
         "<b>การ์ดบล็อกของร้านตามแบบ v3 ใช้กฎเดียวกับการ์ดสินค้า</b> — อ่านจาก CSS ของธีม v3 จริง: "
         "ขนาด/ความหนาตัวอักษรของชื่อเรื่อง วันที่ และคำอธิบาย (เฉพาะที่ธีม v3 ระบุ) · มุมโค้งของการ์ดและรูปตาม v3 รวมถึง 0 · "
@@ -6733,9 +6739,9 @@ def _footer_ground_info(props: dict) -> dict:
         if ground:
             info["bgColor"] = ground
         return info
-    scheme = _footer_color_scheme(props)
-    if scheme:
-        info["colorScheme"] = scheme
+    # nothing says otherwise: main, stated -- a footer with no scheme took
+    # whatever the v4 theme gives one (user, 2026-11-06)
+    info["colorScheme"] = _footer_color_scheme(props) or "color-scheme-main"
     if bg:
         info["bgColor"] = _ground_ref(bg)
     return info
@@ -10843,7 +10849,6 @@ _V4_NATIVE_MAIN = {
         "inputTextColor": "var(--color-black)",
         "inputBorderColor": "#37415100",
         "inputBgColor": "var(--color-neutral-subtle)",
-        "linkColor": "var(--color-black)",
         "headerActionNotiBgColor": "var(--color-brand)",
         "headerActionNotiColor": "var(--color-white)",
         "cardProductBgColor": "var(--color-white)",
@@ -14452,7 +14457,6 @@ _V4_NATIVE_INVERSE = {
         "titleTextColor": "var(--color-white)",
         "captionTextColor": "var(--color-neutral-subtlest)",
         "descriptionTextColor": "var(--color-neutral-subtlest)",
-        "linkColor": "var(--color-white)",
         "linkDefaultColor": "var(--color-white)",
         "linkDefaultHoverColor": "var(--color-neutral-subtle)",
         "linkAccentColor": "var(--color-brand-subtlest)",
@@ -14908,6 +14912,243 @@ _V4_NATIVE_HEADING_TYPO = {
     "spaceandstroll": {"descriptionTypoStyle": "typo_paragraph_medium"},
     "sunnergy": {"descriptionTypoStyle": "typo_paragraph_medium", "captionTypoStyle": "typo_paragraph_medium_bold"},
     "varinthaispa": {"descriptionTypoStyle": "typo_paragraph_large"},
+}
+_V4_NATIVE_PALETTE = {
+    "alphafit": {
+        "colorBlack": "#262626",
+        "colorBrandBoldest": "#b01030",
+        "colorBrandBold": "#c61236",
+        "colorBrand": "#DC143C",
+        "colorBrandSubtle": "#e02c50",
+        "colorBrandSubtlest": "#e75b77",
+        "colorBrandAltBoldest": "#b01030",
+        "colorBrandAltBold": "#c61236",
+        "colorBrandAlt": "#DC143C",
+        "colorBrandAltSubtle": "#e02c50",
+        "colorBrandAltSubtlest": "#e75b77",
+        "colorNeutralBoldest": "#000000",
+        "colorNeutralBold": "#4F4F4F",
+        "colorNeutralSubtle": "#F6F6F6",
+        "colorNeutralSubtlest": "#FFFFFF",
+    },
+    "brewcocoffee": {
+        "colorStatusCritical": "#b42318",
+        "colorStatusSuccess": "#1f7a4d",
+        "colorStatusWarning": "#d97706",
+        "colorBrandBoldest": "#441b00",
+        "colorBrandBold": "#8f3900",
+        "colorBrand": "#f4771a",
+        "colorBrandSubtle": "#ffb262",
+        "colorBrandSubtlest": "#fff8f0",
+        "colorBrandAltBoldest": "#003830",
+        "colorBrandAltBold": "#005246",
+        "colorBrandAlt": "#2b8f7a",
+        "colorBrandAltSubtle": "#d3f0e7",
+        "colorBrandAltSubtlest": "#f0faf6",
+        "colorNeutralBoldest": "#005246",
+        "colorNeutralBold": "#4b4b4b",
+        "colorNeutral": "#8c8c8c",
+        "colorNeutralSubtle": "#f5f3f1",
+        "colorNeutralSubtlest": "#ffffff",
+    },
+    "brewhavencoffee": {
+        "colorBrandBoldest": "#002552",
+        "colorBrandBold": "#013d85",
+        "colorBrand": "#0b50a3",
+        "colorBrandSubtle": "#fea6a1",
+        "colorBrandSubtlest": "#ffc6c3",
+        "colorBrandAltBold": "#c36300",
+        "colorNeutralBoldest": "#000000",
+        "colorNeutralSubtle": "#e7f5ff",
+        "colorNeutralSubtlest": "#fef3ef",
+    },
+    "floating": {
+        "colorStatusCritical": "#FF5C69",
+        "colorStatusSuccess": "#1DBBF5",
+        "colorStatusWarning": "#FF742F",
+        "colorBrandBoldest": "#3A7A5B",
+        "colorBrandBold": "#5DAD87",
+        "colorBrand": "#8BDCB5",
+        "colorBrandSubtle": "#C5F0DB",
+        "colorBrandSubtlest": "#E1FAEE",
+        "colorBrandAltBoldest": "#418537",
+        "colorBrandAltBold": "#69AE5E",
+        "colorBrandAlt": "#A9E19F",
+        "colorBrandAltSubtle": "#D7F2E5",
+        "colorBrandAltSubtlest": "#F9FFF2",
+        "colorNeutralBoldest": "#4E4E4F",
+        "colorNeutralBold": "#5D5F60",
+        "colorNeutral": "#8D9396",
+        "colorNeutralSubtle": "#CED8DE",
+        "colorNeutralSubtlest": "#F2F2F2",
+    },
+    "forma": {
+        "colorStatusSuccess": "#00a136",
+        "colorStatusWarning": "#ff740a",
+        "colorBrandBoldest": "#000000",
+        "colorBrandBold": "#1d1d1f",
+        "colorBrand": "#6e6e73",
+        "colorBrandSubtle": "#eaeaed",
+        "colorBrandSubtlest": "#f5f5f5",
+        "colorBrandAltBoldest": "#0053a6",
+        "colorBrandAltBold": "#006bd6",
+        "colorBrandAlt": "#007cf9",
+        "colorBrandAltSubtle": "#a6d2ff",
+        "colorBrandAltSubtlest": "#e8f3ff",
+        "colorNeutralBoldest": "#1d1d1f",
+        "colorNeutralBold": "#454545",
+        "colorNeutral": "#d2d2d7",
+        "colorNeutralSubtle": "#eaeaed",
+        "colorNeutralSubtlest": "#f5f5f5",
+    },
+    "kiara": {
+        "colorBrandBoldest": "#1B1B1B",
+        "colorBrandBold": "#1B1B1B",
+        "colorBrand": "#1B1B1B",
+        "colorBrandSubtle": "#8a8a8a",
+        "colorBrandSubtlest": "#e9e9e9",
+        "colorBrandAltBoldest": "#1B1B1B",
+        "colorBrandAltBold": "#1B1B1B",
+        "colorBrandAlt": "#1B1B1B",
+        "colorBrandAltSubtle": "#8a8a8a",
+        "colorBrandAltSubtlest": "#e9e9e9",
+        "colorNeutralBoldest": "#625A4F",
+        "colorNeutralBold": "#625A4F",
+        "colorNeutral": "#F5F1ED",
+        "colorNeutralSubtle": "#F8F6F3",
+    },
+    "neoorderly": {
+        "colorBrand": "#1e65ff",
+        "colorBrandSubtle": "#588cff",
+        "colorBrandBold": "#093aa3",
+        "colorBrandBoldest": "#030d58",
+        "colorBrandSubtlest": "#dae7f8",
+        "colorBrandAlt": "#020b1f",
+        "colorBrandAltSubtle": "#5b5d61",
+        "colorBrandAltSubtlest": "#82868f",
+        "colorBrandAltBold": "#020b1f",
+        "colorBrandAltBoldest": "#020b1f",
+        "colorNeutralSubtle": "#dbdbdb",
+        "colorNeutralSubtlest": "#f5f5f5",
+    },
+    "peapea": {
+        "colorBrandSubtle": "#ffbf54",
+        "colorBrandSubtlest": "#ffca7d",
+        "colorBrand": "#f8a720",
+        "colorBrandBold": "#eb970a",
+        "colorBrandBoldest": "#eb970a",
+        "colorBrandAltBoldest": "#512a12",
+        "colorBrandAltBold": "#ed6325",
+        "colorBrandAlt": "#ed6325",
+        "colorBrandAltSubtle": "#ffe7d7",
+        "colorBrandAltSubtlest": "#ffe7d7",
+        "colorNeutralBoldest": "#ffebbf",
+        "colorNeutralBold": "#ffebbf",
+        "colorNeutral": "#fff8e9",
+        "colorNeutralSubtle": "#f0f0f0",
+    },
+    "recta": {
+        "colorStatusSuccess": "#00a136",
+        "colorStatusWarning": "#ff740a",
+        "colorBrandBoldest": "#000000",
+        "colorBrandBold": "#1d1d1f",
+        "colorBrand": "#6e6e73",
+        "colorBrandSubtle": "#eaeaed",
+        "colorBrandSubtlest": "#f5f5f5",
+        "colorBrandAltBoldest": "#0053a6",
+        "colorBrandAltBold": "#006bd6",
+        "colorBrandAlt": "#007cf9",
+        "colorBrandAltSubtle": "#a6d2ff",
+        "colorBrandAltSubtlest": "#e8f3ff",
+        "colorNeutralBoldest": "#1d1d1f",
+        "colorNeutralBold": "#454545",
+        "colorNeutral": "#d2d2d7",
+        "colorNeutralSubtle": "#eaeaed",
+        "colorNeutralSubtlest": "#f5f5f5",
+    },
+    "shizuku": {
+        "colorBrandSubtlest": "#f3f9fb",
+        "colorBrandSubtle": "#70d4ef",
+        "colorBrand": "#006b99",
+        "colorBrandBold": "#005c83",
+        "colorBrandBoldest": "#024c66",
+        "colorBrandAltSubtlest": "#f4fbf5",
+        "colorBrandAltSubtle": "#a2daaf",
+        "colorBrandAlt": "#4a945b",
+        "colorBrandAltBold": "#3f7a4c",
+        "colorBrandAltBoldest": "#305739",
+        "colorNeutralSubtle": "#f3f9fb",
+    },
+    "simplydelight": {
+        "colorBrandBoldest": "#5e482d",
+        "colorBrandBold": "#246e32",
+        "colorBrand": "#4b9f52",
+        "colorBrandSubtle": "#c8e4a3",
+        "colorBrandSubtlest": "#eef3e2",
+        "colorBrandAltBold": "#246e32",
+        "colorBrandAltSubtle": "#c8e4a3",
+        "colorBrandAltSubtlest": "#eef3e2",
+        "colorNeutralBold": "#246e32",
+    },
+    "spaceandstroll": {
+        "colorBrandBoldest": "#1C1C1C",
+        "colorBrandBold": "#1C1C1C",
+        "colorBrand": "#1C1C1C",
+        "colorBrandSubtle": "#9A9A9A",
+        "colorBrandSubtlest": "#F3F3F3",
+        "colorBrandAltBoldest": "#790A1B",
+        "colorBrandAltBold": "#AC192F",
+        "colorBrandAlt": "#D53A51",
+        "colorBrandAltSubtle": "#FC899A",
+        "colorBrandAltSubtlest": "#FFD6DC",
+        "colorNeutralBoldest": "#1C1C1C",
+        "colorNeutralBold": "#424242",
+        "colorNeutral": "#A1A1A1",
+        "colorNeutralSubtle": "#C2C2C2",
+        "colorNeutralSubtlest": "#F5F5F5",
+    },
+    "sunnergy": {
+        "colorBrandBoldest": "#7c2d12",
+        "colorBrandBold": "#ea580c",
+        "colorBrand": "#f6bf1a",
+        "colorBrandSubtle": "#ffdd84",
+        "colorBrandSubtlest": "#f9f6ed",
+        "colorBrandAltBoldest": "#000",
+        "colorBrandAltBold": "#15322e",
+        "colorBrandAlt": "#1a5a51",
+        "colorBrandAltSubtle": "#2e7b70",
+        "colorBrandAltSubtlest": "#6ead9e",
+    },
+    "varinthaispa": {
+        "colorBrandBoldest": "#3c3736",
+        "colorBrandBold": "#967c4f",
+        "colorBrand": "#3c3736",
+        "colorBrandSubtle": "#ab9161",
+        "colorBrandSubtlest": "#d8cbb2",
+        "colorBrandAltBold": "#ab9161",
+        "colorBrandAltSubtlest": "#d7b67a",
+        "colorNeutralBold": "#947d54",
+        "colorNeutralSubtle": "#eeebe5",
+    },
+    "ventura": {
+        "colorStatusSuccess": "#00a136",
+        "colorStatusWarning": "#ff740a",
+        "colorBrandBoldest": "#000000",
+        "colorBrandBold": "#1d1d1f",
+        "colorBrand": "#6e6e73",
+        "colorBrandSubtle": "#eaeaed",
+        "colorBrandSubtlest": "#f5f5f5",
+        "colorBrandAltBoldest": "#474747",
+        "colorBrandAltBold": "#636363",
+        "colorBrandAlt": "#888888",
+        "colorBrandAltSubtle": "#b4b4b4",
+        "colorBrandAltSubtlest": "#eaeaea",
+        "colorNeutralBoldest": "#000000",
+        "colorNeutralBold": "#1d1d1f",
+        "colorNeutral": "#d2d2d7",
+        "colorNeutralSubtle": "#eaeaed",
+        "colorNeutralSubtlest": "#f5f5f5",
+    },
 }
 # --- END gen_scheme_roles ---
 
@@ -21830,6 +22071,20 @@ def _build_free_zone(components: dict) -> dict:
     return make_node("page", "free", "Free", {}, children)
 
 
+_COLOUR_WORDS = {"white": "#ffffff", "black": "#000000"}
+
+
+def _same_colour(a, b):
+    """True when two palette values draw the same colour (`#FFF`, `#ffffff`
+    and `white` are one)."""
+    if not isinstance(a, str) or not isinstance(b, str):
+        return False
+    a, b = (_COLOUR_WORDS.get(x.strip().lower(), x.strip()) for x in (a, b))
+    if _hex(a) is not None and _hex(b) is not None:
+        return _norm_hex(a) == _norm_hex(b)
+    return a.lower() == b.lower()
+
+
 def convert_global(site_json: dict, warnings: list = None, *,
                    include_components: bool = True,
                    include_colors: bool = True,
@@ -22055,6 +22310,15 @@ def convert_global(site_json: dict, warnings: list = None, *,
             "fontSize": {"lg": {"value": int(rem) if rem == int(rem) else rem,
                                 "unit": "rem"}}
         }
+
+    if root and map_to_v4_theme:
+        # A shop colour the theme already holds is not restated: only the
+        # colours that differ from the target theme are written (user,
+        # 2026-11-06 -- every one was, matching or not). Everything above
+        # was worked out against the whole palette; this trims the output.
+        theme = dict(_SCHEME_BASE_ROOT, **(_V4_NATIVE_PALETTE.get(v4_theme_key(cfg).lower()) or {}))
+        root = {k: v for k, v in root.items()
+                if not (k.startswith("color") and _same_colour(v, theme.get(k)))}
 
     if root:
         # :root always sits at the top of style, above any component selectors.
