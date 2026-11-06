@@ -26,7 +26,7 @@ from urllib.parse import quote, unquote
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.104"
+__version__ = "1.105"
 LAST_UPDATED = "2026-11-06"
 
 # Short summary of what the converter handles — shown in the browser popup.
@@ -41,6 +41,10 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.105", "type": "feat", "date": "2026-11-06", "items": [
+        "<b>จับคู่ธีม v3 เพิ่ม 10 ธีมตามหน้าตา</b> — ไปลง Recta 6 ธีม และ Kiara, Simply Delight, Neo Orderly, AlphaFit อย่างละ 1 ธีม "
+        "(ดูรายชื่อในตารางจับคู่ของ converter.py) · ร้านที่ใช้ธีมเหล่านี้เคยไปลง Base ตอนนี้ได้ธีม v4 ที่หน้าตาใกล้ที่สุด",
+    ]},
     {"version": "1.104", "type": "fix", "date": "2026-11-06", "items": [
         "<b>footer ที่ไม่มีอะไรบอก scheme ได้ <code>color-scheme-main</code></b> — เดิมไม่ได้ตั้งเลย "
         "จึงไปใช้ค่าของธีม v4 ซึ่งอาจไม่ใช่ main · footer ที่ v3 บอกว่าเป็นพื้นเข้ม หรือธีม v3 ทาพื้นไว้ ยังได้ scheme ตามเดิม",
@@ -7791,6 +7795,12 @@ _V3_TO_V4_THEME = {
     "x_eco": "brewcocoffee", "x_cha": "brewcocoffee", "x_mixednuts": "brewcocoffee",
     "x_knowledge": "forma",
     "x_optic": "ventura", "x_downtown": "ventura",
+    # by look (tools/theme_fingerprint.py, user 2026-11-06: the clear ones)
+    "x_borsa": "recta", "x_adventure": "recta", "x_wichittra": "recta",
+    "x_writenow": "kiara",
+    # by look, picked by the user from two options each (2026-11-06)
+    "x_seat": "simplydelight", "x_periwinkle": "neoorderly", "x_bakery": "recta",
+    "x_luxurygold": "recta", "x_pottery": "recta", "x_elite": "alphafit",
 }
 
 # Which ramp each v4 native theme paints its PRIMARY BUTTON with (its
