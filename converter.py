@@ -26,8 +26,8 @@ from urllib.parse import quote, unquote
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.102"
-LAST_UPDATED = "2026-11-04"
+__version__ = "1.103"
+LAST_UPDATED = "2026-11-05"
 
 # Short summary of what the converter handles — shown in the browser popup.
 # Plain strings; inline HTML (e.g. <code>) is allowed for rendering there.
@@ -41,6 +41,14 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.103", "type": "feat", "date": "2026-11-05", "items": [
+        "<b>การ์ดบล็อกของร้านตามแบบ v3 ใช้กฎเดียวกับการ์ดสินค้า</b> — อ่านจาก CSS ของธีม v3 จริง: "
+        "ขนาด/ความหนาตัวอักษรของชื่อเรื่อง วันที่ และคำอธิบาย (เฉพาะที่ธีม v3 ระบุ) · มุมโค้งของการ์ดและรูปตาม v3 รวมถึง 0 · "
+        "พื้นการ์ดโปร่งใส เว้นแต่ธีม v3 ทาสีไว้ · เส้นขอบตามความหนาของ v3 · ระยะห่างของ gap ยังเป็นของธีม v4",
+        "<b>padding ของการ์ดบล็อก ตั้งไว้ใน style รวมของเว็บ</b> — ค่า padding ของธีม v4 ทำให้ข้อความเยื้องจากรูป: "
+        "ตอนนี้เขียน <code>.widget-blog-list cardPadding</code> ตาม padding ของ v3 (0 เมื่อ v3 ไม่มี) "
+        "ส่วนปุ่มอ่านต่อเป็นของธีม v4",
+    ]},
     {"version": "1.102", "type": "fix", "date": "2026-11-04", "items": [
         "<b>สไลด์ที่ไม่มีภาพเลย ไม่สร้างแล้ว</b> — v3 ไม่แสดงอะไรเลยเมื่อไม่มีภาพ แต่เดิม v4 ได้สไลด์ว่าง · "
         "ถ้า section นั้นไม่มีอย่างอื่นอีก จะข้ามทั้ง section · ถ้ามีเนื้อหาอื่น (ข้อความ ปุ่ม) จะเก็บ section ไว้ แค่ไม่ใส่สไลด์",
@@ -15412,6 +15420,91 @@ def _control_shape(v3_theme, v4_theme):
 #: ground, no scrim. What v3's own blog page lists posts with.
 _V3_BLOG_CARD = {"variant": "full-image", "isOverlay": False, "isOverlayGradient": False}
 
+# --- BEGIN gen_blog_card_v3 (tools/gen_blog_card_v3.py) ---
+_V3_BLOG_CARD_STYLE = {
+    "x_adminweb": {"title": {"size": 20}},
+    "x_adventure": {"title": {"size": 20}},
+    "x_bakery": {"title": {"size": 20}, "color": {"date": {"slot": 0, "ops": []}}},
+    "x_basic": {"title": {"size": 20}},
+    "x_bluehorizon": {"title": {"size": 20}},
+    "x_bold": {"title": {"size": 20}},
+    "x_borsa": {"title": {"size": 20}, "date": {"size": 14}, "color": {"date": {"slot": 4, "ops": []}}},
+    "x_caution": {"title": {"size": 20}},
+    "x_ceramicstore": {"title": {"size": 20}, "color": {"date": {"slot": 1, "ops": []}}},
+    "x_cha": {"title": {"size": 20}, "date": {"size": 14}, "color": {"date": {"slot": 0, "ops": []}}},
+    "x_clean": {"title": {"size": 20}},
+    "x_cleancolor": {"title": {"size": 20}},
+    "x_cozy": {"title": {"size": 20, "bold": True}, "description": {"bold": False}, "imageRadius": [4]},
+    "x_cozy_fw": {"title": {"size": 20, "bold": True}, "description": {"bold": False}, "imageRadius": [4]},
+    "x_denim_fw": {"title": {"size": 20, "bold": True}, "description": {"bold": False}},
+    "x_downtown": {"title": {"size": 20}, "date": {"size": 14}, "color": {"date": "#7f7f7f"}},
+    "x_eco": {"title": {"size": 20}, "bg": {"slot": 4, "ops": []}, "padding": {"xs": [14, 14, 14, 14], "lg": [20, 20, 20, 20]}},
+    "x_elite": {"title": {"size": 20}},
+    "x_fundamental": {"title": {"size": 20}},
+    "x_futuristic": {"title": {"size": 20}},
+    "x_greenery": {"title": {"size": 20}},
+    "x_happy": {"title": {"size": 20}},
+    "x_julie": {"title": {"size": 20}, "imageRadius": [10]},
+    "x_knowledge": {"title": {"size": 20}, "color": {"date": {"slot": 0, "ops": []}}},
+    "x_luxurygold": {"title": {"size": 20}},
+    "x_main": {"title": {"size": 20}},
+    "x_millennium": {"title": {"size": 20}},
+    "x_mixednuts": {"title": {"size": 20}},
+    "x_modernmerce": {"title": {"size": 20}, "date": {"size": 14}, "borderWidth": 1, "padding": {"xs": [30, 20, 30, 20]}, "color": {"date": {"slot": 3, "ops": [["tint", 40]]}}},
+    "x_mystorage": {"title": {"size": 20}},
+    "x_oasis": {"title": {"size": 20, "bold": True}, "date": {"size": 13}, "description": {"bold": False}, "bg": {"slot": 2, "ops": []}, "radius": [2], "imageRadius": [0], "padding": {"xs": [16, 16, 16, 16]}},
+    "x_oceanblue": {"title": {"size": 16}, "date": {"size": 13}, "color": {"date": {"slot": 4, "ops": []}, "description": {"slot": 3, "ops": []}}},
+    "x_optic": {"title": {"size": 20, "bold": False}, "date": {"size": 14}, "borderWidth": 1, "padding": {"xs": [30, 20, 30, 20]}, "color": {"title": {"slot": 3, "ops": []}}},
+    "x_orderly": {"title": {"size": 20}},
+    "x_ordinary": {"title": {"size": 20}},
+    "x_periwinkle": {"title": {"size": 20}, "color": {"description": {"slot": 3, "ops": []}}},
+    "x_petestate": {"title": {"size": 20}, "imageRadius": [20]},
+    "x_petfriendly": {"title": {"size": 20, "bold": True}, "description": {"bold": False}, "bg": {"slot": 2, "ops": []}, "borderWidth": 1, "radius": [12], "imageRadius": [0], "padding": {"xs": [16, 16, 16, 16]}},
+    "x_pineforest": {"title": {"size": 20}},
+    "x_playground": {"title": {"size": 20}, "radius": [30], "imageRadius": [30], "padding": {"xs": [0, 0, 0, 0], "md": [14, 14, 14, 14], "lg": [20, 20, 20, 20]}},
+    "x_plaza": {"title": {"size": 20}},
+    "x_pottery": {"title": {"size": 20, "bold": False}, "date": {"size": 14}, "borderWidth": 1, "padding": {"xs": [30, 20, 30, 20]}, "color": {"title": {"slot": 3, "ops": []}}},
+    "x_prestige": {"title": {"size": 20}},
+    "x_redvalvet": {"title": {"size": 20}},
+    "x_relax": {"title": {"size": 20}},
+    "x_seat": {"title": {"size": 20}},
+    "x_soda": {"title": {"size": 20}},
+    "x_solid_round_fw": {"title": {"size": 20}},
+    "x_solid_shape_fw": {"title": {"size": 20}},
+    "x_solid_wide_fw": {"title": {"size": 20}},
+    "x_solidfw": {"title": {"size": 20}},
+    "x_street": {"title": {"size": 20}},
+    "x_supercar": {"title": {"size": 20}},
+    "x_sweetpink": {"title": {"size": 20}},
+    "x_swift": {"title": {"size": 20}, "color": {"title": {"slot": 3, "ops": []}, "date": {"slot": 3, "ops": [["tint", 20]]}}},
+    "x_urban": {"title": {"size": 20}},
+    "x_vintage": {"title": {"size": 20}},
+    "x_voice": {"title": {"size": 20}, "color": {"date": {"slot": 3, "ops": []}}},
+    "x_void": {"title": {"size": 20}, "date": {"size": 14}, "borderWidth": 1, "padding": {"xs": [30, 20, 30, 20]}, "color": {"date": {"slot": 3, "ops": [["tint", 60]]}}},
+    "x_warehouse": {"title": {"size": 20}},
+    "x_wichittra": {"title": {"size": 20}},
+    "x_wingwing": {"title": {"size": 20}},
+    "x_writenow": {"title": {"size": 20}},
+}
+_V4_NATIVE_BLOG_STYLE = {
+    "_base": {":root cardBorderRadius": {"value": 0, "unit": "px"}, ":root cardPadding": {"xs": {"value": 28, "unit": "px"}}, "titleTypoStyle": "typo_heading_small_bold", "dateTypoStyle": "typo_paragraph_xsmall"},
+    "alphafit": {".widget-blog-list bgColor": "transparent", ".widget-blog-list cardPadding": {"xs": {"value": 0, "unit": "px"}}},
+    "brewcocoffee": {".widget-blog-list bgColor": "var(--color-neutral-subtlest)", ".widget-blog-list cardBorderRadius": {"value": 20, "unit": "px"}, ".widget-blog-list elementPictureBorderRadius": {"value": 0, "unit": "px"}},
+    "brewhavencoffee": {":root cardBorderRadius": {"value": 20, "unit": "px"}, ".element-blog-list cardBorderRadius": {"value": 0, "unit": "px"}, ".element-blog-list mediaBorderRadius": {"value": 20, "unit": "px"}, ".element-blog-list cardPadding": {"xs": {"value": 0, "unit": "px"}}},
+    "floating": {":root cardPadding": {"xs": {"value": 1.5, "unit": "rem"}}},
+    "forma": {":root cardBorderRadius": {"value": 20, "unit": "px"}, ":root cardPadding": {"xs": {"value": 24, "unit": "px"}, "lg": {"value": 32, "unit": "px"}}, ".widget-blog-list cardBorderTopWidth": {"value": "0", "unit": "px"}, ".widget-blog-list cardBorderRightWidth": {"value": "0", "unit": "px"}, ".widget-blog-list cardBorderBottomWidth": {"value": "0", "unit": "px"}, ".widget-blog-list cardBorderLeftWidth": {"value": "0", "unit": "px"}},
+    "kiara": {".widget-blog-list bgColor": "var(--color-neutral-subtlest)", ".widget-blog-list elementPictureBorderRadius": {"value": 8, "unit": "px"}},
+    "neoorderly": {":root cardPadding": {"xs": {"value": 28, "unit": "px"}, "lg": {"value": 28, "unit": "px"}}, ".widget-blog-list bgColor": "transparent"},
+    "peapea": {".widget-blog-list bgColor": "var(--color-neutral-bold)", ".widget-blog-list cardBorderRadius": {"value": 20, "unit": "px"}, ".widget-blog-list cardBorderTopWidth": {"value": 2, "unit": "px"}, ".widget-blog-list cardBorderRightWidth": {"value": 2, "unit": "px"}, ".widget-blog-list cardBorderBottomWidth": {"value": 2, "unit": "px"}, ".widget-blog-list cardBorderLeftWidth": {"value": 2, "unit": "px"}},
+    "recta": {":root cardPadding": {"xs": {"value": 24, "unit": "px"}, "lg": {"value": 32, "unit": "px"}}},
+    "shizuku": {":root cardPadding": {"xs": {"value": 0, "unit": "px"}}},
+    "simplydelight": {":root cardPadding": {"xs": {"value": 12, "unit": "px"}, "lg": {"value": 12, "unit": "px"}}, ".widget-blog-list cardPadding": {"xs": {"value": 0, "unit": "px"}}},
+    "spaceandstroll": {":root cardPadding": {"xs": {"value": 20, "unit": "px"}, "lg": {"value": 28, "unit": "px"}}},
+    "sunnergy": {".widget-blog-list cardPadding": {"xs": {"value": 0, "unit": "px"}, "lg": {"value": 0, "unit": "px"}}, "titleTypoStyle": "typo_paragraph_medium_bold"},
+    "ventura": {":root cardPadding": {"xs": {"value": 24, "unit": "px"}, "lg": {"value": 32, "unit": "px"}}, ".widget-blog-list cardPadding": {"xs": {"value": 0, "unit": "px"}}, "dateTypoStyle": "typo_paragraph_small", "descriptionTypoStyle": "typo_paragraph_small"},
+}
+# --- END gen_blog_card_v3 ---
+
 
 def _blog_card_setting(v4_theme):
     """The site's `info.Widget.BlogList` that gives a blog list with no card of
@@ -15429,6 +15522,149 @@ def _blog_card_setting(v4_theme):
         out["colorScheme"] = "color-scheme-main"
     return out
 
+
+
+#: v4's heading slots by their size at lg (px), for the blog card's title
+_BLOG_TITLE_SLOTS = (("xsmall", 16), ("small", 20), ("medium", 28), ("large", 38), ("xlarge", 64))
+_BLOG_SIDES = ("Top", "Right", "Bottom", "Left")
+
+
+def _blog_typo(v3, native_cls, family, slots):
+    """`_card_typo` for the blog card: a size picks the nearest of `slots` in
+    `family`; a weight alone keeps the v4 theme's class and only turns
+    `_bold` on or off, so it needs one to turn (None without)."""
+    if not v3 or ("size" not in v3 and "bold" not in v3):
+        return None
+    m = re.fullmatch(r"(typo_[a-z]+)_([a-z]+?)(_bold)?", native_cls or "")
+    if "size" not in v3 and not m:
+        return None
+    fam, slot, bold = (m.group(1), m.group(2), bool(m.group(3))) if m else (family, None, False)
+    if "size" in v3:
+        n = v3["size"]
+        fam, slot = family, min(slots, key=lambda x: (abs(x[1] - n), -x[1]))[0]
+    if "bold" in v3:
+        bold = v3["bold"]
+    return "%s_%s%s" % (fam, slot, "_bold" if bold else "")
+
+
+def _blog_card_style(site_json, colors, new_root, v4_theme):
+    """The rest of the site's blog card as v3 drew it, on `v4_theme` -- the
+    product card's rules (user, 2026-11-04: "same rules as product card"):
+    {"info": `info.Widget.BlogList` typography, "style": {selector: tokens}}.
+    Only what differs from the v4 theme's card is written.
+
+    - **Typography** only where v3 states a size or weight: the title's size
+      is the platform's own (16px, 20px at lg) unless the theme sets one,
+      and maps to a heading slot; the date and summary to paragraph slots.
+    - **Ground**: `transparent` unless v3 paints the card (or its info
+      panel), then the step of the shop's ramps nearest v3's colour.
+    - **Corners** follow v3 on the card and its picture, `0` included. A
+      picture rounded only on top over an info panel rounded only below is a
+      card of that radius with a square picture, since v4's card clips it.
+    - **Border**: v3's width on all four sides, `0` where v3 draws none. v4's
+      blog card has no border colour of its own, nor text colours: those stay
+      the scheme's.
+    - **Padding** goes in `.widget-blog-list` (user, 2026-11-06: style, not
+      info), written whatever the v4 theme says: the theme's `:root` value
+      reaches the blog card otherwise, and the text sat inset from the
+      picture (user, 2026-11-05). `cardPadding` is v3's info panel's, `0` where
+      v3 pads nothing, at `xs` and at each width where v3 or the theme
+      states another -- the four sides only when v3's are not alike. Gaps
+      stay the theme's. The button is the theme's: v3 has no such setting,
+      so it is no reason to force one on every site (user, 2026-11-05)."""
+    cfg = site_json if isinstance(site_json, dict) else {}
+    v3 = _V3_BLOG_CARD_STYLE.get(cfg.get("currentTheme"))
+    if v3 is None:
+        return {"info": {}, "style": {}}                 # no v3 theme to follow
+    native = dict(_V4_NATIVE_BLOG_STYLE.get("_base") or {},
+                  **(_V4_NATIVE_BLOG_STYLE.get((v4_theme or "").lower()) or {}))
+    info, style = {}, {}
+    px = lambda n: {"value": n, "unit": "px"}  # noqa: E731
+
+    def now(tok, *sels):
+        for sel in sels:
+            if "%s %s" % (sel, tok) in native:
+                return native["%s %s" % (sel, tok)]
+        return None
+
+    def put(tok, value, *also):
+        style.setdefault(".widget-blog-list", {})[tok] = value
+        for sel in also:
+            if "%s %s" % (sel, tok) in native:
+                style.setdefault(sel, {})[tok] = value
+
+    def same_px(a, b):
+        val = lambda x: float(x.get("value")) if isinstance(x, dict) and \
+            str(x.get("value", "")).replace(".", "", 1).isdigit() else None  # noqa: E731
+        return val(a) is not None and val(a) == val(b)
+
+    # typography
+    for el, tok, family, slots in (
+            ("title", "titleTypoStyle", "typo_heading", _BLOG_TITLE_SLOTS),
+            ("date", "dateTypoStyle", "typo_paragraph", _CARD_TYPO_SLOTS),
+            ("description", "descriptionTypoStyle", "typo_paragraph", _CARD_TYPO_SLOTS)):
+        cls = _blog_typo(v3.get(el), native.get(tok), family, slots)
+        if cls and cls != native.get(tok):
+            info[tok] = cls
+
+    # the ground
+    bg = v3.get("bg")
+    if bg is None or bg == "transparent":
+        if now("bgColor", ".widget-blog-list", ".element-blog-list") != "transparent":
+            put("bgColor", "transparent", ".element-blog-list")
+    elif isinstance(colors, list) and len(colors) >= 6 and new_root:
+        colour = _scheme_v3_spec(bg, [_norm_hex(c) if _hex(c) is not None else ""
+                                      for c in colors[:6]], None) if isinstance(bg, dict) else bg
+        steps = {k: _norm_hex(new_root[k]) for k in _SCHEME_STEPS
+                 if _hex(new_root.get(k)) is not None}
+        if isinstance(colour, str) and _hex(colour) is not None and steps:
+            ref = now("bgColor", ".widget-blog-list", ".element-blog-list")
+            value = "var(%s)" % _scheme_var(_scheme_nearest_step("bgColor", colour, steps, ref))
+            if value != ref:
+                put("bgColor", value, ".element-blog-list")
+
+    # corners: one value only -- a radius v4 cannot hold in one token is left
+    for v3_key, tok, sels in (
+            ("radius", "cardBorderRadius", (".widget-blog-list", ".element-blog-list", ":root")),
+            ("imageRadius", "elementPictureBorderRadius", (".widget-blog-list",))):
+        r = v3.get(v3_key) or [0]
+        if len(set(r)) != 1:
+            continue
+        want = px(r[0])
+        ref = now(tok, *sels)
+        if not same_px(want, ref if ref is not None else px(0)):
+            put(tok, want, ".element-blog-list")
+    # a theme that rounds the picture through `.element-blog-list
+    # mediaBorderRadius` gets v3's there too
+    r = v3.get("imageRadius") or [0]
+    if len(set(r)) == 1 and now("mediaBorderRadius", ".element-blog-list") is not None and \
+            not same_px(px(r[0]), now("mediaBorderRadius", ".element-blog-list")):
+        style.setdefault(".element-blog-list", {})["mediaBorderRadius"] = px(r[0])
+
+    # the border
+    bw = v3.get("borderWidth") or 0
+    for side in _BLOG_SIDES:
+        tok = "cardBorder%sWidth" % side
+        ref = now(tok, ".widget-blog-list", ".element-blog-list")
+        if not same_px(px(bw), ref if ref is not None else px(0)):
+            put(tok, px(bw))
+
+    # the padding
+    pad = v3.get("padding") or {"xs": [0, 0, 0, 0]}
+    ref = now("cardPadding", ".widget-blog-list", ".element-blog-list", ":root")
+    bps = [bp for bp in ("xs", "md", "lg")
+           if bp in pad or (isinstance(ref, dict) and bp in ref)]
+    box, at = [0, 0, 0, 0], {}
+    for bp in ("xs", "md", "lg"):
+        box = pad.get(bp, box)
+        if bp in bps:
+            at[bp] = box
+    if all(len(set(b)) == 1 for b in at.values()):
+        put("cardPadding", {bp: px(b[0]) for bp, b in at.items()}, ".element-blog-list")
+    else:
+        for i, side in enumerate(_BLOG_SIDES):
+            put("cardPadding%s" % side, {bp: px(b[i]) for bp, b in at.items()})
+    return {"info": info, "style": style}
 
 #: v4's paragraph slots by their size at lg (px).
 _CARD_TYPO_SLOTS = (("xsmall", 12), ("small", 14), ("medium", 16), ("large", 20), ("xlarge", 24))
@@ -21763,6 +21999,15 @@ def convert_global(site_json: dict, warnings: list = None, *,
         blog = _blog_card_setting(v4_theme_key(cfg))
         if blog:
             info.setdefault("Widget", {}).setdefault("BlogList", {}).update(blog)
+        # ... and the rest of it, by the product card's rules (2026-11-04)
+        got = _blog_card_style(cfg, colors if include_colors else None,
+                               {k: v for k, v in root.items() if k.startswith("color")},
+                               v4_theme_key(cfg))
+        if got["info"]:
+            info.setdefault("Widget", {}).setdefault("BlogList", {}).update(got["info"])
+        for sel, toks in got["style"].items():
+            style.setdefault(sel, {}).update(
+                {k: v for k, v in toks.items() if k not in style.get(sel, {})})
     if include_fonts and isinstance(cfg.get("currentFonts"), dict):
         # {"google": [...]} when the shop uses Google fonts, else {} (the key is
         # still emitted to match the v4 shape).
