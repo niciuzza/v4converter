@@ -26,8 +26,8 @@ from urllib.parse import quote, unquote
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.105"
-LAST_UPDATED = "2026-11-06"
+__version__ = "1.107"
+LAST_UPDATED = "2026-11-19"
 
 # Short summary of what the converter handles — shown in the browser popup.
 # Plain strings; inline HTML (e.g. <code>) is allowed for rendering there.
@@ -41,6 +41,15 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.107", "type": "feat", "date": "2026-11-19", "items": [
+        "<b>ธีม v3 ที่ยังไม่มีคู่ ได้ธีม v4 ของตัวเองแล้ว 1 ธีม</b> — เดิมไปลง Base "
+        "ตอนนี้ได้ธีมที่ทำจาก v3 แล้วออกแบบต่อใน v4 (ดูตารางจับคู่ใน converter.py) · scheme ของ header/footer เลือกตามธีมนี้",
+    ]},
+    {"version": "1.106", "type": "fix", "date": "2026-11-18", "items": [
+        "<b>มุมโค้งของช่องกรอกและป้ายใช้ชื่อ token ที่ถูก</b> — เดิมเขียน <code>inputRadius</code> / <code>tagRadius</code> "
+        "ตอนนี้เป็น <code>inputBorderRadius</code> / <code>tagBorderRadius</code> (token มุมโค้งลงท้ายด้วย BorderRadius เสมอ) "
+        "· ค่าเหมือนเดิม เปลี่ยนแค่ชื่อ",
+    ]},
     {"version": "1.105", "type": "feat", "date": "2026-11-06", "items": [
         "<b>จับคู่ธีม v3 เพิ่ม 10 ธีมตามหน้าตา</b> — ไปลง Recta 6 ธีม และ Kiara, Simply Delight, Neo Orderly, AlphaFit อย่างละ 1 ธีม "
         "(ดูรายชื่อในตารางจับคู่ของ converter.py) · ร้านที่ใช้ธีมเหล่านี้เคยไปลง Base ตอนนี้ได้ธีม v4 ที่หน้าตาใกล้ที่สุด",
@@ -7801,6 +7810,8 @@ _V3_TO_V4_THEME = {
     # by look, picked by the user from two options each (2026-11-06)
     "x_seat": "simplydelight", "x_periwinkle": "neoorderly", "x_bakery": "recta",
     "x_luxurygold": "recta", "x_pottery": "recta", "x_elite": "alphafit",
+    # its own theme, built from v3 and finished by hand (user, 2026-11-19)
+    "x_void": "void",
 }
 
 # Which ramp each v4 native theme paints its PRIMARY BUTTON with (its
@@ -11121,6 +11132,99 @@ _V4_NATIVE_MAIN = {
         "inputBorderColor": "var(--color-neutral-subtle)",
         "bgSubtleColor": "var(--color-neutral-subtlest)",
     },
+    "void": {
+        "bgColor": "var(--color-neutral-boldest)",
+        "borderColor": "var(--color-neutral-subtlest)",
+        "textColor": "var(--color-neutral-subtlest)",
+        "textSubtleColor": "var(--color-neutral-subtle)",
+        "titleTextColor": "var(--color-neutral-subtlest)",
+        "captionTextColor": "var(--color-neutral-subtlest)",
+        "descriptionTextColor": "var(--color-neutral-subtlest)",
+        "linkAccentColor": "var(--color-brand)",
+        "linkAccentHoverColor": "var(--color-neutral-subtlest)",
+        "linkDefaultColor": "var(--color-neutral-subtlest)",
+        "linkDefaultHoverColor": "var(--color-neutral-subtlest)",
+        "buttonPrimaryFillColor": "var(--color-brand)",
+        "buttonPrimaryBorderColor": "var(--color-brand)",
+        "buttonPrimaryTextColor": "var(--color-neutral-boldest)",
+        "buttonPrimaryHoverFillColor": "var(--color-neutral-boldest)",
+        "buttonPrimaryHoverBorderColor": "var(--color-neutral-boldest)",
+        "buttonPrimaryHoverTextColor": "var(--color-brand)",
+        "buttonSecondaryBorderColor": "var(--color-brand)",
+        "buttonSecondaryTextColor": "var(--color-neutral-subtlest)",
+        "buttonSecondaryHoverBorderColor": "var(--color-neutral-subtlest)",
+        "buttonSecondaryHoverTextColor": "var(--color-neutral-subtlest)",
+        "buttonGhostTextColor": "var(--color-neutral-subtlest)",
+        "buttonGhostHoverTextColor": "var(--color-brand)",
+        "buttonDisabledFillColor": "var(--color-neutral)",
+        "buttonDisabledTextColor": "var(--color-neutral-subtle)",
+        "tagDefaultBgColor": "transparent",
+        "tagDefaultBorderColor": "var(--color-neutral-subtlest)",
+        "tagDefaultTextColor": "var(--color-neutral-subtlest)",
+        "tagDefaultHoverBgColor": "transparent",
+        "tagDefaultHoverBorderColor": "var(--color-neutral-subtlest)",
+        "tagDefaultHoverTextColor": "var(--color-neutral-subtlest)",
+        "tagAccentBgColor": "var(--color-brand)",
+        "tagAccentBorderColor": "var(--color-brand)",
+        "tagAccentTextColor": "var(--color-neutral-boldest)",
+        "tagAccentHoverBgColor": "var(--color-neutral-boldest)",
+        "tagAccentHoverBorderColor": "var(--color-brand)",
+        "tagAccentHoverTextColor": "var(--color-brand)",
+        "arrowsBgColor": "transparent",
+        "arrowsBorderColor": "transparent",
+        "arrowsTextColor": "var(--color-neutral-subtlest)",
+        "arrowsHoverBgColor": "var(--color-neutral-subtlest)",
+        "arrowsHoverBorderColor": "transparent",
+        "arrowsHoverTextColor": "var(--color-neutral-boldest)",
+        "sliderBulletsBgColor": "var(--color-neutral-bold)",
+        "sliderBulletsHoverBgColor": "var(--color-brand-bold)",
+        "sliderBulletsActiveBgColor": "var(--color-brand)",
+        "formTextColor": "var(--color-neutral-subtlest)",
+        "inputIconColor": "var(--color-brand)",
+        "inputTextColor": "var(--color-neutral-subtlest)",
+        "inputBorderColor": "var(--color-neutral-subtle)",
+        "inputBgColor": "#00000044",
+        "swiperPaginationColor": "var(--color-brand)",
+        "swiperPaginationProgressbarBgColor": "var(--color-neutral-bold)",
+        "swiperPaginationFractionColor": "var(--color-neutral-subtle)",
+        "listTabsBorderColor": "var(--color-neutral-subtlest)",
+        "listTabBorderColor": "var(--color-neutral-subtlest)",
+        "couponStubFillColor": "var(--color-brand)",
+        "couponStubTextColor": "var(--color-neutral-subtlest)",
+        "cardProductNameColor": "var(--color-neutral-subtlest)",
+        "cardProductPriceColor": "var(--color-neutral-subtlest)",
+        "cardProductDiscountPriceColor": "var(--color-neutral-subtlest)",
+        "cardProductRegularPriceColor": "#ffffff55",
+        "cardProductThumbnailBadgePreorderBgColor": "var(--color-brand)",
+        "cardProductThumbnailBadgeHotBgColor": "var(--color-brand)",
+        "cardProductThumbnailBadgeNewBgColor": "var(--color-brand)",
+        "cardProductThumbnailBadgeSuggestBgColor": "var(--color-brand)",
+        "cardProductThumbnailBadgeWholesaleBgColor": "var(--color-brand)",
+        "cardProductThumbnailBadgeDiscountPercentBgColor": "var(--color-brand)",
+        "cardProductThumbnailBadgeFlashSaleBgColor": "var(--color-brand)",
+        "cardProductThumbnailBadgePreorderTextColor": "var(--color-black)",
+        "cardProductThumbnailBadgeHotTextColor": "var(--color-black)",
+        "cardProductThumbnailBadgeNewTextColor": "var(--color-black)",
+        "cardProductThumbnailBadgeSuggestTextColor": "var(--color-black)",
+        "cardProductThumbnailBadgeWholesaleTextColor": "var(--color-black)",
+        "cardProductThumbnailBadgeDiscountPercentTextColor": "var(--color-black)",
+        "cardProductThumbnailBadgeFlashSaleTextColor": "var(--color-black)",
+        "cardProductInfoBadgePreorderTextColor": "var(--color-black)",
+        "cardProductInfoBadgeHotTextColor": "var(--color-black)",
+        "cardProductInfoBadgeNewTextColor": "var(--color-black)",
+        "cardProductInfoBadgeSuggestTextColor": "var(--color-black)",
+        "cardProductInfoBadgeWholesaleTextColor": "var(--color-black)",
+        "cardProductInfoBadgeDiscountPercentTextColor": "var(--color-black)",
+        "cardProductInfoBadgeDiscountPercentBgColor": "var(--color-brand)",
+        "cardProductInfoBadgeWholesaleBgColor": "var(--color-brand)",
+        "cardProductInfoBadgeSuggestBgColor": "var(--color-brand)",
+        "cardProductInfoBadgeNewBgColor": "var(--color-brand)",
+        "cardProductInfoBadgeHotBgColor": "var(--color-brand)",
+        "cardProductInfoBadgePreorderBgColor": "var(--color-brand)",
+        "selectedFilterItemFillColor": "var(--color-brand)",
+        "selectedFilterItemTextColor": "var(--color-black)",
+        "selectedFilterItemBorderColor": "var(--color-brand)",
+    },
 }
 _V3_DISCOUNT_SHAPE = {
     "x_bakery": {"card": "outline-white"},
@@ -11162,28 +11266,28 @@ _V4_NATIVE_DISCOUNT = {
 }
 _V4_NATIVE_SHAPE = {
     "_base": {
-        ":root": {"inputRadius": {"value": 0, "unit": "px"}, "inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderRadius": {"value": 0, "unit": "px"}, "arrowsBorderWidth": {"value": 0, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 0, "unit": "px"}},
+        ":root": {"inputBorderRadius": {"value": 0, "unit": "px"}, "inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderRadius": {"value": 0, "unit": "px"}, "arrowsBorderWidth": {"value": 0, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 0, "unit": "px"}},
     },
     "alphafit": {
         ":root": {"inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderRadius": {"value": 50, "unit": "%"}, "arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
     },
     "brewcocoffee": {
-        ":root": {"inputRadius": {"value": 50, "unit": "px"}, "inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderRadius": {"value": 50, "unit": "px"}, "arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
+        ":root": {"inputBorderRadius": {"value": 50, "unit": "px"}, "inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderRadius": {"value": 50, "unit": "px"}, "arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
     },
     "brewhavencoffee": {":root": {"inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}}},
     "floating": {
         ":root": {"inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderRadius": {"value": 50, "unit": "px"}, "arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
     },
     "forma": {
-        ":root": {"inputRadius": {"value": 8, "unit": "px"}, "inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderRadius": {"value": 50, "unit": "%"}, "arrowsBorderWidth": {"value": 0, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 0, "unit": "px"}},
+        ":root": {"inputBorderRadius": {"value": 8, "unit": "px"}, "inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderRadius": {"value": 50, "unit": "%"}, "arrowsBorderWidth": {"value": 0, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 0, "unit": "px"}},
     },
     "kiara": {":root": {"inputBorderWidth": "0 0 1px 0", "arrowsBorderRadius": {"value": 99, "unit": "px"}, "arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}}},
     "neoorderly": {
-        ":root": {"inputRadius": {"xs": {"value": 8, "unit": "px"}, "lg": {"value": 8, "unit": "px"}, "2xl": {"value": 8, "unit": "px"}}, "inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderRadius": {"value": 8, "unit": "px"}, "arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
+        ":root": {"inputBorderRadius": {"xs": {"value": 8, "unit": "px"}, "lg": {"value": 8, "unit": "px"}, "2xl": {"value": 8, "unit": "px"}}, "inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderRadius": {"value": 8, "unit": "px"}, "arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
     },
     "peapea": {":root": {"arrowsBorderRadius": {"value": 50, "unit": "%"}, "arrowsBorderWidth": {"value": 2, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 2, "unit": "px"}}},
     "recta": {
-        ":root": {"inputRadius": {"value": 2, "unit": "px"}, "inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderRadius": {"value": 2, "unit": "px"}, "arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
+        ":root": {"inputBorderRadius": {"value": 2, "unit": "px"}, "inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderRadius": {"value": 2, "unit": "px"}, "arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
     },
     "shizuku": {":root": {"arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}}},
     "simplydelight": {":root": {"arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}}},
@@ -11195,7 +11299,10 @@ _V4_NATIVE_SHAPE = {
         ":root": {"inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderRadius": {"value": 0, "unit": "px"}, "arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
     },
     "ventura": {
-        ":root": {"inputRadius": {"value": 2, "unit": "px"}, "inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderRadius": {"value": 2, "unit": "px"}, "arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
+        ":root": {"inputBorderRadius": {"value": 4, "unit": "px"}, "inputBorderWidth": {"value": 1, "unit": "px"}, "arrowsBorderRadius": {"value": 2, "unit": "px"}, "arrowsBorderWidth": {"value": 1, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 1, "unit": "px"}},
+    },
+    "void": {
+        ":root": {"inputBorderRadius": {"value": 0, "unit": "px"}, "arrowsBorderRadius": {"xs": {"value": 9999, "unit": "px"}}, "arrowsBorderWidth": {"value": 0, "unit": "px"}, "arrowsHoverBorderWidth": {"value": 0, "unit": "px"}},
     },
 }
 _V3_ARROW_SHAPE = {
@@ -11383,6 +11490,14 @@ _V4_NATIVE_INVERSE_ARROWS = {
         "arrowsHoverBgColor": "transparent",
         "arrowsHoverBorderColor": "var(--color-neutral-subtle)",
         "arrowsHoverTextColor": "var(--color-neutral-subtle)",
+    },
+    "void": {
+        "arrowsBgColor": "transparent",
+        "arrowsBorderColor": "transparent",
+        "arrowsTextColor": "var(--color-neutral-boldest)",
+        "arrowsHoverBgColor": "var(--color-neutral-boldest)",
+        "arrowsHoverBorderColor": "transparent",
+        "arrowsHoverTextColor": "var(--color-neutral-subtlest)",
     },
 }
 _V3_ZONE_GROUND = {
@@ -11685,6 +11800,11 @@ _V4_NATIVE_SCHEME_GROUND = {
         "color-scheme-main-1": ["var(--color-neutral-subtlest)", "var(--color-neutral-bold)"],
         "color-scheme-inverse": ["var(--color-neutral-boldest)", "var(--color-neutral-subtlest)"],
     },
+    "void": {
+        "color-scheme-main": ["var(--color-neutral-boldest)", "var(--color-neutral-subtlest)"],
+        "color-scheme-inverse": ["var(--color-brand)", "var(--color-neutral-boldest)"],
+        "color-scheme-inverse-2": ["var(--color-neutral-subtlest)", "var(--color-neutral-bold)"],
+    },
 }
 _V4_NATIVE_THEMES = {
     "alphafit": {"theme_key": "alphafit", "name": "AlphaFit", "status": "public"},
@@ -11702,6 +11822,7 @@ _V4_NATIVE_THEMES = {
     "sunnergy": {"theme_key": "sunnergy", "name": "Sunnergy", "status": "public"},
     "varinthaispa": {"theme_key": "Varinthaispa", "name": "Varin Thai Spa", "status": "private"},
     "ventura": {"theme_key": "ventura", "name": "Ventura", "status": "private"},
+    "void": {"theme_key": "void", "name": "Void", "status": "public"},
 }
 _V3_INVERSE_ROLES = {
     "x_adminweb": {
@@ -14902,6 +15023,103 @@ _V4_NATIVE_INVERSE = {
         "buttonDisabledFillColor": "var(--color-neutral-subtle)",
         "inputIconColor": "var(--color-brand-subtlest)",
     },
+    "void": {
+        "bgColor": "var(--color-brand)",
+        "borderColor": "var(--color-neutral-bold)",
+        "textColor": "var(--color-neutral-boldest)",
+        "textSubtleColor": "var(--color-neutral-boldest)",
+        "titleTextColor": "var(--color-neutral-boldest)",
+        "captionTextColor": "var(--color-neutral-boldest)",
+        "descriptionTextColor": "var(--color-neutral-boldest)",
+        "linkDefaultColor": "var(--color-neutral-boldest)",
+        "linkDefaultHoverColor": "var(--color-brand-boldest)",
+        "linkAccentColor": "var(--color-neutral-boldest)",
+        "linkAccentHoverColor": "var(--color-neutral-subtlest)",
+        "buttonPrimaryFillColor": "var(--color-neutral-boldest)",
+        "buttonPrimaryBorderColor": "var(--color-neutral-boldest)",
+        "buttonPrimaryTextColor": "var(--color-neutral-subtlest)",
+        "buttonPrimaryHoverFillColor": "var(--color-neutral-subtlest)",
+        "buttonPrimaryHoverBorderColor": "var(--color-neutral-boldest)",
+        "buttonPrimaryHoverTextColor": "var(--color-neutral-boldest)",
+        "buttonSecondaryFillColor": "transparent",
+        "buttonSecondaryBorderColor": "var(--color-neutral-boldest)",
+        "buttonSecondaryTextColor": "var(--color-neutral-boldest)",
+        "buttonSecondaryHoverFillColor": "var(--color-neutral-subtlest)",
+        "buttonSecondaryHoverBorderColor": "var(--color-neutral-boldest)",
+        "buttonSecondaryHoverTextColor": "var(--color-neutral-boldest)",
+        "buttonGhostBorderColor": "transparent",
+        "buttonGhostTextColor": "var(--color-neutral-boldest)",
+        "buttonGhostHoverFillColor": "transparent",
+        "buttonGhostHoverBorderColor": "transparent",
+        "buttonGhostHoverTextColor": "var(--color-neutral-subtlest)",
+        "buttonDisabledFillColor": "var(--color-brand-bold)",
+        "buttonDisabledTextColor": "var(--color-neutral-bold)",
+        "tagDefaultBgColor": "transparent",
+        "tagDefaultBorderColor": "var(--color-neutral-boldest)",
+        "tagDefaultTextColor": "var(--color-neutral-boldest)",
+        "tagDefaultHoverBgColor": "var(--color-brand-subtlest)",
+        "tagDefaultHoverBorderColor": "var(--color-brand-boldest)",
+        "tagDefaultHoverTextColor": "var(--color-black)",
+        "tagAccentBgColor": "var(--color-neutral-boldest)",
+        "tagAccentBorderColor": "var(--color-neutral-boldest)",
+        "tagAccentTextColor": "var(--color-neutral-subtlest)",
+        "tagAccentHoverBgColor": "var(--color-brand-subtlest)",
+        "tagAccentHoverBorderColor": "var(--color-brand-subtlest)",
+        "tagAccentHoverTextColor": "var(--color-black)",
+        "arrowsBgColor": "transparent",
+        "arrowsBorderColor": "transparent",
+        "arrowsTextColor": "var(--color-neutral-boldest)",
+        "arrowsHoverBgColor": "var(--color-neutral-boldest)",
+        "arrowsHoverBorderColor": "transparent",
+        "arrowsHoverTextColor": "var(--color-neutral-subtlest)",
+        "sliderBulletsBgColor": "var(--color-brand-bold)",
+        "sliderBulletsHoverBgColor": "var(--color-brand-boldest)",
+        "sliderBulletsActiveBgColor": "var(--color-neutral-boldest)",
+        "inputBgColor": "#ffffff44",
+        "inputTextColor": "var(--color-neutral-boldest)",
+        "inputIconColor": "var(--color-neutral-boldest)",
+        "inputPlaceholderColor": "var(--color-brand-boldest)",
+        "inputFocusColor": "var(--color-neutral-subtlest)",
+        "inputBorderColor": "var(--color-neutral-subtle)",
+        "formTextColor": "var(--color-neutral-boldest)",
+        "listTabsBorderColor": "var(--color-neutral-boldest)",
+        "listTabBorderColor": "var(--color-neutral-boldest)",
+        "swiperPaginationColor": "var(--color-neutral-boldest)",
+        "swiperPaginationProgressbarBgColor": "var(--color-brand-boldest)",
+        "swiperPaginationFractionColor": "var(--color-neutral-boldest)",
+        "couponStubFillColor": "var(--color-neutral-boldest)",
+        "couponStubTextColor": "var(--color-neutral-subtlest)",
+        "cardProductNameColor": "var(--color-neutral-boldest)",
+        "cardProductPriceColor": "var(--color-neutral-boldest)",
+        "cardProductDiscountPriceColor": "var(--color-neutral-boldest)",
+        "cardProductRegularPriceColor": "#00000055",
+        "cardProductThumbnailBadgePreorderBgColor": "var(--color-neutral-boldest)",
+        "cardProductThumbnailBadgeHotBgColor": "var(--color-neutral-boldest)",
+        "cardProductThumbnailBadgeNewBgColor": "var(--color-neutral-boldest)",
+        "cardProductThumbnailBadgeSuggestBgColor": "var(--color-neutral-boldest)",
+        "cardProductThumbnailBadgeWholesaleBgColor": "var(--color-neutral-boldest)",
+        "cardProductThumbnailBadgeDiscountPercentBgColor": "var(--color-neutral-boldest)",
+        "cardProductThumbnailBadgeFlashSaleBgColor": "var(--color-neutral-boldest)",
+        "cardProductThumbnailBadgePreorderTextColor": "var(--color-neutral-subtlest)",
+        "cardProductThumbnailBadgeHotTextColor": "var(--color-white)",
+        "cardProductThumbnailBadgeNewTextColor": "var(--color-white)",
+        "cardProductThumbnailBadgeSuggestTextColor": "var(--color-white)",
+        "cardProductThumbnailBadgeWholesaleTextColor": "var(--color-white)",
+        "cardProductThumbnailBadgeDiscountPercentTextColor": "var(--color-white)",
+        "cardProductThumbnailBadgeFlashSaleTextColor": "var(--color-white)",
+        "cardProductInfoBadgePreorderTextColor": "var(--color-white)",
+        "cardProductInfoBadgeHotTextColor": "var(--color-white)",
+        "cardProductInfoBadgeNewTextColor": "var(--color-white)",
+        "cardProductInfoBadgeSuggestTextColor": "var(--color-white)",
+        "cardProductInfoBadgeWholesaleTextColor": "var(--color-white)",
+        "cardProductInfoBadgeDiscountPercentTextColor": "var(--color-white)",
+        "cardProductInfoBadgeDiscountPercentBgColor": "var(--color-black)",
+        "cardProductInfoBadgeWholesaleBgColor": "var(--color-neutral-boldest)",
+        "cardProductInfoBadgeSuggestBgColor": "var(--color-neutral-boldest)",
+        "cardProductInfoBadgeNewBgColor": "var(--color-neutral-boldest)",
+        "cardProductInfoBadgeHotBgColor": "var(--color-neutral-boldest)",
+        "cardProductInfoBadgePreorderBgColor": "var(--color-neutral-boldest)",
+    },
 }
 _V4_NATIVE_BLOG_CARD = {
     "_base": {"variant": "full-image"},
@@ -15159,6 +15377,23 @@ _V4_NATIVE_PALETTE = {
         "colorNeutralSubtle": "#eaeaed",
         "colorNeutralSubtlest": "#f5f5f5",
     },
+    "void": {
+        "colorBrand": "#3fc4c0",
+        "colorBrandAlt": "#5e2bff",
+        "colorBrandAltBold": "#450fc5",
+        "colorBrandAltBoldest": "#290e7b",
+        "colorBrandAltSubtle": "#a0a3f8",
+        "colorBrandAltSubtlest": "#daddff",
+        "colorBrandBold": "#1e928f",
+        "colorBrandBoldest": "#065d5b",
+        "colorBrandSubtle": "#9de0dd",
+        "colorBrandSubtlest": "#d7f2f0",
+        "colorNeutral": "#555555",
+        "colorNeutralBold": "#242424",
+        "colorNeutralBoldest": "#000000",
+        "colorNeutralSubtle": "#dddddd",
+        "colorNeutralSubtlest": "#ffffff",
+    },
 }
 # --- END gen_scheme_roles ---
 
@@ -15242,6 +15477,7 @@ _V4_NATIVE_CARD = {
     "sunnergy": {"cardProductThumbnailBorderRadius": {"value": 4, "unit": "px"}, "cardProductInfoPadding": {"xs": {"value": 20, "unit": "px"}, "lg": {"value": 20, "unit": "px"}}},
     "varinthaispa": {"cardProductBorderRadius": "0px", "cardProductThumbnailBorderRadius": "4px", "cardProductInfoPadding": "20px"},
     "ventura": {"cardProductBorderRadius": {"lg": {"value": 0, "unit": "px"}, "xs": {"value": 0, "unit": "px"}}, "cardProductBgColor": "transparent", "cardProductThumbnailBgColor": "var(--bg-color)", "nameTypoStyle": "typo_heading_medium_bold", "priceTypoStyle": "typo_paragraph_medium", "regularPriceTypoStyle": "typo_paragraph_medium", "codeTypoStyle": "typo_heading_xsmall"},
+    "void": {"cardProductNameColor": "var(--color-neutral-subtlest)", "cardProductPriceColor": "var(--color-neutral-subtlest)", "cardProductDiscountPriceColor": "var(--color-neutral-subtlest)", "cardProductRegularPriceColor": "#ffffff55", "cardProductBorderRadius": {"xs": {"value": 0, "unit": "px"}, "lg": {"value": 0, "unit": "px"}}, "cardProductBorderWidth": {"value": 0, "unit": "px"}, "cardProductBgColor": "transparent"},
 }
 # --- END gen_card_v3 ---
 
@@ -15590,9 +15826,9 @@ def _main_scheme_by_role(colors, v3_theme, v4_theme, new_root, v3_style=True,
 #: to 4px outside the slick mixin. Every other arrow comes from
 #: `_V3_ARROW_SHAPE`.
 _V3_SHAPE_HAND = {
-    "x_julie": {"inputRadius": 999},
+    "x_julie": {"inputBorderRadius": 999},
     "x_orderly": {"arrowsBorderRadius": 4},
-    "x_cozy_fw": {"inputRadius": 999},
+    "x_cozy_fw": {"inputBorderRadius": 999},
 }
 
 
@@ -15602,7 +15838,7 @@ def _v3_control_shape(tid):
     border), then the theme's own radius and border registries -- the same
     ones theme mode writes."""
     px = lambda n: {"value": n, "unit": "px"}  # noqa: E731
-    out = {"inputRadius": px(_V3_DEFAULT_INPUT_RADIUS), "inputBorderWidth": px(1),
+    out = {"inputBorderRadius": px(_V3_DEFAULT_INPUT_RADIUS), "inputBorderWidth": px(1),
            "arrowsBorderRadius": px(0), "arrowsBorderWidth": px(0),
            "arrowsHoverBorderWidth": px(0)}
     # the arrow: the palette's slick mixin, which v3's base theme CSS applies
@@ -15615,8 +15851,8 @@ def _v3_control_shape(tid):
     root = {}
     _apply_theme_radius(tid, root)
     if tid in _THEME_INPUT_RADIUS_ZERO:
-        out["inputRadius"] = px(0)
-    for k in ("inputRadius", "arrowsBorderRadius"):
+        out["inputBorderRadius"] = px(0)
+    for k in ("inputBorderRadius", "arrowsBorderRadius"):
         if k in root:
             out[k] = root[k]
     if tid in _THEME_ARROWS_BORDER_WIDTH:
@@ -15753,6 +15989,7 @@ _V4_NATIVE_BLOG_STYLE = {
     "spaceandstroll": {":root cardPadding": {"xs": {"value": 20, "unit": "px"}, "lg": {"value": 28, "unit": "px"}}},
     "sunnergy": {".widget-blog-list cardPadding": {"xs": {"value": 0, "unit": "px"}, "lg": {"value": 0, "unit": "px"}}, "titleTypoStyle": "typo_paragraph_medium_bold"},
     "ventura": {":root cardPadding": {"xs": {"value": 24, "unit": "px"}, "lg": {"value": 32, "unit": "px"}}, ".widget-blog-list cardPadding": {"xs": {"value": 0, "unit": "px"}}, "dateTypoStyle": "typo_paragraph_small", "descriptionTypoStyle": "typo_paragraph_small"},
+    "void": {".widget-blog-list bgColor": "transparent", ".widget-blog-list cardBorderTopWidth": {"value": 1, "unit": "px"}, ".widget-blog-list cardBorderRightWidth": {"value": 1, "unit": "px"}, ".widget-blog-list cardBorderBottomWidth": {"value": 1, "unit": "px"}, ".widget-blog-list cardBorderLeftWidth": {"value": 1, "unit": "px"}, "dateTypoStyle": "typo_paragraph_small"},
 }
 # --- END gen_blog_card_v3 ---
 
@@ -17658,11 +17895,11 @@ _THEME_TAG_BORDER_WIDTH = {
 #   "button" -> buttonSmall/Medium/LargeBorderRadius  (v4 buckets by SIZE, v3
 #               by FAMILY, so one v3 value fills all three -- faithful for
 #               every theme except x_petfriendly, see its note)
-#   "tag"    -> tagRadius       (v4-base default 4px, so an explicit 0 is a
+#   "tag"    -> tagBorderRadius       (v4-base default 4px, so an explicit 0 is a
 #                                real change and IS listed)
-#   "input"  -> inputRadius     (v4-base default 0px). Sourced from v3's
+#   "input"  -> inputBorderRadius     (v4-base default 0px). Sourced from v3's
 #               DROPDOWN (`.selectBox`/`select`), never its header search box.
-#               Decided 2026-08-11: v4 has ONE inputRadius for every input
+#               Decided 2026-08-11: v4 has ONE inputBorderRadius for every input
 #               while v3 styles the two separately and they genuinely disagree
 #               on 5 themes (cha/mixednuts/petestate/seat 20px search vs 4px
 #               dropdown; petfriendly 30 vs 15). Following the search box also
@@ -17675,7 +17912,7 @@ _THEME_TAG_BORDER_WIDTH = {
 #               x_playground) therefore gets no value at :root -- it goes to
 #               "search" below instead.
 #   "search" -> GONE (2026-08-17). It briefly carried `.widget-search-form`'s own
-#               `inputRadius` so the search box could keep v3's value while :root
+#               `inputBorderRadius` so the search box could keep v3's value while :root
 #               carried the form field; the search box now just inherits :root
 #               instead, because v3 rounds it on every theme as a house style
 #               rather than a design choice. See `_THEME_SEARCH_FORM`'s comment.
@@ -17705,7 +17942,7 @@ _THEME_TAG_BORDER_WIDTH = {
 #                  design choice, and the user's call is that it should simply not
 #                  be carried into v4: *"v3 search input จะเป็น pill เสมอ ซึ่งจริงๆ
 #                  ไม่ต้องดึงอันนี้มาใน v4 ก็ได้"*. With no `radius` key the widget
-#                  inherits `:root`'s `inputRadius`, so the search box now matches
+#                  inherits `:root`'s `inputBorderRadius`, so the search box now matches
 #                  whatever the rest of the theme's form fields do -- pill if they
 #                  are pills, square if they are square.
 #
@@ -17713,7 +17950,7 @@ _THEME_TAG_BORDER_WIDTH = {
 #                  the 11 explicit `radius: 0` entries added on 2026-08-14 existed
 #                  only to cancel `_V3_DEFAULT_INPUT_RADIUS` for search boxes, and
 #                  x_bakery's and x_cha's `999` came from live-demo QA. All gone.
-#                  `:root`'s `inputRadius` is unaffected -- that is about general
+#                  `:root`'s `inputBorderRadius` is unaffected -- that is about general
 #                  form fields and still stands.
 # `borderColor` <- v3 `.searchInput { border-color }`, but ONLY where it is a real
 #                  per-theme value. The literal `#ddd` was dropped from all 15
@@ -17767,7 +18004,7 @@ _THEME_SEARCH_FORM = {
 # repo -- Global.css and the theme partials both carry no such rule, so it can't
 # be corroborated from `v3/` and is taken on the user's authority.
 #
-# It matters because v4-base's `inputRadius` is **0**, so the two platforms
+# It matters because v4-base's `inputBorderRadius` is **0**, so the two platforms
 # disagree on the do-nothing case: a theme that never mentions an input radius
 # renders 5px in v3 and square in v4. Emitting 5px is therefore the faithful
 # output, not an invention -- the inverse of the usual "restates the base
@@ -17784,7 +18021,7 @@ _V3_DEFAULT_INPUT_RADIUS = 5
 # Verified 2026-08-14 with a nesting-aware scan of all 29 published themes
 # (an earlier flat-regex scan mis-read these files, which nest heavily):
 #   x_plaza    `.productBuyArea > .pro-select > .selectBox: 0` -- the dropdown,
-#              i.e. the exact element `inputRadius` is sourced from elsewhere.
+#              i.e. the exact element `inputBorderRadius` is sourced from elsewhere.
 #   x_borsa }  `.contactusBox > input,textarea: 0` -- the contact form rather
 #   x_downtown} than the dropdown, but it is still the only statement either
 #              theme makes about input shape, and it says square.
@@ -17957,7 +18194,7 @@ _THEME_RADIUS = {
     # theme-wide value). Arrow radius is in a dead mixin -- not set.
     "x_oasis": {"button": 2, "tag": 16, "input": 2, "listTab": 30},
     # x_periwinkle: one `var(--border_radius)` = 4px everywhere. tag is
-    # deliberately absent -- 4px IS v4-base's tagRadius default, nothing to say.
+    # deliberately absent -- 4px IS v4-base's tagBorderRadius default, nothing to say.
     "x_periwinkle": {"button": 4, "input": 4, "arrows": 999},
     # x_petfriendly: looked like THE per-family exception -- `--button_lightBG_style`
     # 50px, `--sbutton_lightBG_style` 20px, `--tbutton_lightBG_style` 30px, all
@@ -18090,8 +18327,8 @@ _THEME_WIDGET_STYLE_OVERRIDES = {
     # demo.
     #
     # `quantityButtonBorderRadius: 4` was briefly dropped as redundant against
-    # this theme's 5px `inputRadius`, then restored: **dropping it does not fall
-    # back to `inputRadius`.** v4-base has no `.widget-product-summary` block
+    # this theme's 5px `inputBorderRadius`, then restored: **dropping it does not fall
+    # back to `inputBorderRadius`.** v4-base has no `.widget-product-summary` block
     # and no `quantityButtonBorderRadius` at `:root`, so an omitted value
     # resolves to v4's own component default -- a number that does not exist
     # anywhere in this repo and cannot be checked from here. Stating the CSS's
@@ -22529,7 +22766,7 @@ def _apply_search_form(theme_id: str, style: dict) -> None:
         # one radius for every width, so leaving `xs` out would silently fall
         # back to :root and make mobile disagree with desktop for no reason.
         px = {"value": spec["radius"], "unit": "px"}
-        block["inputRadius"] = {"xs": dict(px), "lg": dict(px)}
+        block["inputBorderRadius"] = {"xs": dict(px), "lg": dict(px)}
     if "borderWidth" in spec:
         block["inputBorderWidth"] = {"value": spec["borderWidth"], "unit": "px"}
     for key, token in (("borderColor", "inputBorderColor"),
@@ -22552,7 +22789,7 @@ def _apply_theme_radius(theme_id: str, root: dict) -> None:
     if "input" not in spec and theme_id not in _THEME_INPUT_RADIUS_ZERO:
         # v3's platform default -- see `_V3_DEFAULT_INPUT_RADIUS`. Applied here
         # rather than written into 16 registry entries so the rule is stated once.
-        root["inputRadius"] = {"value": _V3_DEFAULT_INPUT_RADIUS, "unit": "px"}
+        root["inputBorderRadius"] = {"value": _V3_DEFAULT_INPUT_RADIUS, "unit": "px"}
     if not spec:
         return
     if "button" in spec:
@@ -22560,7 +22797,7 @@ def _apply_theme_radius(theme_id: str, root: dict) -> None:
         root["buttonSmallBorderRadius"] = dict(size)
         root["buttonMediumBorderRadius"] = dict(size)
         root["buttonLargeBorderRadius"] = dict(size)
-    for key, token in (("tag", "tagRadius"), ("input", "inputRadius"),
+    for key, token in (("tag", "tagBorderRadius"), ("input", "inputBorderRadius"),
                        ("arrows", "arrowsBorderRadius"),
                        ("listTab", "listTabBorderRadius")):
         if key in spec:
