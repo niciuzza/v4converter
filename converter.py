@@ -26,8 +26,8 @@ from urllib.parse import quote, unquote
 # so the log stays tied to what the converter can actually do.
 # ---------------------------------------------------------------------------
 
-__version__ = "1.107"
-LAST_UPDATED = "2026-11-19"
+__version__ = "1.108"
+LAST_UPDATED = "2026-11-20"
 
 # Short summary of what the converter handles — shown in the browser popup.
 # Plain strings; inline HTML (e.g. <code>) is allowed for rendering there.
@@ -41,6 +41,11 @@ CAPABILITIES = [
 # Backend changelog, newest first. Add an entry + bump __version__ whenever
 # conversion behavior changes.
 CHANGELOG = [
+    {"version": "1.108", "type": "fix", "date": "2026-11-20", "items": [
+        "<b>Custom HTML ที่มีแต่ข้อความ ไม่หายแล้ว</b> — section Custom HTML ที่ช่อง HTML ว่าง แต่ร้านใส่หัวข้อ/คำอธิบายไว้ "
+        "เดิมได้ widget Custom HTML เปล่าและข้อความหายทั้งก้อน ตอนนี้แปลงเป็น <code>TextStack</code> แบบเดียวกับ ParagraphSection "
+        "(หัวข้อเป็น heading · คำอธิบายแยกย่อหน้า จัดวางตาม descriptionStyle) · section ที่มีโค้ด HTML ยังเป็น widget Custom HTML พร้อมคำเตือนเหมือนเดิม",
+    ]},
     {"version": "1.107", "type": "feat", "date": "2026-11-19", "items": [
         "<b>ธีม v3 ที่ยังไม่มีคู่ ได้ธีม v4 ของตัวเองแล้ว 1 ธีม</b> — เดิมไปลง Base "
         "ตอนนี้ได้ธีมที่ทำจาก v3 แล้วออกแบบต่อใน v4 (ดูตารางจับคู่ใน converter.py) · scheme ของ header/footer เลือกตามธีมนี้",
@@ -23359,11 +23364,35 @@ def _customhtml_nickname(props: dict) -> str:
     return title or "Custom HTML"
 
 
+def _customhtml_is_text(props: dict) -> bool:
+    """True when a CustomHtmlSection carries no HTML but has a title or description.
+
+    The section has the same `title` / `description` / `isDescriptionHtml` /
+    `*Style` fields a ParagraphSection has, and a shop can fill those and leave
+    `customHtml` empty -- one real shop's whole /about text (1,296 characters)
+    lives there. The empty widget used to drop it in silence, with a warning to
+    paste HTML that did not exist (user, 2026-11-20: convert it to a TextStack).
+    A title alone counts too -- it becomes a heading, because with no HTML there
+    is nothing for a CustomHtml widget to hold (user, same day).
+    """
+    if (props.get("customHtml") or "").strip():
+        return False
+    return bool((props.get("title") or "").strip()
+                or (props.get("description") or "").strip())
+
+
 def build_customhtml_section(props: dict) -> dict:
     """CustomHtmlSection → a section holding an EMPTY WidgetCustomHtml
     (renderMode "inline"). The v3 `customHtml` string is intentionally NOT
     embedded — v4 stores custom HTML in the shop's manage area, so the designer
-    must paste it there (convert_section emits a warning saying so)."""
+    must paste it there (convert_section emits a warning saying so).
+
+    A section with no HTML but a title/description is text, and is built the
+    way ParagraphSection builds it -- see `_customhtml_is_text`."""
+    if _customhtml_is_text(props):
+        section = build_paragraph_section(props)
+        section["nickname"] = (props.get("title") or "").strip() or None
+        return section
     nickname = _customhtml_nickname(props)
     widget = make_node("widget", "WidgetCustomHtml", nickname, {"renderMode": "inline"})
     section = _simple_section([widget])
@@ -24514,7 +24543,8 @@ def convert_section(old_json: dict, warnings: list = None) -> dict:
     # CustomHtml: the widget is empty by design — the v3 HTML is not embedded
     # (v4 keeps custom HTML in the shop's manage area). Warn so the designer
     # knows to paste it there.
-    if name == "CustomHtmlSection" and warnings is not None:
+    if (name == "CustomHtmlSection" and warnings is not None
+            and not _customhtml_is_text(props)):
         nickname = (result or {}).get("nickname") or "Custom HTML"
         cls  = (props.get("className") or "").strip()
         hint = f" (class: {cls})" if cls else ""
