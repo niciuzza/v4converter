@@ -134,6 +134,7 @@
   .mode-btn + .mode-btn{border-left:1px solid var(--border-strong)}
   .mode-btn:hover{background:var(--hover)}
   .mode-btn.active{background:var(--accent);color:#fff}
+  .input-pane.pane-off{opacity:.4}
   .mode-hint{font-size:11px;color:var(--muted-2);line-height:1.4}
 
   /* ── OUTPUT ────────────────────────────────────────────────────────── */
@@ -287,11 +288,11 @@
         </div>
       </div>
 
-      <div class="input-pane">
+      <div class="input-pane" id="v4Pane">
         <div class="panel-head">
           <div class="out-head-left">
             <span class="label">INPUT 2</span>
-            <span class="badge">v4 · base (มี id/ukey)</span>
+            <span class="badge">v4 · base (มี id/ukey) — ทั้งเว็บ / หน้า / section</span>
           </div>
           <div class="panel-head-right">
             <button class="ghost-btn" id="pasteV4" type="button">วาง</button>
@@ -317,8 +318,9 @@
             <button class="mode-btn active" id="modeAppendBtn" type="button" data-mode="append">ต่อท้าย</button>
             <button class="mode-btn" id="modeReplaceBtn" type="button" data-mode="replace">แทนที่</button>
             <button class="mode-btn" id="modeMigrateBtn" type="button" data-mode="migrate">ย้ายร้าน</button>
+            <button class="mode-btn" id="modeClearBtn" type="button" data-mode="clear">ล้าง id</button>
           </div>
-          <span class="mode-hint" id="modeHint">หน้า/zone ที่มีทั้งคู่: เพิ่มเนื้อหา v3 เข้าไปตามลำดับของ v3 (ไม่ทับของเดิม)</span>
+          <span class="mode-hint" id="modeHint">หน้า/zone/section ที่มีทั้งคู่: เพิ่มเนื้อหา v3 เข้าไปตามลำดับของ v3 (ไม่ทับของเดิม)</span>
         </div>
         <div class="foot-row">
           <span class="foot-meta" id="inputMeta">v3: 0 · v4: 0 บรรทัด</span>
@@ -391,7 +393,7 @@
 
       <div class="placeholder" id="idleState">
         <div class="placeholder-icon">{ ⇄ }</div>
-        <div class="placeholder-text">วาง <strong>v3 (converter output)</strong> ที่ช่องบน และ <strong>v4 base</strong> ที่ช่องล่าง<br>แล้วกด <strong>รวมโค้ด</strong></div>
+        <div class="placeholder-text">วาง <strong>v3 (converter output)</strong> ที่ช่องบน และ <strong>v4 base</strong> ที่ช่องล่าง<br>แล้วกด <strong>รวมโค้ด</strong><br>วางได้ทั้งโค้ดทั้งเว็บ, หน้าเดียว หรือ section — ผลลัพธ์เป็นระดับเดียวกับช่อง v4</div>
       </div>
 
     </section>
@@ -515,7 +517,7 @@
   function saveTheme(t) { try { localStorage.setItem(THEME_KEY, t); } catch (_) {} }
 
   const MODE_KEY = "mergecode_mode";
-  const MODES = ["append", "replace", "migrate"];
+  const MODES = ["append", "replace", "migrate", "clear"];
   function loadMergeMode() {
     try { const v = localStorage.getItem(MODE_KEY); if (MODES.includes(v)) return v; } catch (_) {}
     return "append";
@@ -533,20 +535,24 @@
   };
 
   const MODE_HINTS = {
-    append: "หน้า/zone ที่มีทั้งคู่: เพิ่มเนื้อหา v3 เข้าไปตามลำดับของ v3 (ไม่ทับของเดิม)",
-    replace: "หน้า/zone ที่มีทั้งคู่: ใช้เนื้อหาจาก v3 เท่านั้น ตัดของ v4 ทิ้ง (หน้าที่มีแค่ใน v4 ไม่โดนแตะ)",
+    append: "หน้า/zone/section ที่มีทั้งคู่: เพิ่มเนื้อหา v3 เข้าไปตามลำดับของ v3 (ไม่ทับของเดิม)",
+    replace: "หน้า/zone/section ที่มีทั้งคู่: ใช้เนื้อหาจาก v3 เท่านั้น ตัดของ v4 ทิ้ง (หน้าที่มีแค่ใน v4 ไม่โดนแตะ)",
+    clear: "ไม่ต้องใช้ช่อง v4: ล้าง id/ukey, formId และค่าที่ผูกกับร้านเดิมออกจากโค้ดช่อง INPUT 1 (ค่าตั้งค่าใน info ยังอยู่ครบ) เอาไปวางร้านใหม่ได้",
     migrate: "ย้ายเนื้อหาข้ามร้าน: ช่อง INPUT 1 เป็น v4 export ของร้านเดิม (มี id ร้านเดิมติดมา) — ตัด id นั้นออกทั้งหมดก่อน แล้วใช้แทนเนื้อหาของร้านปลายทาง โดยคง id ของร้านปลายทางไว้",
   };
   const INPUT1_BADGE = {
     append: "v3 · จาก converter (มีเนื้อหา, ไม่มี id)",
     replace: "v3 · จาก converter (มีเนื้อหา, ไม่มี id)",
     migrate: "ร้านเดิม · v4 export (มี id ร้านเดิม — จะถูกตัดออก)",
+    clear: "v4 export ที่จะล้าง id — ทั้งเว็บ / หน้า / section",
   };
   function applyMergeMode(m) {
     state.mergeMode = m;
     $("modeAppendBtn").classList.toggle("active", m === "append");
     $("modeReplaceBtn").classList.toggle("active", m === "replace");
     $("modeMigrateBtn").classList.toggle("active", m === "migrate");
+    $("modeClearBtn").classList.toggle("active", m === "clear");
+    $("v4Pane").classList.toggle("pane-off", m === "clear");
     $("modeHint").textContent = MODE_HINTS[m];
     $("input1Badge").textContent = INPUT1_BADGE[m];
   }
@@ -675,12 +681,44 @@
     );
     return JSON.parse(pyodide.globals.get("_out_json"));  // { merged, warns:[str] }
   }
+  function runClearPython(data) {
+    pyodide.globals.set("_in_json", JSON.stringify(data));
+    pyodide.runPython(
+      "import json\n" +
+      "_m, _w = clear_ids(json.loads(_in_json))\n" +
+      "_out_json = json.dumps({'merged': _m, 'warns': _w}, ensure_ascii=False)"
+    );
+    return JSON.parse(pyodide.globals.get("_out_json"));
+  }
 
-  // ── Output nav (reused shape logic, output is always a v4 site) ────
+  // ── Output nav — the result is at the v4 box's level (merge 1.9) ───
+  const isPage = (d) => !!(d && typeof d === "object" && d.component && typeof d.component === "object");
   function detectResultMode(data) {
-    if (Array.isArray(data)) return "pages";
-    if (data && typeof data === "object" && Array.isArray(data.pages)) return "site";
+    if (Array.isArray(data)) return (data.length && data.every(isPage)) ? "pages" : "sections";
+    if (data && typeof data === "object") {
+      if (Array.isArray(data.pages)) return "site";
+      if (isPage(data) || (data.type === "page" && Array.isArray(data.children))) return "page";
+      if (data.type === "section") return "sections";
+    }
     return "fixed";
+  }
+  // The section list a page/sections result shows in the sidebar.
+  function sectionList() {
+    const r = state.result;
+    if (state.resultMode === "sections") return Array.isArray(r) ? r : [r];
+    if (state.resultMode === "page") { const c = isPage(r) ? r.component : r; return Array.isArray(c.children) ? c.children : []; }
+    return [];
+  }
+  function sectionPath(i) {
+    const r = state.result;
+    if (state.resultMode === "sections") return Array.isArray(r) ? `$[${i}]` : "$";
+    return isPage(r) ? `$.component.children[${i}]` : `$.children[${i}]`;
+  }
+  function pageMeta(pg) {
+    const path  = pg && pg.path ? pg.path : "";
+    const nSec  = (pg && pg.component && Array.isArray(pg.component.children)) ? pg.component.children.length : 0;
+    const idTag = (pg && (pg.id === null || pg.id === undefined)) ? "new" : String(pg.id);
+    return `${path} · ${nSec}§ · #${idTag}`;
   }
 
   function buildNav() {
@@ -702,6 +740,22 @@
         const idTag = (pg && (pg.id === null || pg.id === undefined)) ? "new" : String(pg.id);
         const meta  = `${path} · ${nSec}§ · #${idTag}`;
         items.push({ key: `page:${i}`, label, meta, icon: String(i + 1).padStart(2, "0"), iconColor: "var(--c-num)" });
+      });
+      return items;
+    }
+    if (state.resultMode === "pages") {
+      items.push({ heading: true, label: "PAGES", count: r.length });
+      r.forEach((pg, i) => items.push({ key: `page:${i}`, label: pg.nickname || pg.path || `Page ${i + 1}`,
+        meta: pageMeta(pg), icon: String(i + 1).padStart(2, "0"), iconColor: "var(--c-num)" }));
+      return items;
+    }
+    if (state.resultMode === "page" || state.resultMode === "sections") {
+      const secs = sectionList();
+      items.push({ heading: true, label: "SECTIONS", count: secs.length });
+      secs.forEach((sc, i) => {
+        const idTag = (sc && sc.id != null) ? `#${sc.id}` : "new";
+        const label = (sc && (sc.nickname || sc.kind)) || `Section ${i + 1}`;
+        items.push({ key: `sec:${i}`, label, meta: idTag, icon: String(i + 1).padStart(2, "0"), iconColor: "var(--c-num)" });
       });
       return items;
     }
@@ -735,7 +789,11 @@
     const r = state.result, sel = state.selected;
     if (sel === "all") return { slice: r, path: "$" };
     if (sel === "pages") return { slice: r.pages, path: "$.pages" };
-    if (sel.startsWith("page:")) { const i = parseInt(sel.slice(5), 10); return { slice: r.pages[i], path: `$.pages[${i}]` }; }
+    if (sel.startsWith("page:")) {
+      const i = parseInt(sel.slice(5), 10);
+      return state.resultMode === "pages" ? { slice: r[i], path: `$[${i}]` } : { slice: r.pages[i], path: `$.pages[${i}]` };
+    }
+    if (sel.startsWith("sec:")) { const i = parseInt(sel.slice(4), 10); return { slice: sectionList()[i], path: sectionPath(i) }; }
     return { slice: { [sel]: r[sel] }, path: `$.${sel}` };
   }
   function sliceMetaText() {
@@ -745,9 +803,13 @@
       const totalSections = (r.pages || []).reduce((a, p) => a + ((p && p.component && p.component.children) ? p.component.children.length : 0), 0);
       return `5 sections · ${pages} pages · ${totalSections} widgets`;
     }
+    if (sel === "all" && state.resultMode === "pages") return `${r.length} pages`;
+    if (sel === "all" && state.resultMode === "page") return `1 page · ${sectionList().length} sections`;
+    if (sel === "all" && state.resultMode === "sections") return `${sectionList().length} sections`;
+    if (sel.startsWith("sec:")) return "1 section";
     if (sel === "pages") { const arr = r.pages || []; return `${arr.length} pages`; }
     if (sel.startsWith("page:")) {
-      const pg = r.pages[parseInt(sel.slice(5), 10)];
+      const pg = (state.resultMode === "pages" ? r : r.pages)[parseInt(sel.slice(5), 10)];
       const w = pg && pg.component && Array.isArray(pg.component.children) ? pg.component.children.length : 0;
       return `1 page · ${w} sections`;
     }
@@ -830,7 +892,7 @@
     let v3data, v4data;
     try {
       v3data = parseInput(v3Cm.getValue(), "INPUT 1 (v3)");
-      v4data = parseInput(v4Cm.getValue(), "INPUT 2 (v4 base)");
+      if (state.mergeMode !== "clear") v4data = parseInput(v4Cm.getValue(), "INPUT 2 (v4 base)");
     } catch (e) {
       $("errRow").classList.remove("hidden");
       $("errLoc").textContent = (e.parse && e.parse.loc) || "";
@@ -840,7 +902,8 @@
     }
     setStatus("Merging…", "loading");
     try {
-      const { merged, warns } = runMergePython(v3data, v4data, state.mergeMode);
+      const { merged, warns } = state.mergeMode === "clear"
+        ? runClearPython(v3data) : runMergePython(v3data, v4data, state.mergeMode);
       state.result = merged;
       state.resultMode = detectResultMode(merged);
       state.mergeLog = (warns || []).map(msg => ({ kind: /^\s*⚠/.test(msg) ? "warn" : "info", msg }));
